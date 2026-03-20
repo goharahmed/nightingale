@@ -1,7 +1,7 @@
 mod cache;
 mod config;
-mod stats;
+mod profile;
 
-pub use cache::{clear_models, clear_videos};
+pub use cache::{CacheStats, clear_models, clear_videos};
 pub use config::AppConfig;
-pub use stats::CacheStats;
+pub use profile::ProfileStore;

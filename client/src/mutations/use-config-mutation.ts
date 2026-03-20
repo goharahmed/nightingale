@@ -1,5 +1,6 @@
+import { CONFIG } from '@/queries/keys';
 import { useConfig } from '@/queries/use-config';
-import { saveConfig } from '@/tauri-bridge/saveConfig';
+import { saveConfig } from '@/tauri-bridge/config';
 import { AppConfig } from '@/types/AppConfig';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -17,7 +18,7 @@ export const useConfigMutation = () => {
       return saveConfig({ ...config, ...partialConfig });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['config'] });
+      queryClient.invalidateQueries({ queryKey: CONFIG });
     },
     onError: (error: Error) => {
       toast.error(`Error updating the local config: ${error.message}`);

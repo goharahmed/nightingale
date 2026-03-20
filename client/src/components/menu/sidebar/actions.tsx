@@ -14,6 +14,7 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { useClearCache } from '@/hooks/use-clear-cache';
+import { useCurrentProfile } from '@/hooks/use-current-profile';
 import { useDialog } from '@/hooks/use-dialog';
 import { useConfigMutation } from '@/mutations/use-config-mutation';
 import { useTheme } from '@/providers/theme/ThemeProvider';
@@ -37,6 +38,7 @@ export const Actions = () => {
 
   const clearCache = useClearCache();
   const { mutate } = useConfigMutation();
+  const profile = useCurrentProfile();
 
   const { ThemeIcon, themeLabel } = useMemo(() => {
     return theme === 'dark'
@@ -54,9 +56,13 @@ export const Actions = () => {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar>
-                <AvatarFallback>TS</AvatarFallback>
+                <AvatarFallback>
+                  {profile ? profile.slice(0, 2).toLocaleUpperCase() : 'NP'}
+                </AvatarFallback>
               </Avatar>
-              <span className="truncate font-medium">Username</span>
+              <span className="truncate font-medium">
+                {profile ?? 'No Selected Profile'}
+              </span>
               <ChevronsUpDownIcon className="ml-auto size-4" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
@@ -79,7 +85,15 @@ export const Actions = () => {
             <DropdownMenuSeparator />
             <DropdownMenuLabel>General</DropdownMenuLabel>
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => setMode('select-profile')}>
+              <DropdownMenuItem
+                onClick={() => {
+                  if (profile) {
+                    return setMode('select-profile');
+                  }
+
+                  setMode('create-profile');
+                }}
+              >
                 <UserIcon />
                 Profile
               </DropdownMenuItem>

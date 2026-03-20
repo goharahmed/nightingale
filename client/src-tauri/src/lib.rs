@@ -1,36 +1,12 @@
-use app_core::{clear_models, clear_videos, AppConfig, CacheStats};
+mod cache;
+mod config;
+mod profile;
+
+use app_core::AppConfig;
+use cache::{calculate_cache_stats, clear_all, clear_models_command, clear_videos_command};
+use config::{load_config, save_config};
+use profile::{create_profile, delete_profile, load_profiles, switch_profile};
 use tauri::Manager;
-
-#[tauri::command]
-fn load_config() -> AppConfig {
-    AppConfig::load()
-}
-
-#[tauri::command]
-fn calculate_cache_stats() -> CacheStats {
-    CacheStats::calculate()
-}
-
-#[tauri::command]
-fn save_config(config: AppConfig) {
-    config.save();
-}
-
-#[tauri::command]
-fn clear_videos_command() {
-    clear_videos();
-}
-
-#[tauri::command]
-fn clear_models_command() {
-    clear_models();
-}
-
-#[tauri::command]
-fn clear_all() {
-    clear_models();
-    clear_videos();
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -38,12 +14,19 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
+            // Config
             load_config,
             save_config,
+            // Cache
             calculate_cache_stats,
             clear_videos_command,
             clear_models_command,
-            clear_all
+            clear_all,
+            // Profile
+            load_profiles,
+            switch_profile,
+            create_profile,
+            delete_profile
         ])
         .setup(|app| {
             let config = AppConfig::load();

@@ -1,0 +1,18 @@
+import { ProfileStore } from '@/types/ProfileStore';
+import { invoke } from '@tauri-apps/api/core';
+
+export const loadProfiles = async (): Promise<ProfileStore> => {
+  return await invoke<ProfileStore>('load_profiles');
+};
+
+export const createProfile = async (name: string): Promise<void> => {
+  return await invoke<void>('create_profile', { name });
+};
+
+export const switchProfile = async (name: string): Promise<void> => {
+  return await invoke<void>('switch_profile', { name });
+};
+
+export const deleteProfile = async (name: string): Promise<void> => {
+  return await invoke<void>('delete_profile', { name });
+};

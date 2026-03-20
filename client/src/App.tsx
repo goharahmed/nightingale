@@ -13,9 +13,7 @@ import { LoadingScreen } from './components/shared/loading-screen';
 const queryClient = new QueryClient();
 
 const Wrapper = () => {
-  const { data: config } = useConfig();
-
-  const { isLoading, error } = useConfig();
+  const { data: config, isLoading, error } = useConfig();
 
   if (isLoading) {
     return <LoadingScreen />;
