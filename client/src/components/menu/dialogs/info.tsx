@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
-import { useInfoDialog } from '@/hooks/use-info-dialog';
+import { useDialog } from '@/hooks/use-dialog';
 import { openUrl } from '@tauri-apps/plugin-opener';
 
 const GithubIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -34,10 +34,10 @@ const attributions = [
 ];
 
 export const InfoDialog = () => {
-  const { open, setOpen } = useInfoDialog();
+  const { mode, close } = useDialog();
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={mode === 'about'} onOpenChange={close}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-2xl">Nightingale</DialogTitle>
@@ -81,7 +81,7 @@ export const InfoDialog = () => {
           </Table>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
+          <Button variant="outline" onClick={close}>
             Close
           </Button>
         </DialogFooter>

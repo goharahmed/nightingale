@@ -18,22 +18,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useProfileDialog } from '@/hooks/use-profile-dialog';
+import { useDialog } from '@/hooks/use-dialog';
 
 export const SelectProfileDialog = () => {
-  const { mode, setMode } = useProfileDialog();
+  const { mode, close, setMode } = useDialog();
 
   return (
-    <Dialog
-      open={mode === 'select'}
-      onOpenChange={(open) => {
-        if (open) {
-          return setMode('select');
-        }
-
-        setMode(null);
-      }}
-    >
+    <Dialog open={mode === 'select-profile'} onOpenChange={close}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Select Profile</DialogTitle>
@@ -60,14 +51,14 @@ export const SelectProfileDialog = () => {
         </FieldGroup>
         <DialogFooter>
           <DialogClose asChild>
-            <Button variant="outline" onClick={() => setMode(null)}>
+            <Button variant="outline" onClick={close}>
               Cancel
             </Button>
           </DialogClose>
-          <Button variant="outline" onClick={() => setMode('create')}>
+          <Button variant="outline" onClick={() => setMode('create-profile')}>
             Create New
           </Button>
-          <Button type="submit" onClick={() => setMode(null)}>
+          <Button type="submit" onClick={close}>
             Select
           </Button>
         </DialogFooter>

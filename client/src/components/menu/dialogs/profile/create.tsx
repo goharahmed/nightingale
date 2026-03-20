@@ -11,22 +11,13 @@ import {
 import { Field, FieldGroup } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useProfileDialog } from '@/hooks/use-profile-dialog';
+import { useDialog } from '@/hooks/use-dialog';
 
 export const CreateProfileDialog = () => {
-  const { mode, setMode } = useProfileDialog();
+  const { mode, close } = useDialog();
 
   return (
-    <Dialog
-      open={mode === 'create'}
-      onOpenChange={(open) => {
-        if (open) {
-          return setMode('create');
-        }
-
-        setMode(null);
-      }}
-    >
+    <Dialog open={mode === 'create-profile'} onOpenChange={close}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Create Profile</DialogTitle>
@@ -42,11 +33,11 @@ export const CreateProfileDialog = () => {
         </FieldGroup>
         <DialogFooter>
           <DialogClose asChild>
-            <Button variant="outline" onClick={() => setMode(null)}>
+            <Button variant="outline" onClick={close}>
               Cancel
             </Button>
           </DialogClose>
-          <Button type="submit" onClick={() => setMode(null)}>
+          <Button type="submit" onClick={close}>
             Create
           </Button>
         </DialogFooter>

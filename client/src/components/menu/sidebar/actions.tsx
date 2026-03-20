@@ -13,10 +13,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { useExitDialog } from '@/hooks/use-exit-dialog';
-import { useInfoDialog } from '@/hooks/use-info-dialog';
-import { useProfileDialog } from '@/hooks/use-profile-dialog';
-import { useSettingsDialog } from '@/hooks/use-settings-dialog';
+import { useDialog } from '@/hooks/use-dialog';
+import { useConfigMutation } from '@/mutations/use-config-mutation';
 import { useTheme } from '@/providers/theme/ThemeProvider';
 import {
   BoxIcon,
@@ -34,17 +32,16 @@ import { useMemo } from 'react';
 import { toast } from 'sonner';
 
 export const Actions = () => {
+  const { setMode } = useDialog();
   const { toggle, theme } = useTheme();
-  const { setOpen: setExitDialogOpen } = useExitDialog();
-  const { setOpen: setSettingsDialogOpen } = useSettingsDialog();
-  const { setOpen: setInfoDialogOpen } = useInfoDialog();
-  const { setMode: setProfileDialogMode } = useProfileDialog();
 
-  const ThemeIcon = useMemo(() => {
-    return theme === 'dark' ? SunIcon : MoonIcon;
+  const { mutate } = useConfigMutation();
+
+  const { ThemeIcon, themeLabel } = useMemo(() => {
+    return theme === 'dark'
+      ? { ThemeIcon: SunIcon, themeLabel: 'Light Mode' }
+      : { ThemeIcon: MoonIcon, themeLabel: 'Dark mode' };
   }, [theme]);
-
-  const themeLabel = theme === 'dark' ? 'Light mode' : 'Dark mode';
 
   return (
     <SidebarMenu>
@@ -85,23 +82,29 @@ export const Actions = () => {
             <DropdownMenuSeparator />
             <DropdownMenuLabel>General</DropdownMenuLabel>
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => setProfileDialogMode('select')}>
+              <DropdownMenuItem onClick={() => setMode('select-profile')}>
                 <UserIcon />
                 Profile
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSettingsDialogOpen(true)}>
+              <DropdownMenuItem onClick={() => setMode('settings')}>
                 <CogIcon />
                 Settings
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={toggle}>
+              <DropdownMenuItem
+                onClick={() => {
+                  toggle();
+
+                  mutate({ dark_mode: theme === 'dark' ? false : true });
+                }}
+              >
                 <ThemeIcon />
                 {themeLabel}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setInfoDialogOpen(true)}>
+              <DropdownMenuItem onClick={() => setMode('about')}>
                 <InfoIcon />
                 About
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setExitDialogOpen(true)}>
+              <DropdownMenuItem onClick={() => setMode('exit')}>
                 <DoorOpenIcon />
                 Exit
               </DropdownMenuItem>

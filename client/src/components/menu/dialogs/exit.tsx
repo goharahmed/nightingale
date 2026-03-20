@@ -8,14 +8,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useExitDialog } from '@/hooks/use-exit-dialog';
+import { useDialog } from '@/hooks/use-dialog';
 import { exit } from '@/tauri-bridge/exit';
 
 export const ExitDialog = () => {
-  const { open, setOpen } = useExitDialog();
+  const { close, mode } = useDialog();
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
+    <AlertDialog open={mode === 'exit'} onOpenChange={close}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Exit</AlertDialogTitle>
@@ -24,9 +24,7 @@ export const ExitDialog = () => {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => setOpen(false)}>
-            Cancel
-          </AlertDialogCancel>
+          <AlertDialogCancel onClick={close}>Cancel</AlertDialogCancel>
           <AlertDialogAction onClick={() => exit()}>Exit</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

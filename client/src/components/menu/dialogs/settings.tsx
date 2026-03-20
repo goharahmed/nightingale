@@ -19,16 +19,42 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useSettingsDialog } from '@/hooks/use-settings-dialog';
 import { useEffect, useState } from 'react';
 import {
   setFullScreen,
   isFullScreen as tauriIsFullScreen,
 } from '@/tauri-bridge/fullScreen';
+import { useDialog } from '@/hooks/use-dialog';
+import { useConfig } from '@/queries/use-config';
+import { useConfigMutation } from '@/mutations/use-config-mutation';
+
+const SEPARATORS = [
+  { value: 'karaoke', label: 'UVR Karaoke' },
+  { value: 'demucs', label: 'Demucs' },
+];
+
+const MODELS = [
+  'large-v3',
+  'large-v3-turbo',
+  'medium',
+  'small',
+  'base',
+  'tiny',
+];
+
+const DEFAULT_MODEL: (typeof MODELS)[number] = 'large-v3';
+const DEFAULT_SEPARATOR = 'karaoke';
+
+const DEFAULT_BEAM_BATCH_SIZE = 8;
 
 export const SettingsDialog = () => {
-  const [isFullScreen, setIsFullScreen] = useState<boolean | null>(null);
-  const { open, setOpen } = useSettingsDialog();
+  const { mode, close } = useDialog();
+  const { data: config } = useConfig();
+  const { mutate } = useConfigMutation();
+
+  const [isFullScreen, setIsFullScreen] = useState<boolean | null | undefined>(
+    config?.fullscreen,
+  );
 
   useEffect(() => {
     const updateIsFullScreen = async () => {
@@ -38,8 +64,11 @@ export const SettingsDialog = () => {
     updateIsFullScreen();
   }, []);
 
+  const batchSize = config?.batch_size ?? DEFAULT_BEAM_BATCH_SIZE;
+  const beamSize = config?.beam_size ?? DEFAULT_BEAM_BATCH_SIZE;
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={mode === 'settings'} onOpenChange={close}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
@@ -57,6 +86,8 @@ export const SettingsDialog = () => {
                 onClick={() => {
                   setIsFullScreen(false);
                   setFullScreen(false);
+
+                  mutate({ fullscreen: false });
                 }}
               >
                 Windowed
@@ -66,6 +97,8 @@ export const SettingsDialog = () => {
                 onClick={() => {
                   setIsFullScreen(true);
                   setFullScreen(true);
+
+                  mutate({ fullscreen: true });
                 }}
               >
                 Fullscreen
@@ -80,18 +113,19 @@ export const SettingsDialog = () => {
               Karaoke removes backing vocals for cleaner lyrics; Demucs is
               faster
             </FieldDescription>
-            <Select>
-              <SelectTrigger id="model-1">
-                <SelectValue placeholder="Select a model" />
+            <Select
+              onValueChange={(value) => mutate({ separator: value })}
+              defaultValue={config?.separator ?? DEFAULT_SEPARATOR}
+            >
+              <SelectTrigger id="separator-1">
+                <SelectValue placeholder="Select a separator" />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectLabel>Models</SelectLabel>
-                  <SelectItem value="apple">Apple</SelectItem>
-                  <SelectItem value="banana">Banana</SelectItem>
-                  <SelectItem value="blueberry">Blueberry</SelectItem>
-                  <SelectItem value="grapes">Grapes</SelectItem>
-                  <SelectItem value="pineapple">Pineapple</SelectItem>
+                  <SelectLabel>Separator</SelectLabel>
+                  {SEPARATORS.map(({ value, label }) => (
+                    <SelectItem value={value}>{label}</SelectItem>
+                  ))}
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -101,18 +135,19 @@ export const SettingsDialog = () => {
             <FieldDescription>
               Smaller models are faster but produce worse results
             </FieldDescription>
-            <Select>
+            <Select
+              onValueChange={(value) => mutate({ whisper_model: value })}
+              defaultValue={config?.whisper_model ?? DEFAULT_MODEL}
+            >
               <SelectTrigger id="model-1">
                 <SelectValue placeholder="Select a model" />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectLabel>Models</SelectLabel>
-                  <SelectItem value="apple">Apple</SelectItem>
-                  <SelectItem value="banana">Banana</SelectItem>
-                  <SelectItem value="blueberry">Blueberry</SelectItem>
-                  <SelectItem value="grapes">Grapes</SelectItem>
-                  <SelectItem value="pineapple">Pineapple</SelectItem>
+                  <SelectLabel>Model</SelectLabel>
+                  {MODELS.map((model) => (
+                    <SelectItem value={model}>{model}</SelectItem>
+                  ))}
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -123,9 +158,20 @@ export const SettingsDialog = () => {
               Higher values improve accuracy at the cost of speed
             </FieldDescription>
             <ButtonGroup>
-              {new Array(16).fill(null).map((_, idx) => (
-                <Button variant="outline">{idx + 1}</Button>
-              ))}
+              {new Array(16).fill(null).map((_, idx) => {
+                const beamSizeToRender = idx + 1;
+
+                return (
+                  <Button
+                    onClick={() => mutate({ beam_size: beamSizeToRender })}
+                    variant={
+                      beamSize === beamSizeToRender ? 'default' : 'outline'
+                    }
+                  >
+                    {idx + 1}
+                  </Button>
+                );
+              })}
             </ButtonGroup>
           </Field>
           <Field>
@@ -134,14 +180,25 @@ export const SettingsDialog = () => {
               Higher values use more memory but process faster
             </FieldDescription>
             <ButtonGroup>
-              {new Array(16).fill(null).map((_, idx) => (
-                <Button variant="outline">{idx + 1}</Button>
-              ))}
+              {new Array(16).fill(null).map((_, idx) => {
+                const batchSizeToRender = idx + 1;
+
+                return (
+                  <Button
+                    onClick={() => mutate({ batch_size: batchSizeToRender })}
+                    variant={
+                      batchSize === batchSizeToRender ? 'default' : 'outline'
+                    }
+                  >
+                    {idx + 1}
+                  </Button>
+                );
+              })}
             </ButtonGroup>
           </Field>
         </FieldGroup>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
+          <Button variant="outline" onClick={close}>
             Close
           </Button>
         </DialogFooter>
