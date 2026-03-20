@@ -17,7 +17,6 @@ import { useClearCache } from '@/hooks/use-clear-cache';
 import { useDialog } from '@/hooks/use-dialog';
 import { useConfigMutation } from '@/mutations/use-config-mutation';
 import { useTheme } from '@/providers/theme/ThemeProvider';
-import { useConfig } from '@/queries/use-config';
 import {
   BoxIcon,
   ChevronsUpDownIcon,
@@ -37,7 +36,6 @@ export const Actions = () => {
   const { toggle, theme } = useTheme();
 
   const clearCache = useClearCache();
-  const { data: config } = useConfig();
   const { mutate } = useConfigMutation();
 
   const { ThemeIcon, themeLabel } = useMemo(() => {
