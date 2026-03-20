@@ -14,17 +14,39 @@ import {
   ItemMedia,
   ItemTitle,
 } from '@/components/ui/item';
+import { Song } from '@/types/Song';
+import { convertFileSrc } from '@tauri-apps/api/core';
 import {
   AudioLinesIcon,
   FileTextIcon,
   MenuIcon,
+  MusicIcon,
   Trash2Icon,
   VideoIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Song } from './types';
 
+function formatSeconds(seconds: number): string {
+  const total = Math.floor(seconds);
+
+  const minutes = Math.floor(total / 60);
+  const secs = total % 60;
+
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
 export const SongCard = ({ song }: { song: Song }) => {
+  const transcriptSource =
+    typeof song.analysis_status === 'object' && 'Ready' in song.analysis_status
+      ? song.analysis_status['Ready']
+      : null;
+
+  const analysisStatus =
+    typeof song.analysis_status === 'string'
+      ? song.analysis_status
+      : 'Error' in song.analysis_status
+        ? 'Error'
+        : transcriptSource;
+
   return (
     <Item
       variant="outline"
@@ -32,24 +54,27 @@ export const SongCard = ({ song }: { song: Song }) => {
       className="cursor-pointer transition-colors hover:bg-muted"
     >
       <ItemMedia variant="image" className="size-16">
-        <img
-          src={`https://avatar.vercel.sh/${song.title}`}
-          alt={song.title}
-          className="object-cover grayscale"
-        />
+        {song.album_art_path ? (
+          <img src={convertFileSrc(song.album_art_path)} alt={song.title} />
+        ) : (
+          <MusicIcon />
+        )}
       </ItemMedia>
       <ItemContent>
-        <Badge variant="outline">
-          <VideoIcon /> Video
-        </Badge>
+        {song.is_video && (
+          <Badge variant="outline">
+            <VideoIcon /> Video
+          </Badge>
+        )}
         <ItemTitle className="line-clamp-1">{song.title}</ItemTitle>
         <ItemDescription>
-          {song.artist} • {song.album} • {song.duration} • RU
+          {song.artist} • {song.album} • {formatSeconds(song.duration_secs)}
+          {song.language ? ` • ${song.language.toLocaleUpperCase()}` : ''}
         </ItemDescription>
       </ItemContent>
       <ItemContent className="flex flex-col text-center">
         <Badge variant="outline" className="w-full">
-          Not Analyzed
+          {analysisStatus?.split(/(?=[A-Z])/).join(' ')}
         </Badge>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

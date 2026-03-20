@@ -4,6 +4,65 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use walkdir::WalkDir;
 
+#[derive(Debug, Clone)]
+pub struct CacheDir {
+    pub path: PathBuf,
+}
+
+impl CacheDir {
+    pub fn new() -> Self {
+        let path = nightingale_dir().join("cache");
+        std::fs::create_dir_all(&path).expect("could not create cache directory");
+        Self { path }
+    }
+
+    pub fn transcript_path(&self, hash: &str) -> PathBuf {
+        self.path.join(format!("{hash}_transcript.json"))
+    }
+
+    pub fn instrumental_path(&self, hash: &str) -> PathBuf {
+        self.path.join(format!("{hash}_instrumental.ogg"))
+    }
+
+    pub fn vocals_path(&self, hash: &str) -> PathBuf {
+        self.path.join(format!("{hash}_vocals.ogg"))
+    }
+
+    pub fn lyrics_path(&self, hash: &str) -> PathBuf {
+        self.path.join(format!("{hash}_lyrics.json"))
+    }
+
+    pub fn cover_path(&self, hash: &str) -> PathBuf {
+        self.path.join(format!("{hash}_cover.jpg"))
+    }
+
+    pub fn transcript_exists(&self, hash: &str) -> bool {
+        self.transcript_path(hash).is_file()
+            && self.instrumental_path(hash).is_file()
+            && self.vocals_path(hash).is_file()
+    }
+
+    pub fn delete_song_cache(&self, hash: &str) {
+        for path in [
+            self.transcript_path(hash),
+            self.instrumental_path(hash),
+            self.vocals_path(hash),
+            self.lyrics_path(hash),
+        ] {
+            if path.is_file() {
+                let _ = std::fs::remove_file(&path);
+            }
+        }
+    }
+
+    pub fn clear_all(&self) {
+        if self.path.is_dir() {
+            let _ = std::fs::remove_dir_all(&self.path);
+            let _ = std::fs::create_dir_all(&self.path);
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
 #[ts(export)]
 pub struct CacheStats {
@@ -61,6 +120,10 @@ pub fn config_path() -> PathBuf {
 
 pub fn profiles_path() -> PathBuf {
     nightingale_dir().join("profiles.json")
+}
+
+pub fn songs_path() -> PathBuf {
+    nightingale_dir().join("songs.json")
 }
 
 pub fn videos_dir() -> PathBuf {

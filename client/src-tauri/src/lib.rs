@@ -1,16 +1,19 @@
 mod cache;
 mod config;
 mod profile;
+mod scanner;
 
 use app_core::AppConfig;
 use cache::{calculate_cache_stats, clear_all, clear_models_command, clear_videos_command};
 use config::{load_config, save_config};
 use profile::{create_profile, delete_profile, load_profiles, switch_profile};
+use scanner::{load_songs, trigger_scan};
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
@@ -26,7 +29,10 @@ pub fn run() {
             load_profiles,
             switch_profile,
             create_profile,
-            delete_profile
+            delete_profile,
+            // Scanner
+            trigger_scan,
+            load_songs
         ])
         .setup(|app| {
             let config = AppConfig::load();

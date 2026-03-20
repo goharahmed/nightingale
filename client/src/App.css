@@ -129,6 +129,7 @@
 
   html {
     @apply font-sans;
+    font-size: clamp(20px, 1vw, 48px);
   }
 
   button:not(:disabled),

@@ -1,0 +1,22 @@
+import { invoke } from '@tauri-apps/api/core';
+import { open } from '@tauri-apps/plugin-dialog';
+import { toast } from 'sonner';
+
+export const selectFolder = async (): Promise<void> => {
+  const folder = await open({
+    directory: true,
+    multiple: false,
+  });
+
+  if (!folder) {
+    toast.error('Folder was not selected! Please try again.');
+
+    return;
+  }
+
+  triggerScan(folder);
+};
+
+export const triggerScan = async (folder: string): Promise<void> => {
+  invoke('trigger_scan', { folder });
+};

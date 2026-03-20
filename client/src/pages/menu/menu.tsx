@@ -3,12 +3,15 @@ import { InfoDialog } from '@/components/menu/dialogs/info';
 import { CreateProfileDialog } from '@/components/menu/dialogs/profile/create';
 import { SelectProfileDialog } from '@/components/menu/dialogs/profile/select';
 import { SettingsDialog } from '@/components/menu/dialogs/settings';
-import { Filters } from '@/components/menu/filters/filters';
 import { Sidebar } from '@/components/menu/sidebar/sidebar';
+import { EmptySongList } from '@/components/menu/song-list/empty-song-list';
 import { SongList } from '@/components/menu/song-list/song-list';
 import { SidebarInset } from '@/components/ui/sidebar';
+import { useSongs } from '@/queries/use-songs';
 
 export const Menu = () => {
+  const { data: songsStore } = useSongs();
+
   return (
     <Sidebar>
       <ExitDialog />
@@ -17,15 +20,11 @@ export const Menu = () => {
       <SelectProfileDialog />
       <InfoDialog />
       <SidebarInset>
-        <div className="w-full flex justify-center">
-          <div className="flex w-3/5 flex-col gap-4 p-4">
-            <Filters />
-            <span className="text-base text-muted-foreground text-center">
-              35 songs, 2 videos found • 1 ready for karaoke
-            </span>
-            <SongList />
-          </div>
-        </div>
+        {songsStore?.folder ? (
+          <SongList songsStore={songsStore} />
+        ) : (
+          <EmptySongList />
+        )}
       </SidebarInset>
     </Sidebar>
   );
