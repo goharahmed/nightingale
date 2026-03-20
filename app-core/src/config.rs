@@ -4,6 +4,8 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::cache::config_path;
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
 #[ts(export)]
 pub struct AppConfig {
@@ -23,15 +25,8 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
-    fn config_path() -> PathBuf {
-        dirs::home_dir()
-            .expect("could not find home directory")
-            .join(".nightingale")
-            .join("config.json")
-    }
-
     pub fn load() -> Self {
-        let path = Self::config_path();
+        let path = config_path();
 
         if path.is_file() {
             std::fs::read_to_string(&path)
@@ -44,7 +39,7 @@ impl AppConfig {
     }
 
     pub fn save(&self) {
-        let path = Self::config_path();
+        let path = config_path();
         if let Some(parent) = path.parent() {
             let _ = std::fs::create_dir_all(parent);
         }

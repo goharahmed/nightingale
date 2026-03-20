@@ -13,9 +13,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { useClearCache } from '@/hooks/use-clear-cache';
 import { useDialog } from '@/hooks/use-dialog';
 import { useConfigMutation } from '@/mutations/use-config-mutation';
 import { useTheme } from '@/providers/theme/ThemeProvider';
+import { useConfig } from '@/queries/use-config';
 import {
   BoxIcon,
   ChevronsUpDownIcon,
@@ -29,12 +31,13 @@ import {
   VideoIcon,
 } from 'lucide-react';
 import { useMemo } from 'react';
-import { toast } from 'sonner';
 
 export const Actions = () => {
   const { setMode } = useDialog();
   const { toggle, theme } = useTheme();
 
+  const clearCache = useClearCache();
+  const { data: config } = useConfig();
   const { mutate } = useConfigMutation();
 
   const { ThemeIcon, themeLabel } = useMemo(() => {
@@ -62,19 +65,15 @@ export const Actions = () => {
           <DropdownMenuContent side="right" align="end" className="min-w-56">
             <DropdownMenuLabel>Cache</DropdownMenuLabel>
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => toast.info('All cache cleared')}>
+              <DropdownMenuItem onClick={clearCache.all}>
                 <Trash2Icon />
                 Clear all cache
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => toast.info('Videos cache cleared')}
-              >
+              <DropdownMenuItem onClick={clearCache.videos}>
                 <VideoIcon />
                 Clear videos cache
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => toast.info('Models cache cleared')}
-              >
+              <DropdownMenuItem onClick={clearCache.models}>
                 <BoxIcon />
                 Clear models cache
               </DropdownMenuItem>

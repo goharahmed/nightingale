@@ -1,29 +1,67 @@
 import { SegmentedProgress } from '@/components/ui/segmented-progress';
+import { useCacheStats } from '@/queries/use-cache-stats';
+import { formatBytes, segmentPercent, totalUsedBytes } from '@/utils/stats';
 
-const categories = [
-  { label: 'Songs', color: 'bg-blue-500', size: '6.6 MB', value: 0.5 },
-  { label: 'Videos', color: 'bg-green-500', size: '354.1 MB', value: 2.6 },
-  { label: 'Models', color: 'bg-yellow-500', size: '5.0 GB', value: 37 },
-  { label: 'Other', color: 'bg-gray-500', size: '8.2 GB', value: 60.7 },
+const rows = [
+  { label: 'Songs', color: 'bg-blue-500', key: 'songs_bytes' as const },
+  { label: 'Videos', color: 'bg-green-500', key: 'videos_bytes' as const },
+  { label: 'Models', color: 'bg-yellow-500', key: 'models_bytes' as const },
+  { label: 'Other', color: 'bg-gray-500', key: 'other_bytes' as const },
 ];
 
-export const Stats = () => (
-  <div className="flex flex-col gap-2 px-2">
-    <span className="text-xs text-muted-foreground">13.5 GB used</span>
-    <SegmentedProgress
-      segments={categories.map((cat) => ({
-        value: cat.value,
-        color: cat.color,
-      }))}
-    />
-    <div className="flex flex-col gap-0.5">
-      {categories.map((cat) => (
-        <div key={cat.label} className="flex items-center gap-2 py-0.5 text-xs">
-          <div className={`size-2 shrink-0 rounded-full ${cat.color}`} />
-          <span className="flex-1">{cat.label}</span>
-          <span className="text-muted-foreground">{cat.size}</span>
-        </div>
-      ))}
+export const Stats = () => {
+  const { data: stats, isPending, isError } = useCacheStats();
+
+  if (isPending || !stats) {
+    return (
+      <div className="flex flex-col gap-2 px-2">
+        <span className="text-xs text-muted-foreground">…</span>
+        <div className="h-2 w-full rounded-full bg-muted" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="px-2 text-xs text-muted-foreground">
+        Cache stats unavailable
+      </div>
+    );
+  }
+
+  const total = totalUsedBytes(stats);
+
+  const segments = rows.map((row) => ({
+    value: segmentPercent(stats[row.key], total),
+    color: row.color,
+  }));
+
+  return (
+    <div className="flex flex-col gap-2 px-2">
+      <span className="text-xs text-muted-foreground">
+        {formatBytes(total)} used
+      </span>
+      <SegmentedProgress segments={segments} />
+      <div className="flex flex-col gap-0.5">
+        {rows.map((row) => (
+          <div key={row.label} className="flex flex-col gap-0 py-0.5 text-xs">
+            <div className="flex items-center gap-2">
+              <div className={`size-2 shrink-0 rounded-full ${row.color}`} />
+              <span className="flex-1">{row.label}</span>
+              <span className="text-muted-foreground">
+                {formatBytes(stats[row.key])}
+              </span>
+            </div>
+            {row.key === 'videos_bytes' &&
+              stats.clearable_videos_bytes > 0n && (
+                <span className="pl-4 text-[0.65rem] text-muted-foreground">
+                  {formatBytes(stats.clearable_videos_bytes)} clearable
+                  duplicates
+                </span>
+              )}
+          </div>
+        ))}
+      </div>
     </div>
-  </div>
-);
+  );
+};
