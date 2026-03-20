@@ -14,6 +14,7 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { useExitDialog } from '@/hooks/use-exit-dialog';
+import { useInfoDialog } from '@/hooks/use-info-dialog';
 import { useProfileDialog } from '@/hooks/use-profile-dialog';
 import { useSettingsDialog } from '@/hooks/use-settings-dialog';
 import { useTheme } from '@/providers/theme/ThemeProvider';
@@ -22,6 +23,7 @@ import {
   ChevronsUpDownIcon,
   CogIcon,
   DoorOpenIcon,
+  InfoIcon,
   MoonIcon,
   SunIcon,
   Trash2Icon,
@@ -35,6 +37,7 @@ export const Actions = () => {
   const { toggle, theme } = useTheme();
   const { setOpen: setExitDialogOpen } = useExitDialog();
   const { setOpen: setSettingsDialogOpen } = useSettingsDialog();
+  const { setOpen: setInfoDialogOpen } = useInfoDialog();
   const { setMode: setProfileDialogMode } = useProfileDialog();
 
   const ThemeIcon = useMemo(() => {
@@ -62,9 +65,7 @@ export const Actions = () => {
           <DropdownMenuContent side="right" align="end" className="min-w-56">
             <DropdownMenuLabel>Cache</DropdownMenuLabel>
             <DropdownMenuGroup>
-              <DropdownMenuItem
-                onClick={() => toast.info('All cache cleared')}
-              >
+              <DropdownMenuItem onClick={() => toast.info('All cache cleared')}>
                 <Trash2Icon />
                 Clear all cache
               </DropdownMenuItem>
@@ -95,6 +96,10 @@ export const Actions = () => {
               <DropdownMenuItem onClick={toggle}>
                 <ThemeIcon />
                 {themeLabel}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setInfoDialogOpen(true)}>
+                <InfoIcon />
+                About
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setExitDialogOpen(true)}>
                 <DoorOpenIcon />

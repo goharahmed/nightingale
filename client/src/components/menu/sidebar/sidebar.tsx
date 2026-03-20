@@ -9,7 +9,7 @@ import { Header } from './header';
 import { MainNavigation } from './main-navigation';
 import { Actions } from './actions';
 
-export const Sidebar = () => {
+export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
   return (
     <SidebarProvider>
       <ShadCnSidebar>
@@ -23,6 +23,7 @@ export const Sidebar = () => {
           <Actions />
         </SidebarFooter>
       </ShadCnSidebar>
+      {children}
     </SidebarProvider>
   );
 };

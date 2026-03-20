@@ -20,9 +20,23 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useSettingsDialog } from '@/hooks/use-settings-dialog';
+import { useEffect, useState } from 'react';
+import {
+  setFullScreen,
+  isFullScreen as tauriIsFullScreen,
+} from '@/tauri-bridge/fullScreen';
 
 export const SettingsDialog = () => {
+  const [isFullScreen, setIsFullScreen] = useState<boolean | null>(null);
   const { open, setOpen } = useSettingsDialog();
+
+  useEffect(() => {
+    const updateIsFullScreen = async () => {
+      setIsFullScreen(await tauriIsFullScreen());
+    };
+
+    updateIsFullScreen();
+  }, []);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -38,8 +52,24 @@ export const SettingsDialog = () => {
           <Field>
             <Label>Window</Label>
             <ButtonGroup>
-              <Button variant="outline">Windowed</Button>
-              <Button variant="outline">Fullscreen</Button>
+              <Button
+                variant={isFullScreen === true ? 'outline' : 'default'}
+                onClick={() => {
+                  setIsFullScreen(false);
+                  setFullScreen(false);
+                }}
+              >
+                Windowed
+              </Button>
+              <Button
+                variant={isFullScreen === false ? 'outline' : 'default'}
+                onClick={() => {
+                  setIsFullScreen(true);
+                  setFullScreen(true);
+                }}
+              >
+                Fullscreen
+              </Button>
             </ButtonGroup>
           </Field>
         </FieldGroup>
