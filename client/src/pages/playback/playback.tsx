@@ -1,1 +1,1 @@
-export const Playback = () => <div>Playback page!</div>
+export const Playback = () => <div>Playback page!</div>;
