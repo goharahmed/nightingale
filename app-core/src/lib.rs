@@ -8,7 +8,9 @@ mod song;
 mod vendor;
 mod vendor_scripts;
 
-pub use analyzer::{delete_cache, enqueue_all, enqueue_one, reanalyze_full, reanalyze_transcript};
+pub use analyzer::{
+    delete_cache, enqueue_all, enqueue_one, reanalyze_full, reanalyze_transcript, shutdown_server,
+};
 pub use cache::{CacheStats, clear_models, clear_videos};
 pub use config::AppConfig;
 pub use profile::ProfileStore;

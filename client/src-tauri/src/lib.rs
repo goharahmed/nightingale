@@ -11,7 +11,7 @@ use cache::{calculate_cache_stats, clear_all, clear_models_command, clear_videos
 use config::{load_config, save_config};
 use profile::{create_profile, delete_profile, load_profiles, switch_profile};
 use scanner::{load_songs, trigger_scan};
-use tauri::Manager;
+use tauri::{Manager, RunEvent};
 use vendor::{is_ready, trigger_setup};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -60,6 +60,11 @@ pub fn run() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_app, event| {
+            if let RunEvent::Exit = event {
+                app_core::shutdown_server();
+            }
+        });
 }

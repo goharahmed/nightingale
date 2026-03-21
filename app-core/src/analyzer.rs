@@ -1,7 +1,8 @@
 use std::collections::VecDeque;
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::PathBuf;
-use std::process::{Child, ChildStdin, ChildStdout, Stdio};
+use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{LazyLock, Mutex};
 
 use crate::cache::{models_dir, CacheDir};
@@ -13,6 +14,8 @@ use crate::vendor::{analyzer_dir, ffmpeg_path, python_path, silent_command};
 
 // ─── Server process ──────────────────────────────────────────────────
 
+static SERVER_PID: AtomicU32 = AtomicU32::new(0);
+
 struct ServerProcess {
     child: Child,
     stdin: BufWriter<ChildStdin>,
@@ -23,6 +26,7 @@ impl Drop for ServerProcess {
     fn drop(&mut self) {
         let pid = self.child.id();
         eprintln!("[analyzer] Killing server process (pid={pid})");
+        SERVER_PID.store(0, Ordering::SeqCst);
         let _ = self.child.kill();
         let _ = self.child.wait();
     }
@@ -65,6 +69,7 @@ fn spawn_server() -> Result<ServerProcess, NightingaleError> {
         NightingaleError::Other(format!("Failed to start analyzer server: {e}"))
     })?;
     let pid = child.id();
+    SERVER_PID.store(pid, Ordering::SeqCst);
     eprintln!("[analyzer] Server process spawned (pid={pid})");
 
     let stdin = BufWriter::new(
@@ -197,6 +202,14 @@ pub fn enqueue_all() {
 
     if should_start {
         spawn_worker();
+    }
+}
+
+pub fn shutdown_server() {
+    let pid = SERVER_PID.swap(0, Ordering::SeqCst);
+    if pid != 0 {
+        eprintln!("[analyzer] Killing server process (pid={pid}) on app exit");
+        let _ = Command::new("kill").args(["-9", &pid.to_string()]).status();
     }
 }
 
