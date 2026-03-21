@@ -52,13 +52,6 @@ export const Stats = () => {
                 {formatBytes(stats[row.key])}
               </span>
             </div>
-            {row.key === 'videos_bytes' &&
-              stats.clearable_videos_bytes > 0n && (
-                <span className="pl-4 text-[0.65rem] text-muted-foreground">
-                  {formatBytes(stats.clearable_videos_bytes)} clearable
-                  duplicates
-                </span>
-              )}
           </div>
         ))}
       </div>

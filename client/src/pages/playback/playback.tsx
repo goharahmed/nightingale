@@ -1,1 +1,3 @@
-export const Playback = () => <div>Playback page!</div>;
+import { ShaderVisualizer } from "@/components/playback/shader-visualizer";
+
+export const Playback = () => <ShaderVisualizer />;
