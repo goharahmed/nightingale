@@ -69,23 +69,16 @@ const LoadStep = ({ action, percent }: LoadStepProps) => (
 );
 
 interface ErrorStepProps {
-  error: Error | null;
+  error: string;
 }
 
 const ErrorStep = ({ error }: ErrorStepProps) => (
   <>
     <AlertDialogHeader>
       <AlertDialogTitle>Something went wrong</AlertDialogTitle>
-      {error?.message && (
-        <AlertDialogDescription>
-          <code>{error.message}</code>
-        </AlertDialogDescription>
-      )}
-      {error?.stack && (
-        <AlertDialogDescription>
-          <code>{error.stack}</code>
-        </AlertDialogDescription>
-      )}
+      <AlertDialogDescription>
+        <code>{error}</code>
+      </AlertDialogDescription>
     </AlertDialogHeader>
     <AlertDialogFooter>
       <AlertDialogAction onClick={() => exit()}>Exit</AlertDialogAction>
@@ -113,7 +106,6 @@ const FinalStep = ({ onFinish }: FinalStepProps) => (
 );
 
 export const Setup = () => {
-  const [error, setError] = useState<Error | null>(null);
   const [shouldRunSetup, setShouldRunSetup] = useState(false);
   const [setupProgress, setSetupProgress] = useState<ExtendedSetupProgress>({
     step: 'init',
@@ -138,8 +130,8 @@ export const Setup = () => {
       unlistenProgress = fn;
     });
 
-    listen<Error>('setup-error', ({ payload }) => {
-      setError(payload);
+    listen<string>('setup-error', ({ payload }) => {
+      setSetupProgress({ step: 'error', percent: 0, action: payload });
     }).then((fn) => {
       unlistenError = fn;
     });
@@ -171,9 +163,9 @@ export const Setup = () => {
       case 'finish':
         return () => <FinalStep onFinish={() => setShouldRunSetup(false)} />;
       case 'error':
-        return () => <ErrorStep error={error} />;
+        return () => <ErrorStep error={action} />;
     }
-  }, [step, error]);
+  }, [step, action, percent]);
 
   return (
     <AlertDialog open={shouldRunSetup}>
