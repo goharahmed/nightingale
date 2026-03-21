@@ -16,7 +16,7 @@ export const ExitDialog = () => {
 
   return (
     <AlertDialog open={mode === 'exit'} onOpenChange={close}>
-      <AlertDialogContent>
+      <AlertDialogContent onEscapeKeyDown={(e) => e.preventDefault()}>
         <AlertDialogHeader>
           <AlertDialogTitle>Exit</AlertDialogTitle>
           <AlertDialogDescription>

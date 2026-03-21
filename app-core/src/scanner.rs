@@ -6,7 +6,7 @@ use walkdir::WalkDir;
 
 use crate::{
     cache::{CacheDir, songs_path},
-    song::{Song, build_song},
+    song::{AnalysisStatus, Song, build_song},
 };
 
 const AUDIO_EXTENSIONS: &[&str] = &["mp3", "flac", "ogg", "wav", "m4a", "aac", "wma"];
@@ -53,8 +53,30 @@ impl SongsStore {
         }
 
         if let Ok(json) = serde_json::to_string_pretty(self) {
-            let _ = std::fs::write(path, json);
+            let tmp = path.with_extension("json.tmp");
+            if std::fs::write(&tmp, &json).is_ok() {
+                let _ = std::fs::rename(&tmp, &path);
+            }
         }
+    }
+}
+
+pub fn reset_stale_statuses() {
+    let mut store = SongsStore::load(None);
+    let mut changed = false;
+
+    for song in &mut store.processed {
+        if matches!(
+            song.analysis_status,
+            AnalysisStatus::Queued | AnalysisStatus::Analyzing(_)
+        ) {
+            song.analysis_status = AnalysisStatus::NotAnalyzed;
+            changed = true;
+        }
+    }
+
+    if changed {
+        store.save();
     }
 }
 

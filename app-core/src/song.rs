@@ -27,7 +27,7 @@ pub enum TranscriptSource {
 pub enum AnalysisStatus {
     NotAnalyzed,
     Queued,
-    Analyzing,
+    Analyzing(usize),
     Ready(TranscriptSource),
     Failed(String),
 }
@@ -135,7 +135,7 @@ pub fn build_song(path: &Path, cache: &CacheDir, is_video: bool) -> Result<Song,
     ))
 }
 
-fn read_transcript_meta(cache: &CacheDir, hash: &str) -> (TranscriptSource, Option<String>) {
+pub fn read_transcript_meta(cache: &CacheDir, hash: &str) -> (TranscriptSource, Option<String>) {
     #[derive(serde::Deserialize)]
     struct TranscriptMeta {
         #[serde(default)]

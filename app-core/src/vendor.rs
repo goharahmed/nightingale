@@ -1,6 +1,6 @@
 use std::{path::PathBuf, process::Command};
 
-use crate::{cache::nightingale_dir, error::NightingaleError, vendor_scripts};
+use crate::{cache::nightingale_dir, vendor_scripts};
 
 // ─── Directory Helpers ───────────────────────────────────────────────
 
@@ -40,11 +40,6 @@ fn ready_marker() -> PathBuf {
 }
 
 pub fn is_ready() -> bool {
-    dbg!(ready_marker().is_file());
-    dbg!(ffmpeg_path().is_file());
-    dbg!(python_path().is_file());
-    dbg!(analyzer_dir().join("analyze.py").is_file());
-
     ready_marker().is_file()
         && ffmpeg_path().is_file()
         && python_path().is_file()

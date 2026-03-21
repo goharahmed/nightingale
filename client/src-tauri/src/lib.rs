@@ -1,9 +1,11 @@
+mod analyzer;
 mod cache;
 mod config;
 mod profile;
 mod scanner;
 mod vendor;
 
+use analyzer::{delete_song_cache, enqueue_all, enqueue_one, reanalyze_full, reanalyze_transcript};
 use app_core::AppConfig;
 use cache::{calculate_cache_stats, clear_all, clear_models_command, clear_videos_command};
 use config::{load_config, save_config};
@@ -35,11 +37,19 @@ pub fn run() {
             // Scanner
             trigger_scan,
             load_songs,
+            // Analyzer
+            enqueue_one,
+            enqueue_all,
+            delete_song_cache,
+            reanalyze_transcript,
+            reanalyze_full,
             // Vendor
             is_ready,
             trigger_setup
         ])
         .setup(|app| {
+            app_core::reset_stale_statuses();
+
             let config = AppConfig::load();
 
             if config.fullscreen == Some(true) {

@@ -4,6 +4,6 @@ import type { TranscriptSource } from './TranscriptSource';
 export type AnalysisStatus =
   | 'NotAnalyzed'
   | 'Queued'
-  | 'Analyzing'
+  | { Analyzing: number }
   | { Ready: TranscriptSource }
   | { Failed: string };

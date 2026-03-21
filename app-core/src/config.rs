@@ -47,4 +47,27 @@ impl AppConfig {
             let _ = std::fs::write(&path, json);
         }
     }
+
+    pub fn whisper_model(&self) -> &str {
+        self.whisper_model.as_deref().unwrap_or("large-v2")
+    }
+
+    pub fn beam_size(&self) -> u32 {
+        self.beam_size.unwrap_or(5)
+    }
+
+    pub fn batch_size(&self) -> u32 {
+        self.batch_size.unwrap_or(16)
+    }
+
+    pub fn separator(&self) -> &str {
+        self.separator.as_deref().unwrap_or("demucs")
+    }
+
+    pub fn language_override(&self, file_hash: &str) -> Option<&str> {
+        self.language_overrides
+            .as_ref()
+            .and_then(|m| m.get(file_hash))
+            .map(|s| s.as_str())
+    }
 }
