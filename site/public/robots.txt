@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://nightingale.cafe/sitemap-index.xml

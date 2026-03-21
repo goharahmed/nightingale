@@ -1,1 +1,7 @@
 target/
+
+# Site
+site/node_modules/
+site/dist/
+site/docs/book/
+site/.astro/

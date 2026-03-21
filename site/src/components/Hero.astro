@@ -1,0 +1,339 @@
+---
+import Video from "./Video.astro";
+
+const base = "https://github.com/rzru/nightingale/releases/latest/download";
+const platforms = [
+  {
+    os: "linux", label: "Linux",
+    archs: [
+      { label: "x86_64", file: "nightingale-x86_64-unknown-linux-gnu.tar.gz" },
+      { label: "ARM (aarch64)", file: "nightingale-aarch64-unknown-linux-gnu.tar.gz" },
+    ],
+  },
+  {
+    os: "macos", label: "macOS",
+    href: "/docs/getting-started.html",
+  },
+  {
+    os: "windows", label: "Windows",
+    archs: [
+      { label: "x86_64", file: "nightingale-x86_64-pc-windows-msvc.zip" },
+    ],
+  },
+];
+---
+
+<section class="hero">
+  <div class="container">
+    <div class="hero-content">
+      <h1>
+        <img src="/logo.png" alt="Nightingale" class="hero-logo" />
+      </h1>
+      <p class="hero-tagline">
+        Turn any song into karaoke. A self-contained party game that separates
+        vocals, transcribes lyrics, and plays it all back with word-level sync
+        and pitch scoring.
+      </p>
+      <div class="hero-actions">
+        <div class="hero-downloads">
+          {platforms.map((p) => (
+            <div class="download-group" data-os={p.os}>
+              {"href" in p ? (
+                <a
+                  href={p.href}
+                  class="btn-download"
+                  data-os={p.os}
+                >
+                  <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  {p.label}
+                </a>
+              ) : (
+                <>
+                  <a
+                    href={`${base}/${p.archs[0].file}`}
+                    class="btn-download"
+                    data-os={p.os}
+                    data-has-archs={p.archs.length > 1 ? "true" : undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    {p.label}
+                  </a>
+                  {p.archs.length > 1 && (
+                    <div class="arch-dropdown">
+                      {p.archs.map((a) => (
+                        <a
+                          href={`${base}/${a.file}`}
+                          class="arch-option"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {a.label}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+        <a href="/docs/" class="btn-secondary">Docs</a>
+      </div>
+    </div>
+
+    <div class="hero-media">
+      <div class="hero-video-wrapper">
+        <Video src="https://github.com/rzru/nightingale/releases/download/v0.3.1/demo.mp4" />
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const base = "https://github.com/rzru/nightingale/releases/latest/download";
+
+  function detectOS(): string | null {
+    const ua = navigator.userAgent.toLowerCase();
+    if (ua.includes("win")) return "windows";
+    if (ua.includes("mac")) return "macos";
+    if (ua.includes("linux")) return "linux";
+    return null;
+  }
+
+  function isARM(): boolean {
+    const ua = navigator.userAgent;
+    if ("userAgentData" in navigator) {
+      return false;
+    }
+    return /aarch64|arm64|armv8/i.test(ua);
+  }
+
+  async function getArchFromUAData(): Promise<string | null> {
+    if ("userAgentData" in navigator) {
+      try {
+        const data = await (navigator as any).userAgentData.getHighEntropyValues(["architecture"]);
+        return data.architecture ?? null;
+      } catch { return null; }
+    }
+    return null;
+  }
+
+  async function init() {
+    const os = detectOS();
+    let arm = isARM();
+    const arch = await getArchFromUAData();
+    if (arch === "arm") arm = true;
+
+    const groups = document.querySelectorAll<HTMLDivElement>(".download-group");
+
+    groups.forEach((group) => {
+      const btn = group.querySelector<HTMLAnchorElement>(".btn-download")!;
+      const dropdown = group.querySelector<HTMLDivElement>(".arch-dropdown");
+      const btnOS = btn.dataset.os;
+      const isDetected = btnOS === os;
+      const hasArchs = btn.dataset.hasArchs === "true";
+
+      if (isDetected) {
+        btn.classList.add("detected");
+
+        if (btnOS === "linux" && arm) {
+          const options = dropdown?.querySelectorAll<HTMLAnchorElement>(".arch-option");
+          if (options && options.length > 1) btn.href = options[1].href;
+        }
+      }
+
+      if (!isDetected && hasArchs && dropdown) {
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          document.querySelectorAll(".arch-dropdown.open").forEach((d) => {
+            if (d !== dropdown) d.classList.remove("open");
+          });
+          dropdown.classList.toggle("open");
+        });
+      }
+    });
+
+    document.addEventListener("click", (e) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".download-group")) {
+        document.querySelectorAll(".arch-dropdown.open").forEach((d) => d.classList.remove("open"));
+      }
+    });
+  }
+
+  init();
+</script>
+
+<style>
+  .hero {
+    padding: 120px 0 48px;
+    text-align: center;
+  }
+
+  h1 {
+    margin: 0;
+    line-height: 0;
+  }
+
+  .hero-logo {
+    width: 300px;
+    max-width: 70%;
+    margin-bottom: 20px;
+  }
+
+  .hero-tagline {
+    font-size: 1.15rem;
+    color: var(--text-secondary);
+    max-width: 540px;
+    margin: 0 auto 32px;
+    line-height: 1.6;
+  }
+
+  .hero-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .hero-downloads {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .btn-download {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface);
+    color: var(--text-primary);
+    padding: 10px 22px;
+    border-radius: var(--radius);
+    font-weight: 500;
+    font-size: 0.9rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+  }
+
+  .btn-download:hover {
+    background: var(--surface-hover);
+    color: var(--text-primary);
+  }
+
+  .btn-download.detected {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+
+  .btn-download.detected:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+    color: white;
+  }
+
+  .btn-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+
+  .download-group {
+    position: relative;
+  }
+
+  .arch-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius);
+    overflow: hidden;
+    z-index: 10;
+    min-width: 140px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  }
+
+  .arch-dropdown.open {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .arch-option {
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+
+  .arch-option:hover {
+    background: var(--surface-hover);
+    color: var(--text-primary);
+  }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 8px 24px;
+    border-radius: var(--radius);
+    font-weight: 500;
+    font-size: 0.85rem;
+    border: none;
+    transition: color 0.2s;
+  }
+
+  .btn-secondary:hover {
+    color: var(--text-primary);
+  }
+
+  .hero-media {
+    margin-top: 48px;
+  }
+
+  .hero-video-wrapper {
+    max-width: 820px;
+    margin: 0 auto;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  @media (max-width: 768px) {
+    .hero {
+      padding: 100px 0 40px;
+    }
+
+    .hero-tagline {
+      font-size: 1.05rem;
+    }
+
+    .hero-logo {
+      width: 240px;
+    }
+
+    .hero-downloads {
+      gap: 6px;
+    }
+
+    .btn-download {
+      padding: 8px 14px;
+      font-size: 0.82rem;
+    }
+  }
+</style>
