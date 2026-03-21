@@ -10,7 +10,10 @@ use lofty::{
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::{cache::CacheDir, compute_file_hash, error::NightingaleError};
+use blake3::Hasher;
+use std::{fs::File, io::Read};
+
+use crate::{cache::CacheDir, error::NightingaleError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -92,7 +95,24 @@ impl Song {
             is_video,
         }
     }
+}
 
+fn compute_file_hash(path: &Path) -> Result<String, std::io::Error> {
+    let mut file = File::open(path)?;
+    let mut hasher = Hasher::new();
+    let mut buf = [0u8; 8192];
+
+    loop {
+        let n = file.read(&mut buf)?;
+
+        if n == 0 {
+            break;
+        }
+
+        hasher.update(&buf[..n]);
+    }
+
+    Ok(hasher.finalize().to_hex()[..32].to_string())
 }
 
 pub fn build_song(path: &Path, cache: &CacheDir, is_video: bool) -> Result<Song, NightingaleError> {
@@ -163,10 +183,7 @@ fn read_metadata(path: &Path) -> (String, String, String, f64, Option<Vec<u8>>) 
     let artist = tag.artist().map(|s| s.to_string()).unwrap_or_default();
     let album = tag.album().map(|s| s.to_string()).unwrap_or_default();
 
-    let album_art = tag
-        .pictures()
-        .first()
-        .map(|pic| pic.data().to_vec());
+    let album_art = tag.pictures().first().map(|pic| pic.data().to_vec());
 
     (title, artist, album, duration_secs, album_art)
 }

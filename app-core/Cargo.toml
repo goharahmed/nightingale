@@ -11,3 +11,4 @@ ts-rs = "12"
 walkdir = "2"
 blake3 = "1"
 lofty = "0.23"
+ureq = { version = "3", features = ["json"] }

@@ -12,4 +12,4 @@ export const useSongs = () => {
     refetchInterval: 500,
     placeholderData: (previousData) => previousData,
   });
-}
+};

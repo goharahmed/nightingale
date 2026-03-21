@@ -127,6 +127,10 @@
     @apply bg-background text-foreground;
   }
 
+  code {
+    @apply rounded bg-muted px-[0.4em] py-[0.2em] font-mono text-[0.875em] text-foreground;
+  }
+
   html {
     @apply font-sans;
     font-size: clamp(20px, 1vw, 48px);
