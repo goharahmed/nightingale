@@ -126,6 +126,10 @@ pub fn songs_path() -> PathBuf {
     nightingale_dir().join("songs.json")
 }
 
+pub fn analysis_queue_path() -> PathBuf {
+    nightingale_dir().join("analysis_queue.json")
+}
+
 pub fn videos_dir() -> PathBuf {
     nightingale_dir().join("videos")
 }

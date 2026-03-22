@@ -1,3 +1,3 @@
-import { ShaderVisualizer } from "@/components/playback/shader-visualizer";
+import { Background } from "@/components/playback/background";
 
-export const Playback = () => <ShaderVisualizer />;
+export const Playback = () => <Background />;

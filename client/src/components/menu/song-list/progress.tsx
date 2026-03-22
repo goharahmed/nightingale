@@ -1,55 +1,25 @@
-import { useMemo } from 'react';
 import { Progress as ShadCnProgress } from '@/components/ui/progress';
-import { SongsStore } from '@/types/SongsStore';
-import { useSearch } from '@/hooks/use-search';
+import { useSongsMeta } from '@/queries/use-songs';
 
-interface Counts {
-  songsCount: number;
-  videosCount: number;
-  analyzedCount: number;
-}
+export const Progress = () => {
+  const { data: meta } = useSongsMeta();
 
-const defaultCounts = { songsCount: 0, videosCount: 0, analyzedCount: 0 };
+  if (!meta) {
+    return null;
+  };
 
-interface Props {
-  songsStore: SongsStore;
-}
+  const { songs_count, videos_count, analyzed_count, count, processed_count } =
+    meta;
 
-export const Progress = ({ songsStore: { processed, count } }: Props) => {
-  const { search } = useSearch();
-
-  const { songsCount, videosCount, analyzedCount } = useMemo(
-    () =>
-      processed.reduce<Counts>((carry, next) => {
-        const newCarry = { ...carry };
-
-        if (next.is_video) {
-          newCarry.videosCount += 1;
-        } else {
-          newCarry.songsCount += 1;
-        }
-
-        if (
-          typeof next.analysis_status === 'object' &&
-          Object.keys(next.analysis_status)[0] === 'Ready'
-        ) {
-          newCarry.analyzedCount += 1;
-        }
-
-        return newCarry;
-      }, defaultCounts),
-    [processed],
-  );
+  const isScanning = count !== processed_count;
 
   return (
     <div className="flex flex-col gap-2">
       <span className="text-base text-muted-foreground text-center">
-        {songsCount} songs, {videosCount} videos found • {analyzedCount} ready
-        for karaoke
+        {songs_count} songs, {videos_count} videos found &bull; {analyzed_count}{' '}
+        ready for karaoke
       </span>
-      {count !== processed.length && !search && (
-        <ShadCnProgress max={count} value={processed.length} />
-      )}
+      {isScanning && <ShadCnProgress max={count} value={processed_count} />}
     </div>
   );
 };

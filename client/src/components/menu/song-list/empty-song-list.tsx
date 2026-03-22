@@ -7,13 +7,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty';
-import { SONGS } from '@/queries/keys';
-import { selectFolder } from '@/tauri-bridge/folder';
-import { useQueryClient } from '@tanstack/react-query';
+import { useFolderActions } from '@/hooks/use-folder-actions';
 import { MusicIcon } from 'lucide-react';
 
 export const EmptySongList = () => {
-  const queryClient = useQueryClient();
+  const { selectFolder } = useFolderActions();
 
   return (
     <Empty>
@@ -30,11 +28,7 @@ export const EmptySongList = () => {
       <EmptyContent className="flex-row justify-center gap-2">
         <Button
           variant="outline"
-          onClick={async () => {
-            await selectFolder();
-
-            queryClient.invalidateQueries({ queryKey: SONGS });
-          }}
+          onClick={selectFolder}
         >
           Select Folder
         </Button>

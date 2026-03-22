@@ -1,9 +1,13 @@
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef } from "react";
 import type * as THREE from "three";
 import { shaders, vertexShader } from "./shaders";
 
-function ShaderQuad({ shaderIndex }: { shaderIndex: number }) {
+interface Props {
+  shaderIndex: number;
+}
+
+const ShaderQuad = ({ shaderIndex }: Props) => {
   const materialRef = useRef<THREE.ShaderMaterial>(null!);
 
   const uniforms = useMemo(
@@ -29,25 +33,7 @@ function ShaderQuad({ shaderIndex }: { shaderIndex: number }) {
   );
 }
 
-export function ShaderVisualizer() {
-  const [shaderIndex, setShaderIndex] = useState(0);
-
-  const cycleShader = useCallback(() => {
-    setShaderIndex((prev) => (prev + 1) % shaders.length);
-  }, []);
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "t" || e.key === "T") {
-        cycleShader();
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [cycleShader]);
-
+export const ShaderVisualizer = ({ shaderIndex }: Props) => {
   return (
     <div className="fixed inset-0">
       <Canvas flat>

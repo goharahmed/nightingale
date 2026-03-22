@@ -7,15 +7,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { SONGS } from '@/queries/keys';
-import { useSongs } from '@/queries/use-songs';
-import { selectFolder, triggerScan } from '@/tauri-bridge/folder';
-import { useQueryClient } from '@tanstack/react-query';
+import { useFolderActions } from '@/hooks/use-folder-actions';
 import { FolderIcon, RefreshCwIcon } from 'lucide-react';
 
 export const MainNavigation = () => {
-  const { data } = useSongs();
-  const queryClient = useQueryClient();
+  const { rescanFolder, rescanFolderDisabled, selectFolder } = useFolderActions();
 
   return (
     <SidebarContent>
@@ -25,10 +21,7 @@ export const MainNavigation = () => {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
-                onClick={async () => {
-                  await selectFolder();
-                  queryClient.invalidateQueries({ queryKey: SONGS });
-                }}
+                onClick={selectFolder}
               >
                 <FolderIcon />
                 <span>Select folder</span>
@@ -36,15 +29,8 @@ export const MainNavigation = () => {
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton
-                disabled={!data?.folder}
-                onClick={async () => {
-                  if (!data?.folder) {
-                    return;
-                  }
-
-                  await triggerScan(data.folder);
-                  queryClient.invalidateQueries({ queryKey: SONGS });
-                }}
+                disabled={rescanFolderDisabled}
+                onClick={rescanFolder}
               >
                 <RefreshCwIcon />
                 <span>Rescan folder</span>

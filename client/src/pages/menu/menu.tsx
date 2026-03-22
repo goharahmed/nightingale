@@ -8,11 +8,11 @@ import { EmptySongList } from '@/components/menu/song-list/empty-song-list';
 import { SongList } from '@/components/menu/song-list/song-list';
 import { SidebarInset } from '@/components/ui/sidebar';
 import { useDialog } from '@/hooks/use-dialog';
-import { useSongs } from '@/queries/use-songs';
+import { useSongsMeta } from '@/queries/use-songs';
 import { useEffect } from 'react';
 
 export const Menu = () => {
-  const { data: songsStore } = useSongs();
+  const { data: meta } = useSongsMeta();
   const { setMode } = useDialog();
 
   useEffect(() => {
@@ -37,11 +37,7 @@ export const Menu = () => {
       <SelectProfileDialog />
       <InfoDialog />
       <SidebarInset>
-        {songsStore?.folder ? (
-          <SongList songsStore={songsStore} />
-        ) : (
-          <EmptySongList />
-        )}
+        {meta?.folder ? <SongList /> : <EmptySongList />}
       </SidebarInset>
     </Sidebar>
   );

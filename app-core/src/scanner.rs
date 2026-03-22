@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -6,11 +7,13 @@ use walkdir::WalkDir;
 
 use crate::{
     cache::{CacheDir, songs_path},
-    song::{AnalysisStatus, Song, build_song},
+    song::{Song, build_song},
 };
 
 const AUDIO_EXTENSIONS: &[&str] = &["mp3", "flac", "ogg", "wav", "m4a", "aac", "wma"];
 const VIDEO_EXTENSIONS: &[&str] = &["mp4", "mkv", "avi", "webm", "mov", "m4v"];
+
+const SCAN_SAVE_BATCH_SIZE: usize = 20;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
 #[ts(export)]
@@ -18,20 +21,43 @@ pub struct SongsStore {
     pub count: usize,
     pub folder: String,
     pub processed: Vec<Song>,
+    #[serde(default)]
+    pub processed_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
+#[ts(export)]
+pub struct SongsMeta {
+    pub count: usize,
+    pub folder: String,
+    pub processed_count: usize,
+    pub songs_count: usize,
+    pub videos_count: usize,
+    pub analyzed_count: usize,
 }
 
 impl SongsStore {
-    pub fn load(search: Option<&String>) -> Self {
+    fn load_raw() -> Self {
         let path = songs_path();
 
-        let mut store: Self = if path.is_file() {
+        if path.is_file() {
             std::fs::read_to_string(&path)
                 .ok()
                 .and_then(|s| serde_json::from_str(&s).ok())
                 .unwrap_or_default()
         } else {
             Self::default()
-        };
+        }
+    }
+
+    pub fn load_all() -> Self {
+        let mut store = Self::load_raw();
+        store.processed_count = store.processed.len();
+        store
+    }
+
+    pub fn load(search: Option<&String>, skip: usize, take: usize) -> Self {
+        let mut store = Self::load_raw();
 
         if let Some(query) = search.filter(|s| !s.is_empty()) {
             let query = query.to_lowercase();
@@ -42,7 +68,40 @@ impl SongsStore {
             });
         }
 
+        store.processed_count = store.processed.len();
+
+        let end = (skip + take).min(store.processed.len());
+        let start = skip.min(end);
+        store.processed = store.processed[start..end].to_vec();
+
         store
+    }
+
+    pub fn load_meta() -> SongsMeta {
+        let store = Self::load_raw();
+        let mut songs_count: usize = 0;
+        let mut videos_count: usize = 0;
+        let mut analyzed_count: usize = 0;
+
+        for song in &store.processed {
+            if song.is_video {
+                videos_count += 1;
+            } else {
+                songs_count += 1;
+            }
+            if song.is_analyzed {
+                analyzed_count += 1;
+            }
+        }
+
+        SongsMeta {
+            count: store.count,
+            folder: store.folder,
+            processed_count: store.processed.len(),
+            songs_count,
+            videos_count,
+            analyzed_count,
+        }
     }
 
     pub fn save(&self) {
@@ -58,25 +117,6 @@ impl SongsStore {
                 let _ = std::fs::rename(&tmp, &path);
             }
         }
-    }
-}
-
-pub fn reset_stale_statuses() {
-    let mut store = SongsStore::load(None);
-    let mut changed = false;
-
-    for song in &mut store.processed {
-        if matches!(
-            song.analysis_status,
-            AnalysisStatus::Queued | AnalysisStatus::Analyzing(_)
-        ) {
-            song.analysis_status = AnalysisStatus::NotAnalyzed;
-            changed = true;
-        }
-    }
-
-    if changed {
-        store.save();
     }
 }
 
@@ -110,17 +150,23 @@ fn collect_media_paths(folder: &Path) -> Vec<(PathBuf, bool)> {
         .collect()
 }
 
+fn flush_batch(batch: &mut Vec<Song>) {
+    let mut store = SongsStore::load_all();
+    store.processed.append(batch);
+    store.save();
+}
+
 pub fn start_scan(folder: &Path) {
     let media_files = collect_media_paths(folder);
     let folder_str = folder.to_string_lossy().into_owned();
-    let existing = SongsStore::load(None);
+    let existing = SongsStore::load_all();
 
     let same_folder = existing.folder == folder_str;
 
-    let mut store = if same_folder {
+    let store = if same_folder {
+        let media_paths: HashSet<&PathBuf> = media_files.iter().map(|(p, _)| p).collect();
         let mut kept = existing;
-        kept.processed
-            .retain(|song| media_files.iter().any(|(p, _)| *p == song.path));
+        kept.processed.retain(|song| media_paths.contains(&song.path));
         kept.count = media_files.len();
         kept
     } else {
@@ -128,13 +174,14 @@ pub fn start_scan(folder: &Path) {
             count: media_files.len(),
             folder: folder_str,
             processed: Vec::with_capacity(media_files.len()),
+            processed_count: 0,
         }
     };
     store.save();
 
     std::thread::spawn(move || {
         let cache = CacheDir::new();
-        let already_processed: std::collections::HashSet<PathBuf> =
+        let already_processed: HashSet<PathBuf> =
             store.processed.iter().map(|s| s.path.clone()).collect();
 
         let pending: Vec<_> = media_files
@@ -142,16 +189,25 @@ pub fn start_scan(folder: &Path) {
             .filter(|(p, _)| !already_processed.contains(p))
             .collect();
 
-        for (path, is_video) in pending {
-            match build_song(&path, &cache, is_video) {
-                Ok(song) => store.processed.push(song),
+        let mut batch: Vec<Song> = Vec::new();
+
+        for (i, (path, is_video)) in pending.iter().enumerate() {
+            match build_song(path, &cache, *is_video) {
+                Ok(song) => batch.push(song),
                 Err(e) => {
                     eprintln!("Failed to process {}: {e}", path.display());
                 }
             }
-            store.save();
+            if (i + 1) % SCAN_SAVE_BATCH_SIZE == 0 && !batch.is_empty() {
+                flush_batch(&mut batch);
+            }
         }
 
+        if !batch.is_empty() {
+            flush_batch(&mut batch);
+        }
+
+        let mut store = SongsStore::load_all();
         store
             .processed
             .sort_by(|a, b| a.artist.cmp(&b.artist).then(a.title.cmp(&b.title)));

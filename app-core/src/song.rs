@@ -22,16 +22,6 @@ pub enum TranscriptSource {
     Generated,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub enum AnalysisStatus {
-    NotAnalyzed,
-    Queued,
-    Analyzing(usize),
-    Ready(TranscriptSource),
-    Failed(String),
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct Song {
@@ -42,7 +32,7 @@ pub struct Song {
     pub album: String,
     pub duration_secs: f64,
     pub album_art_path: Option<PathBuf>,
-    pub analysis_status: AnalysisStatus,
+    pub is_analyzed: bool,
     pub language: Option<String>,
     pub is_video: bool,
 }
@@ -52,7 +42,7 @@ impl Song {
         path: &Path,
         file_hash: String,
         cache: &CacheDir,
-        analysis_status: AnalysisStatus,
+        is_analyzed: bool,
         language: Option<String>,
         is_video: bool,
     ) -> Self {
@@ -90,7 +80,7 @@ impl Song {
             album,
             duration_secs,
             album_art_path,
-            analysis_status,
+            is_analyzed,
             language,
             is_video,
         }
@@ -118,18 +108,19 @@ fn compute_file_hash(path: &Path) -> Result<String, std::io::Error> {
 pub fn build_song(path: &Path, cache: &CacheDir, is_video: bool) -> Result<Song, NightingaleError> {
     let file_hash = compute_file_hash(path)?;
 
-    let (analysis_status, language) = if cache.transcript_exists(&file_hash) {
-        let (source, lang) = read_transcript_meta(cache, &file_hash);
-        (AnalysisStatus::Ready(source), lang)
+    let is_analyzed = cache.transcript_exists(&file_hash);
+    let language = if is_analyzed {
+        let (_source, lang) = read_transcript_meta(cache, &file_hash);
+        lang
     } else {
-        (AnalysisStatus::NotAnalyzed, None)
+        None
     };
 
     Ok(Song::from_path(
         path,
         file_hash,
         cache,
-        analysis_status,
+        is_analyzed,
         language,
         is_video,
     ))

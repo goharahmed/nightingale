@@ -1,15 +1,76 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{LazyLock, Mutex};
 
-use crate::cache::{models_dir, CacheDir};
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
+
+use crate::cache::{analysis_queue_path, models_dir, CacheDir};
 use crate::config::AppConfig;
 use crate::error::NightingaleError;
 use crate::scanner::SongsStore;
-use crate::song::{read_transcript_meta, AnalysisStatus, Song};
+use crate::song::{read_transcript_meta, Song};
+
+// ─── Analysis queue (persisted to disk) ──────────────────────────────
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub enum QueuedStatus {
+    Queued,
+    Analyzing(usize),
+    Failed(String),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
+#[ts(export)]
+pub struct AnalysisQueue {
+    pub entries: HashMap<String, QueuedStatus>,
+}
+
+impl AnalysisQueue {
+    pub fn load() -> Self {
+        let path = analysis_queue_path();
+        if path.is_file() {
+            std::fs::read_to_string(&path)
+                .ok()
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or_default()
+        } else {
+            Self::default()
+        }
+    }
+
+    pub fn save(&self) {
+        let path = analysis_queue_path();
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        if let Ok(json) = serde_json::to_string_pretty(self) {
+            let tmp = path.with_extension("json.tmp");
+            if std::fs::write(&tmp, &json).is_ok() {
+                let _ = std::fs::rename(&tmp, &path);
+            }
+        }
+    }
+
+    pub fn clear() {
+        let path = analysis_queue_path();
+        let _ = std::fs::remove_file(path);
+    }
+
+    fn set_status(&mut self, file_hash: &str, status: QueuedStatus) {
+        self.entries.insert(file_hash.to_string(), status);
+        self.save();
+    }
+
+    fn remove(&mut self, file_hash: &str) {
+        self.entries.remove(file_hash);
+        self.save();
+    }
+}
 use crate::vendor::{analyzer_dir, ffmpeg_path, python_path, silent_command};
 
 // ─── Server process ──────────────────────────────────────────────────
@@ -130,14 +191,25 @@ static ANALYZER: LazyLock<Mutex<AnalyzerState>> = LazyLock::new(|| {
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
-fn update_song(file_hash: &str, f: impl FnOnce(&mut Song)) {
-    let mut store = SongsStore::load(None);
+fn update_queue_status(file_hash: &str, status: QueuedStatus) {
+    let mut queue = AnalysisQueue::load();
+    queue.set_status(file_hash, status);
+}
+
+fn remove_from_queue(file_hash: &str) {
+    let mut queue = AnalysisQueue::load();
+    queue.remove(file_hash);
+}
+
+fn update_song_analyzed(file_hash: &str, is_analyzed: bool, language: Option<String>) {
+    let mut store = SongsStore::load_all();
     if let Some(song) = store
         .processed
         .iter_mut()
         .find(|s| s.file_hash == file_hash)
     {
-        f(song);
+        song.is_analyzed = is_analyzed;
+        song.language = language;
     }
     store.save();
 }
@@ -158,23 +230,19 @@ pub fn enqueue_one(file_hash: &str) {
     }
     if !state.queue.iter().any(|h| h == file_hash) {
         state.queue.push_back(file_hash.to_string());
-        update_song(file_hash, |s| {
-            s.analysis_status = AnalysisStatus::Queued;
-        });
+        update_queue_status(file_hash, QueuedStatus::Queued);
     }
     ensure_worker_running(&mut state);
 }
 
 pub fn enqueue_all() {
-    let store = SongsStore::load(None);
+    let store = SongsStore::load_all();
+    let queue = AnalysisQueue::load();
     let mut state = ANALYZER.lock().unwrap();
 
     let mut newly_queued = Vec::new();
     for song in &store.processed {
-        let dominated = matches!(
-            song.analysis_status,
-            AnalysisStatus::NotAnalyzed | AnalysisStatus::Failed(_)
-        );
+        let dominated = !song.is_analyzed && !queue.entries.contains_key(&song.file_hash);
         if dominated
             && state.active_hash.as_deref() != Some(&song.file_hash)
             && !state.queue.iter().any(|h| h == &song.file_hash)
@@ -191,13 +259,11 @@ pub fn enqueue_all() {
     drop(state);
 
     if !newly_queued.is_empty() {
-        let mut store = SongsStore::load(None);
-        for song in &mut store.processed {
-            if newly_queued.contains(&song.file_hash) {
-                song.analysis_status = AnalysisStatus::Queued;
-            }
+        let mut queue = AnalysisQueue::load();
+        for hash in &newly_queued {
+            queue.entries.insert(hash.clone(), QueuedStatus::Queued);
         }
-        store.save();
+        queue.save();
     }
 
     if should_start {
@@ -216,10 +282,7 @@ pub fn shutdown_server() {
 pub fn delete_cache(file_hash: &str) {
     let cache = CacheDir::new();
     cache.delete_song_cache(file_hash);
-    update_song(file_hash, |s| {
-        s.analysis_status = AnalysisStatus::NotAnalyzed;
-        s.language = None;
-    });
+    update_song_analyzed(file_hash, false, None);
 }
 
 pub fn reanalyze_transcript(file_hash: &str) {
@@ -238,10 +301,7 @@ fn reanalyze(file_hash: &str, full: bool) {
         let _ = std::fs::remove_file(cache.transcript_path(file_hash));
         let _ = std::fs::remove_file(cache.lyrics_path(file_hash));
     }
-    update_song(file_hash, |s| {
-        s.analysis_status = AnalysisStatus::NotAnalyzed;
-        s.language = None;
-    });
+    update_song_analyzed(file_hash, false, None);
     enqueue_one(file_hash);
 }
 
@@ -276,7 +336,7 @@ fn spawn_worker() {
 }
 
 fn process_song(file_hash: &str, cache: &CacheDir) {
-    let store = SongsStore::load(None);
+    let store = SongsStore::load_all();
     let Some(song) = store.processed.iter().find(|s| s.file_hash == file_hash) else {
         eprintln!("[analyzer] Song with hash {file_hash} not found in store, skipping");
         return;
@@ -289,9 +349,7 @@ fn process_song(file_hash: &str, cache: &CacheDir) {
         file_hash
     );
 
-    update_song(file_hash, |s| {
-        s.analysis_status = AnalysisStatus::Analyzing(0);
-    });
+    update_queue_status(file_hash, QueuedStatus::Analyzing(0));
 
     let config = AppConfig::load();
     let lyrics_path = fetch_lrclib_lyrics(&song, cache);
@@ -322,9 +380,7 @@ fn process_song(file_hash: &str, cache: &CacheDir) {
 
         if let Err(e) = ensure_server(&mut guard) {
             eprintln!("[analyzer] Failed to start server: {e}");
-            update_song(file_hash, |s| {
-                s.analysis_status = AnalysisStatus::Failed(e.to_string());
-            });
+            update_queue_status(file_hash, QueuedStatus::Failed(e.to_string()));
             return;
         }
 
@@ -341,20 +397,17 @@ fn process_song(file_hash: &str, cache: &CacheDir) {
                 if !retried {
                     retried = true;
                     eprintln!("[analyzer] Respawning server and retrying with clean GPU");
-                    update_song(file_hash, |s| {
-                        s.analysis_status = AnalysisStatus::Analyzing(0);
-                    });
+                    update_queue_status(file_hash, QueuedStatus::Analyzing(0));
                     continue;
                 }
-                update_song(file_hash, |s| {
-                    s.analysis_status = AnalysisStatus::Failed("CUDA out of memory".into());
-                });
+                update_queue_status(
+                    file_hash,
+                    QueuedStatus::Failed("CUDA out of memory".into()),
+                );
                 return;
             }
             Ok(SongResult::Error(msg)) => {
-                update_song(file_hash, |s| {
-                    s.analysis_status = AnalysisStatus::Failed(msg.clone());
-                });
+                update_queue_status(file_hash, QueuedStatus::Failed(msg));
                 return;
             }
             Err(e) => {
@@ -364,15 +417,13 @@ fn process_song(file_hash: &str, cache: &CacheDir) {
                 if !retried {
                     retried = true;
                     eprintln!("[analyzer] Respawning server and retrying");
-                    update_song(file_hash, |s| {
-                        s.analysis_status = AnalysisStatus::Analyzing(0);
-                    });
+                    update_queue_status(file_hash, QueuedStatus::Analyzing(0));
                     continue;
                 }
-                update_song(file_hash, |s| {
-                    s.analysis_status =
-                        AnalysisStatus::Failed(format!("Server crashed: {e}"));
-                });
+                update_queue_status(
+                    file_hash,
+                    QueuedStatus::Failed(format!("Server crashed: {e}")),
+                );
                 return;
             }
         }
@@ -381,17 +432,15 @@ fn process_song(file_hash: &str, cache: &CacheDir) {
 
 fn finalize_song(file_hash: &str, cache: &CacheDir) {
     if cache.transcript_exists(file_hash) {
-        let (source, language) = read_transcript_meta(cache, file_hash);
-        update_song(file_hash, |s| {
-            s.analysis_status = AnalysisStatus::Ready(source);
-            s.language = language;
-        });
+        let (_source, language) = read_transcript_meta(cache, file_hash);
+        remove_from_queue(file_hash);
+        update_song_analyzed(file_hash, true, language);
         eprintln!("[analyzer] Analysis complete for {file_hash}");
     } else {
-        update_song(file_hash, |s| {
-            s.analysis_status =
-                AnalysisStatus::Failed("Transcript file not found after analysis".into());
-        });
+        update_queue_status(
+            file_hash,
+            QueuedStatus::Failed("Transcript file not found after analysis".into()),
+        );
     }
 }
 
@@ -441,9 +490,7 @@ fn send_and_monitor(
         }
 
         if let Some((pct, _msg)) = parse_progress_line(line) {
-            update_song(file_hash, |s| {
-                s.analysis_status = AnalysisStatus::Analyzing(pct as usize);
-            });
+            update_queue_status(file_hash, QueuedStatus::Analyzing(pct as usize));
         }
     }
 }

@@ -15,7 +15,7 @@ import {
   ItemTitle,
 } from '@/components/ui/item';
 import { useAnalysis } from '@/hooks/use-analysis';
-import type { AnalysisStatus } from '@/types/AnalysisStatus';
+import type { QueuedStatus } from '@/types/QueuedStatus';
 import type { Song } from '@/types/Song';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import {
@@ -27,6 +27,7 @@ import {
   Trash2Icon,
   VideoIcon,
 } from 'lucide-react';
+import { memo } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 
@@ -41,54 +42,59 @@ type StatusInfo = {
   label: string;
   variant: 'default' | 'secondary' | 'destructive' | 'outline';
   className?: string;
+  isAnalyzing?: boolean;
+  isReady?: boolean;
 };
 
-function getStatusInfo(status: AnalysisStatus): StatusInfo {
-  if (status === 'NotAnalyzed') {
-    return { label: 'Not Analyzed', variant: 'outline' };
+function getStatusInfo(
+  isAnalyzed: boolean,
+  queueStatus?: QueuedStatus,
+): StatusInfo {
+  if (queueStatus) {
+    if (queueStatus === 'Queued') {
+      return { label: 'Queued', variant: 'secondary' };
+    }
+    if (typeof queueStatus === 'object') {
+      if ('Analyzing' in queueStatus) {
+        return {
+          label: `Analyzing ${queueStatus.Analyzing}%`,
+          variant: 'default',
+          className: 'animate-pulse',
+          isAnalyzing: true,
+        };
+      }
+      if ('Failed' in queueStatus) {
+        return { label: 'Failed', variant: 'destructive' };
+      }
+    }
   }
-  if (status === 'Queued') {
+
+  if (isAnalyzed) {
     return {
-      label: 'Queued',
-      variant: 'secondary',
+      label: 'Analyzed',
+      variant: 'default',
+      className: 'bg-green-600 text-white',
+      isReady: true,
     };
   }
-  if (typeof status === 'object') {
-    if ('Analyzing' in status) {
-      return {
-        label: `Analyzing ${status.Analyzing}%`,
-        variant: 'default',
-        className: 'animate-pulse',
-      };
-    }
-    if ('Ready' in status) {
-      const source = status.Ready === 'Lyrics' ? 'Lyrics' : 'Generated';
-      return {
-        label: `Ready (${source})`,
-        variant: 'default',
-        className: 'bg-green-600 text-white',
-      };
-    }
-    if ('Failed' in status) {
-      return { label: 'Failed', variant: 'destructive' };
-    }
-  }
-  return { label: 'Unknown', variant: 'outline' };
+
+  return { label: 'Not Analyzed', variant: 'outline' };
 }
 
-export const SongCard = ({ song }: { song: Song }) => {
-  let navigate = useNavigate();
+interface SongCardProps {
+  song: Song;
+  queueStatus?: QueuedStatus;
+}
+
+export const SongCard = memo(({ song, queueStatus }: SongCardProps) => {
+  const navigate = useNavigate();
   const { enqueueOne, deleteSongCache, reanalyzeFull, reanalyzeTranscript } =
     useAnalysis();
 
-  const { label, variant, className } = getStatusInfo(song.analysis_status);
-
-  const isReady =
-    typeof song.analysis_status === 'object' && 'Ready' in song.analysis_status;
-
-  const isAnalyzing =
-    typeof song.analysis_status === 'object' &&
-    'Analyzing' in song.analysis_status;
+  const { label, variant, className, isAnalyzing, isReady } = getStatusInfo(
+    song.is_analyzed,
+    queueStatus,
+  );
 
   return (
     <Item
@@ -105,7 +111,12 @@ export const SongCard = ({ song }: { song: Song }) => {
     >
       <ItemMedia variant="image" className="size-16">
         {song.album_art_path ? (
-          <img src={convertFileSrc(song.album_art_path)} alt={song.title} />
+          <img
+            src={convertFileSrc(song.album_art_path)}
+            alt={song.title}
+            loading="lazy"
+            decoding="async"
+          />
         ) : (
           <MusicIcon />
         )}
@@ -119,7 +130,8 @@ export const SongCard = ({ song }: { song: Song }) => {
         )}
         <ItemTitle className="line-clamp-1">{song.title}</ItemTitle>
         <ItemDescription>
-          {song.artist} • {song.album} • {formatSeconds(song.duration_secs)}
+          {song.artist} &bull; {song.album} &bull;{' '}
+          {formatSeconds(song.duration_secs)}
           {song.language ? ` • ${song.language.toUpperCase()}` : ''}
         </ItemDescription>
       </ItemContent>
@@ -131,18 +143,16 @@ export const SongCard = ({ song }: { song: Song }) => {
         </Badge>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="xs"
-              disabled={!label.startsWith('Ready')}
-            >
+            <Button variant="outline" size="xs" disabled={!isReady}>
               <MenuIcon /> Actions
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="bottom" align="start" className="min-w-56">
             <DropdownMenuGroup>
               <DropdownMenuItem
-                onClick={async () => {
+                onClick={async (e) => {
+                  e.stopPropagation();
+
                   await deleteSongCache(song.file_hash);
                   toast.info(`Cache deleted for "${song.title}"`);
                 }}
@@ -151,7 +161,9 @@ export const SongCard = ({ song }: { song: Song }) => {
                 Delete cache
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => {
+                onClick={async (e) => {
+                  e.stopPropagation();
+
                   reanalyzeTranscript(song.file_hash);
                   toast.info(`Reanalyzing transcript for "${song.title}"`);
                 }}
@@ -160,7 +172,9 @@ export const SongCard = ({ song }: { song: Song }) => {
                 Reanalyze transcript
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => {
+                onClick={async (e) => {
+                  e.stopPropagation();
+
                   reanalyzeFull(song.file_hash);
                   toast.info(
                     `Reanalyzing full (with stems) for "${song.title}"`,
@@ -176,4 +190,4 @@ export const SongCard = ({ song }: { song: Song }) => {
       </ItemContent>
     </Item>
   );
-};
+});
