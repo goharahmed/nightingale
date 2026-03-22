@@ -13,7 +13,7 @@ import { useSearch } from '@/hooks/use-search';
 import { useRef } from 'react';
 import type { AnalysisQueue } from '@/types/AnalysisQueue';
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 25;
 const DEFAULT_REFETCH_INTERVAL = 2500
 
 export const useSongsMeta = () => {
