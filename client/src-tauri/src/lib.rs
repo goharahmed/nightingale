@@ -8,12 +8,13 @@ mod vendor;
 
 use analyzer::{delete_song_cache, enqueue_all, enqueue_one, reanalyze_full, reanalyze_transcript};
 use app_core::AppConfig;
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use cache::{calculate_cache_stats, clear_all, clear_models_command, clear_videos_command};
 use config::{load_config, save_config};
 use playback::{fetch_pixabay_videos, get_audio_paths, load_transcript};
 use profile::{create_profile, delete_profile, load_profiles, switch_profile};
 use scanner::{load_analysis_queue, load_songs, load_songs_meta, trigger_scan};
-use tauri::{Manager, RunEvent};
+use tauri::{RunEvent, WebviewWindowBuilder};
 use vendor::{is_ready, trigger_setup};
 
 #[tauri::command]
@@ -67,11 +68,26 @@ pub fn run() {
             app_core::media_server::start();
 
             let config = AppConfig::load();
+            let json = serde_json::to_string(&config).map_err(|e| e.to_string())?;
+            let b64 = B64.encode(json.as_bytes());
+            let init_script =
+                format!("window.__NIGHTINGALE_APP_CONFIG__ = JSON.parse(atob('{b64}'));",);
+
+            let window_config = app
+                .config()
+                .app
+                .windows
+                .first()
+                .ok_or_else(|| "tauri.conf.json must define at least one window".to_string())?;
+
+            let window = WebviewWindowBuilder::from_config(app.handle(), window_config)
+                .map_err(|e| e.to_string())?
+                .initialization_script(init_script)
+                .build()
+                .map_err(|e| e.to_string())?;
 
             if config.fullscreen == Some(true) {
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.set_fullscreen(true);
-                }
+                let _ = window.set_fullscreen(true);
             }
 
             Ok(())

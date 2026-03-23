@@ -41,6 +41,9 @@ export const InfoDialog = () => {
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-2xl">Nightingale</DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            Karaoke from your music library.
+          </p>
           <div className="flex items-center gap-1">
             <Button
               variant="ghost"

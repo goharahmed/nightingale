@@ -105,8 +105,9 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
 
     if (nextSrc && readyUrls.current.has(nextSrc)) {
       activate(nextSlot);
-      const url = pullUrl(flavorRef.current);
-      if (url) setSlot(cur, url, flavorRef.current);
+      const refillFlavor = getNextFlavor(flavorRef.current);
+      const url = pullUrl(refillFlavor);
+      if (url) setSlot(cur, url, refillFlavor);
     } else {
       const video = videoRefs[cur].current;
       if (video) {

@@ -516,6 +516,7 @@ name = "client"
 version = "0.1.0"
 dependencies = [
  "app-core",
+ "base64 0.22.1",
  "dotenvy",
  "serde",
  "serde_json",

@@ -7,8 +7,7 @@ import { Menu } from './pages/menu/menu';
 import { Playback } from './pages/playback/playback';
 import { ThemeProvider } from './providers/theme/ThemeProvider';
 import { useConfig } from './queries/use-config';
-import { LoadingScreen } from './components/shared/loading-screen';
-import { Setup } from './components/shared/setup';
+import { Setup } from './components/menu/dialogs/setup';
 
 const queryClient = new QueryClient();
 
@@ -26,15 +25,7 @@ const InnerWrapper = () => (
 );
 
 const ThemeWrapper = () => {
-  const { data: config, isLoading, error } = useConfig();
-
-  if (isLoading) {
-    return <LoadingScreen />;
-  }
-
-  if (error) {
-    return <div>{JSON.stringify(error)}</div>;
-  }
+  const { data: config } = useConfig();
 
   return (
     <ThemeProvider

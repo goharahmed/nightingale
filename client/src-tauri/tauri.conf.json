@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "client",
+  "productName": "Nightingale",
   "version": "0.1.0",
   "identifier": "com.rzru.client",
   "build": {
@@ -12,15 +12,16 @@
   "app": {
     "windows": [
       {
-        "title": "client",
-        "width": 800,
-        "height": 600,
+        "create": false,
+        "title": "Nightingale",
+        "width": 1280,
+        "height": 720,
         "decorations": false
 
       }
     ],
     "security": {
-      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost; media-src 'self' http://127.0.0.1:* https:; style-src 'self' 'unsafe-inline'",
+      "csp": "default-src 'self' ipc: http://ipc.localhost; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:* http://localhost:*; img-src 'self' asset: http://asset.localhost; media-src 'self' http://127.0.0.1:* https:; style-src 'self' 'unsafe-inline'",
       "assetProtocol": {
         "enable": true,
         "scope": ["$HOME/.nightingale/**"]
@@ -30,6 +31,13 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "shortDescription": "Nightingale — Karaoke from your music library.",
+    "longDescription": "Nightingale — Karaoke from your music library. Synchronized lyrics, immersive backgrounds, and fullscreen playback for your own tracks. Licensed under the GNU General Public License v3.",
+    "category": "Music",
+    "copyright": "Copyright © 2026 rzru",
+    "publisher": "rzru",
+    "license": "GPL-3.0",
+    "licenseFile": "../../LICENSE",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

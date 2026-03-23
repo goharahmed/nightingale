@@ -10,9 +10,9 @@ const rows = [
 ];
 
 export const Stats = () => {
-  const { data: stats, isPending, isError } = useCacheStats();
+  const { data: stats, isLoading, isError } = useCacheStats();
 
-  if (isPending || !stats) {
+  if (isLoading || !stats) {
     return (
       <div className="flex flex-col gap-2 px-2">
         <span className="text-xs text-muted-foreground">…</span>

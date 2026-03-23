@@ -1,5 +1,15 @@
+/**
+ * Web Audio–based playback for instrumental + guide vocals, with a shared
+ * rAF tick that notifies subscribers for visuals (background sync, lyrics, HUD).
+ * The returned API object is referentially stable across renders when its fields are unchanged.
+ *
+ * Graph: instrumental buffer → destination; vocals buffer → gain (guide level) → destination.
+ * Playback position is derived from AudioContext.currentTime and a (offset, contextTimeAtStart)
+ * pair because BufferSourceNode is one-shot: pause/seek recreate sources rather than mutating time.
+ */
+
 import { getAudioPaths, getMediaPort, mediaUrl } from '@/tauri-bridge/playback';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 export type TimeSubscriber = (time: number) => void;
 
@@ -33,9 +43,12 @@ export function useAudioPlayer(
   const rafRef = useRef<number>(0);
   const currentTimeRef = useRef(0);
   const subscribersRef = useRef<Set<TimeSubscriber>>(new Set());
+  /** Logical playback position (seconds) when the current sources were started. */
   const startOffsetRef = useRef(0);
+  /** ctx.currentTime at the moment the current sources started (anchors wall-clock math). */
   const startContextTimeRef = useRef(0);
   const playingRef = useRef(false);
+  /** Set on cleanup so async decode/start and onended ignore stale work after unmount. */
   const cancelledRef = useRef(false);
 
   const [duration, setDuration] = useState(0);
@@ -45,9 +58,14 @@ export function useAudioPlayer(
   const [error, setError] = useState<string | null>(null);
   const [guideVolume, setGuideVolumeState] = useState(initialGuideVolume);
 
+  // While playing: position = offset at start + elapsed AudioContext time since start.
+  // While paused/stopped: fall back to currentTimeRef (last value from the tick, or seek target).
   const getCurrentTime = useCallback(() => {
     const ctx = ctxRef.current;
-    if (!ctx || !playingRef.current) return currentTimeRef.current;
+    if (!ctx || !playingRef.current) {
+      return currentTimeRef.current;
+    }
+
     return (
       startOffsetRef.current +
       (ctx.currentTime - startContextTimeRef.current)
@@ -56,27 +74,32 @@ export function useAudioPlayer(
 
   const subscribe = useCallback((fn: TimeSubscriber) => {
     subscribersRef.current.add(fn);
+
     return () => {
       subscribersRef.current.delete(fn);
     };
   }, []);
 
   const notifySubscribers = useCallback((t: number) => {
-    for (const fn of subscribersRef.current) fn(t);
+    for (const fn of subscribersRef.current) {
+      fn(t);
+    }
   }, []);
 
   const stopSources = useCallback(() => {
     playingRef.current = false;
+
     try {
       instrumentalSrcRef.current?.stop();
     } catch {
-      /* already stopped */
+      /* BufferSourceNode throws if stopped twice */
     }
     try {
       vocalsSrcRef.current?.stop();
     } catch {
-      /* already stopped */
+      /* BufferSourceNode throws if stopped twice */
     }
+
     instrumentalSrcRef.current = null;
     vocalsSrcRef.current = null;
   }, []);
@@ -87,12 +110,16 @@ export function useAudioPlayer(
       const instBuf = instrumentalBufRef.current;
       const vocBuf = vocalsBufRef.current;
       const gainNode = vocalsGainRef.current;
-      if (!ctx || !instBuf || !vocBuf || !gainNode) return;
+
+      if (!ctx || !instBuf || !vocBuf || !gainNode) {
+        return;
+      }
 
       stopSources();
 
       const clamped = Math.max(0, Math.min(offset, instBuf.duration));
 
+      // New BufferSourceNodes each time — Web Audio sources are one-shot after start/stop.
       const instSrc = ctx.createBufferSource();
       instSrc.buffer = instBuf;
       instSrc.connect(ctx.destination);
@@ -101,6 +128,7 @@ export function useAudioPlayer(
       vocSrc.buffer = vocBuf;
       vocSrc.connect(gainNode);
 
+      // End-of-track is tied to the instrumental only (vocals length is assumed aligned).
       instSrc.onended = () => {
         if (
           !cancelledRef.current &&
@@ -108,6 +136,7 @@ export function useAudioPlayer(
           instrumentalSrcRef.current === instSrc
         ) {
           playingRef.current = false;
+
           setIsFinished(true);
           setIsPlaying(false);
         }
@@ -128,12 +157,15 @@ export function useAudioPlayer(
 
   useEffect(() => {
     let cancelled = false;
+
     cancelledRef.current = false;
     playingRef.current = false;
+
     startOffsetRef.current = 0;
     startContextTimeRef.current = 0;
     currentTimeRef.current = 0;
 
+    // One context + decode per fileHash; effect cleanup tears everything down on track change.
     const ctx = new AudioContext();
     ctxRef.current = ctx;
 
@@ -144,36 +176,51 @@ export function useAudioPlayer(
 
     const isCancelled = () => cancelled || cancelledRef.current;
 
+    // Fetch PCM via Tauri media server, decode, then autoplay from t=0 via startSources(0).
     Promise.all([getMediaPort(), getAudioPaths(fileHash)])
       .then(async ([port, paths]) => {
-        if (isCancelled()) return;
+        if (isCancelled()) {
+          return;
+        }
 
         const [instData, vocData] = await Promise.all([
           fetch(mediaUrl(port, paths.instrumental)).then((r) => {
-            if (!r.ok)
+            if (!r.ok) {
               throw new Error(`Failed to fetch instrumental: ${r.status}`);
+            }
+
             return r.arrayBuffer();
           }),
+
           fetch(mediaUrl(port, paths.vocals)).then((r) => {
-            if (!r.ok)
+            if (!r.ok) {
               throw new Error(`Failed to fetch vocals: ${r.status}`);
+            }
+
             return r.arrayBuffer();
           }),
         ]);
 
-        if (isCancelled()) return;
+        if (isCancelled()) {
+          return;
+        }
 
-        if (ctx.state === 'suspended') await ctx.resume();
+        if (ctx.state === 'suspended') {
+          await ctx.resume();
+        }
 
         const [instBuf, vocBuf] = await Promise.all([
           ctx.decodeAudioData(instData),
           ctx.decodeAudioData(vocData),
         ]);
 
-        if (isCancelled()) return;
+        if (isCancelled()) {
+          return;
+        }
 
         instrumentalBufRef.current = instBuf;
         vocalsBufRef.current = vocBuf;
+
         setDuration(instBuf.duration);
 
         startSources(0);
@@ -181,13 +228,19 @@ export function useAudioPlayer(
         setIsPlaying(true);
       })
       .catch((e) => {
-        if (!isCancelled()) setError(`Failed to load audio: ${e}`);
+        if (!isCancelled()) {
+          setError(`Failed to load audio: ${e}`);
+        }
       });
 
     let lastNotify = 0;
     const NOTIFY_INTERVAL = 33;
+
     const tick = () => {
-      if (isCancelled()) return;
+      if (isCancelled()) {
+        return;
+      }
+
       if (playingRef.current && ctxRef.current) {
         const now = performance.now();
         const t =
@@ -195,13 +248,16 @@ export function useAudioPlayer(
           (ctxRef.current.currentTime - startContextTimeRef.current);
         currentTimeRef.current = t;
 
+        // Throttle subscriber calls (~30 Hz) so lyrics/HUD don't run every rAF frame.
         if (now - lastNotify >= NOTIFY_INTERVAL) {
           lastNotify = now;
           for (const fn of subscribersRef.current) fn(t);
         }
       }
+
       rafRef.current = requestAnimationFrame(tick);
     };
+
     rafRef.current = requestAnimationFrame(tick);
 
     return () => {
@@ -224,9 +280,11 @@ export function useAudioPlayer(
   const pause = useCallback(() => {
     const ctx = ctxRef.current;
     if (ctx && playingRef.current) {
+      // Freeze logical position into startOffsetRef before stopping sources.
       startOffsetRef.current +=
         ctx.currentTime - startContextTimeRef.current;
     }
+
     stopSources();
     setIsPlaying(false);
   }, [stopSources]);
@@ -236,16 +294,21 @@ export function useAudioPlayer(
     setIsPlaying(true);
   }, [startSources]);
 
+  // Pushes time to subscribers immediately so scrubbing UI stays in sync between rAF ticks.
   const seek = useCallback(
     (time: number) => {
       const wasPlaying = playingRef.current;
+
       stopSources();
+
       startOffsetRef.current = time;
       currentTimeRef.current = time;
+
       if (wasPlaying) {
         startSources(time);
         setIsPlaying(true);
       }
+
       notifySubscribers(time);
       setIsFinished(false);
     },
@@ -254,34 +317,59 @@ export function useAudioPlayer(
 
   const setGuideVolume = useCallback((v: number) => {
     const clamped = Math.max(0, Math.min(1, v));
+
     setGuideVolumeState(clamped);
+
     if (vocalsGainRef.current) {
       vocalsGainRef.current.gain.value = clamped;
     }
   }, []);
 
+  // Optional explicit teardown (e.g. navigation); React effect cleanup also runs on unmount/file change.
   const cleanup = useCallback(() => {
     cancelledRef.current = true;
+
     cancelAnimationFrame(rafRef.current);
+
     stopSources();
+
     ctxRef.current?.close();
     ctxRef.current = null;
   }, [stopSources]);
 
-  return {
-    getCurrentTime,
-    subscribe,
-    duration,
-    isReady,
-    isPlaying,
-    isFinished,
-    error,
-    guideVolume,
-    play,
-    pause,
-    resume,
-    seek,
-    setGuideVolume,
-    cleanup,
-  };
+  // Single object identity per dependency set so consumers (e.g. memo children) don't re-render unnecessarily.
+  return useMemo(
+    () => ({
+      getCurrentTime,
+      subscribe,
+      duration,
+      isReady,
+      isPlaying,
+      isFinished,
+      error,
+      guideVolume,
+      play,
+      pause,
+      resume,
+      seek,
+      setGuideVolume,
+      cleanup,
+    }),
+    [
+      getCurrentTime,
+      subscribe,
+      duration,
+      isReady,
+      isPlaying,
+      isFinished,
+      error,
+      guideVolume,
+      play,
+      pause,
+      resume,
+      seek,
+      setGuideVolume,
+      cleanup,
+    ],
+  );
 }

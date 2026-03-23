@@ -2,12 +2,14 @@
   "name": "client",
   "private": true,
   "version": "0.1.0",
+  "description": "Nightingale — Karaoke from your music library.",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "icons": "tauri icon src/assets/images/logo_square.png",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\""
   },

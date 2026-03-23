@@ -9,9 +9,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '../ui/alert-dialog';
+} from '@/components/ui/alert-dialog';
 import { exit } from '@/tauri-bridge/exit';
-import { Progress } from '../ui/progress';
+import { Progress } from '@/components/ui/progress';
 import { listen } from '@tauri-apps/api/event';
 import { SetupProgress } from '@/types/SetupProgress';
 import { SetupStep } from '@/types/SetupStep';
@@ -29,7 +29,8 @@ const InitialStep = ({ onStart }: InitialStepProps) => (
     <AlertDialogHeader>
       <AlertDialogTitle>Welcome to Nightingale!</AlertDialogTitle>
       <AlertDialogDescription>
-        Before you get started, Nightingale needs to install a few dependencies:{' '}
+        Nightingale — Karaoke from your music library. Before you get started, we
+        need to install a few dependencies:{' '}
         <code>ffmpeg</code>, <code>uv</code>, <code>python 3.10</code>, Python
         packages, and <code>CUDA</code> wheels (NVIDIA GPUs only).
       </AlertDialogDescription>

@@ -71,6 +71,45 @@ export function isPixabayTheme(index: number): boolean {
   return index === PIXABAY_INDEX;
 }
 
+function backgroundContent(
+  mode: ThemeMode,
+  props: {
+    themeIndex: number;
+    videoFlavor: VideoFlavor;
+    sourceVideoPath?: string;
+    isPlaying: boolean;
+    subscribe: BackgroundProps['subscribe'];
+    getCurrentTime: BackgroundProps['getCurrentTime'];
+  },
+) {
+  const { themeIndex, videoFlavor, sourceVideoPath, isPlaying, subscribe, getCurrentTime } =
+    props;
+
+  switch (mode) {
+    case 'shader':
+      return (
+        <ShaderVisualizer
+          shaderIndex={themeIndex % SHADER_COUNT}
+          isPlaying={isPlaying}
+        />
+      );
+    case 'pixabay':
+      return <PixabayVideo flavor={videoFlavor} isPlaying={isPlaying} />;
+    case 'source':
+      if (!sourceVideoPath) {
+        return null;
+      }
+      return (
+        <SourceVideo
+          filePath={sourceVideoPath}
+          isPlaying={isPlaying}
+          subscribe={subscribe}
+          getCurrentTime={getCurrentTime}
+        />
+      );
+  }
+}
+
 export const Background = ({
   themeIndex,
   videoFlavor,
@@ -82,46 +121,21 @@ export const Background = ({
 }: BackgroundProps) => {
   const mode = themeMode(themeIndex);
 
-  if (!isReady) {
-    return (
-      <div className="fixed inset-0">
-        <ShaderVisualizer shaderIndex={0} isPlaying={true} customFragment={loadingFragment} />
-      </div>
-    );
-  }
-
-  const background = (() => {
-    switch (mode) {
-      case 'shader':
-        return (
-          <ShaderVisualizer
-            shaderIndex={themeIndex % SHADER_COUNT}
-            isPlaying={isPlaying}
-          />
-        );
-      case 'pixabay':
-        return (
-          <PixabayVideo flavor={videoFlavor} isPlaying={isPlaying} />
-        );
-      case 'source':
-        if (!sourceVideoPath) {
-          return null;
-        };
-
-        return (
-          <SourceVideo
-            filePath={sourceVideoPath}
-            isPlaying={isPlaying}
-            subscribe={subscribe}
-            getCurrentTime={getCurrentTime}
-          />
-        );
-    }
-  })();
-
   return (
     <div className="fixed inset-0">
-      {background}
+      {backgroundContent(mode, {
+        themeIndex,
+        videoFlavor,
+        sourceVideoPath,
+        isPlaying: isReady && isPlaying,
+        subscribe,
+        getCurrentTime,
+      })}
+      {!isReady && (
+        <div className="fixed inset-0">
+          <ShaderVisualizer shaderIndex={0} isPlaying={true} customFragment={loadingFragment} />
+        </div>
+      )}
     </div>
   );
 };

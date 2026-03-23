@@ -1,5 +1,5 @@
 import type { TimeSubscriber } from '@/hooks/use-audio-player';
-import { forwardRef, useEffect, useRef } from 'react';
+import { forwardRef, memo, useEffect, useRef } from 'react';
 import type { VideoFlavor } from './video-background';
 import { isPixabayTheme, themeName } from './background';
 
@@ -76,7 +76,7 @@ interface PlaybackHudProps {
   transcriptSource: string;
 }
 
-export const PlaybackHud = ({
+function PlaybackHudImpl({
   title,
   artist,
   duration,
@@ -91,7 +91,7 @@ export const PlaybackHud = ({
   subscribe,
   getCurrentTime,
   transcriptSource,
-}: PlaybackHudProps) => {
+}: PlaybackHudProps) {
   const lastSecondRef = useRef(-1);
   const timerRef = useRef<HTMLParagraphElement>(null);
   const skipIntroRef = useRef<HTMLButtonElement>(null);
@@ -162,4 +162,6 @@ export const PlaybackHud = ({
       <Disclaimer source={transcriptSource} />
     </>
   );
-};
+}
+
+export const PlaybackHud = memo(PlaybackHudImpl);

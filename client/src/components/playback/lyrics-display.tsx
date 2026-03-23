@@ -1,6 +1,6 @@
 import type { TimeSubscriber } from '@/hooks/use-audio-player';
 import type { Segment, Word } from '@/types/Transcript';
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 
 // Timing offsets: lyrics/words appear slightly before their actual start
 // so the visual transition feels in sync with the audio.
@@ -159,11 +159,11 @@ interface LyricsDisplayProps {
   getCurrentTime: () => number;
 }
 
-export const LyricsDisplay = ({
+function LyricsDisplayImpl({
   segments,
   subscribe,
   getCurrentTime,
-}: LyricsDisplayProps) => {
+}: LyricsDisplayProps) {
   const [segIdx, setSegIdx] = useState(() =>
     segments.length === 0
       ? 0
@@ -217,7 +217,7 @@ export const LyricsDisplay = ({
       updateCountdown(countdownRef.current, showCountdown, timeUntil);
       updateWordSpans(wordRefs.current, seg.words, time, isActive);
     });
-  }, [segments, subscribe, getCurrentTime]);
+  }, [segments, subscribe]);
 
   if (segments.length === 0) {
     return null;
@@ -279,4 +279,6 @@ export const LyricsDisplay = ({
       )}
     </div>
   );
-};
+}
+
+export const LyricsDisplay = memo(LyricsDisplayImpl);
