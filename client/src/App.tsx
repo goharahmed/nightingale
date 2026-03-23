@@ -33,7 +33,7 @@ const ThemeWrapper = () => {
   }
 
   if (error) {
-    return <div>{error.stack}</div>;
+    return <div>{JSON.stringify(error)}</div>;
   }
 
   return (

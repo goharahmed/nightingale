@@ -10,29 +10,42 @@ import {
   loadSongsMeta,
 } from '@/tauri-bridge/songs';
 import { useSearch } from '@/hooks/use-search';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import type { AnalysisQueue } from '@/types/AnalysisQueue';
+import { SongsMeta } from '@/types/SongsMeta';
 
 const PAGE_SIZE = 25;
 const DEFAULT_REFETCH_INTERVAL = 2500;
 
 export const useSongsMeta = () => {
+  const queryClient = useQueryClient();
+  const [prevMatched, setPrevMatched] = useState(true);
+
   return useQuery({
     queryKey: SONGS_META,
     queryFn: loadSongsMeta,
     refetchInterval: DEFAULT_REFETCH_INTERVAL,
+    onSuccess: ({ count, processed_count }: SongsMeta) => {
+      if (count !== processed_count) {
+        setPrevMatched(false);
+        queryClient.invalidateQueries({ queryKey: SONGS });
+      } else {
+        if (prevMatched === false) {
+          setPrevMatched(true);
+          queryClient.invalidateQueries({ queryKey: SONGS });
+        }
+      }
+    },
   });
 };
 
 export const useSongs = () => {
   const { search } = useSearch();
-  const { data: { processed_count, count } = {} } = useSongsMeta();
 
   return useInfiniteQuery({
     queryKey: [...SONGS, search],
-    queryFn: ({ pageParam }) =>
+    queryFn: ({ pageParam = 0 }) =>
       loadSongs(search || undefined, pageParam, PAGE_SIZE),
-    initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
       const loaded = allPages.reduce(
         (sum, page) => sum + page.processed.length,
@@ -40,8 +53,6 @@ export const useSongs = () => {
       );
       return loaded < lastPage.processed_count ? loaded : undefined;
     },
-    refetchInterval:
-      count !== processed_count ? DEFAULT_REFETCH_INTERVAL : undefined,
   });
 };
 
