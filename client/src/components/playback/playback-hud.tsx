@@ -30,7 +30,7 @@ const SkipButton = forwardRef<
   <button
     ref={ref}
     onClick={onClick}
-    className="pointer-events-auto flex gap-1 rounded-md border-2 border-white/70 bg-black/10 px-3 py-1 text-[14px] text-white/90 transition-colors hover:bg-black/20"
+    className="pointer-events-auto flex gap-1 rounded-sm border-2 border-white/70 bg-black/10 px-2.5 py-1 text-sm text-white/90 transition-colors hover:bg-black/20"
     style={{ display: 'none' }}
   >
     <span>{label}</span> <span>⏎</span>
@@ -38,11 +38,11 @@ const SkipButton = forwardRef<
 ));
 
 function HintText({ children }: { children: React.ReactNode }) {
-  return <p className="text-[14px] text-white/50">{children}</p>;
+  return <p className="text-sm text-white/50">{children}</p>;
 }
 
 const FOOTER_NOTE_CLASS =
-  'pointer-events-none absolute bottom-2 z-20 text-[12px] text-white/30';
+  'pointer-events-none absolute bottom-2 z-20 text-xs text-white/30';
 
 function Disclaimer({ source }: { source: string }) {
   const text =
@@ -128,9 +128,9 @@ export const PlaybackHud = ({
     <>
       <div className="pointer-events-auto absolute inset-x-0 top-3 z-20 flex justify-between px-4">
         <div className="max-w-[40%] overflow-hidden">
-          <h1 className="truncate text-[22px] text-white">{title}</h1>
-          <p className="truncate text-[16px] text-white/70">{artist}</p>
-          <p ref={timerRef} className="text-[16px] text-white/70">
+          <h1 className="truncate text-[1.375rem] text-white">{title}</h1>
+          <p className="truncate text-base text-white/70">{artist}</p>
+          <p ref={timerRef} className="text-base text-white/70">
             0:00 / {formatTime(duration)}
           </p>
 

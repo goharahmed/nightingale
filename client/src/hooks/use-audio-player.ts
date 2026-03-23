@@ -31,6 +31,7 @@ export function useAudioPlayer(
   const vocalsRef = useRef<HTMLAudioElement | null>(null);
   const rafRef = useRef<number>(0);
   const currentTimeRef = useRef(0);
+  const seekUntilRef = useRef(0);
   const subscribersRef = useRef<Set<TimeSubscriber>>(new Set());
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -116,12 +117,26 @@ export function useAudioPlayer(
       });
 
     let lastNotify = 0;
+    let lastVocalSync = 0;
     const NOTIFY_INTERVAL = 33; // ~30fps
+    const VOCAL_SYNC_INTERVAL = 500;
+    const VOCAL_DRIFT_THRESHOLD = 0.15;
     const tick = () => {
       if (instrumentalRef.current && !isCancelled()) {
-        const t = instrumentalRef.current.currentTime;
-        currentTimeRef.current = t;
         const now = performance.now();
+        const t = now < seekUntilRef.current
+          ? currentTimeRef.current
+          : instrumentalRef.current.currentTime;
+        currentTimeRef.current = t;
+
+        if (vocalsRef.current && now - lastVocalSync >= VOCAL_SYNC_INTERVAL) {
+          lastVocalSync = now;
+          const vDrift = Math.abs(vocalsRef.current.currentTime - t);
+          if (vDrift > VOCAL_DRIFT_THRESHOLD) {
+            vocalsRef.current.currentTime = t;
+          }
+        }
+
         if (now - lastNotify >= NOTIFY_INTERVAL) {
           lastNotify = now;
           for (const fn of subscribersRef.current) {
@@ -164,13 +179,21 @@ export function useAudioPlayer(
   }, []);
 
   const seek = useCallback((time: number) => {
+    currentTimeRef.current = time;
+    seekUntilRef.current = performance.now() + 200;
+
     if (instrumentalRef.current) {
       instrumentalRef.current.currentTime = time;
+      instrumentalRef.current.play().catch(() => {});
     }
     if (vocalsRef.current) {
       vocalsRef.current.currentTime = time;
+      vocalsRef.current.play().catch(() => {});
     }
-    currentTimeRef.current = time;
+
+    for (const fn of subscribersRef.current) {
+      fn(time);
+    }
     setIsFinished(false);
   }, []);
 

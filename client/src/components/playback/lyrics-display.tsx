@@ -239,7 +239,7 @@ export const LyricsDisplay = ({
       >
         <span
           ref={countdownRef}
-          className="absolute -left-9 -top-9 z-10 flex size-10 items-center justify-center rounded-full bg-white/20 text-[22px] font-bold text-white"
+          className="absolute -left-9 -top-9 z-10 flex size-10 items-center justify-center rounded-full bg-black/40 text-[22px] font-bold text-white"
           style={{ display: 'none' }}
         />
         {seg.words.length > 0 && (

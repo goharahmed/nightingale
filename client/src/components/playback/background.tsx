@@ -21,7 +21,7 @@ export interface BackgroundProps {
 
 const SHADER_COUNT = shaders.length;
 const PIXABAY_INDEX = SHADER_COUNT;
-const SOURCE_VIDEO_INDEX = SHADER_COUNT + 1;
+export const SOURCE_VIDEO_INDEX = SHADER_COUNT + 1;
 
 export function themeMode(index: number): ThemeMode {
   if (index === PIXABAY_INDEX) {

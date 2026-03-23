@@ -1,5 +1,6 @@
 import {
   Background,
+  SOURCE_VIDEO_INDEX,
   nextFlavorIndex,
   nextThemeIndex,
 } from '@/components/playback/background';
@@ -81,7 +82,9 @@ const PlaybackInner = ({
   const navigate = useNavigate();
 
   const [paused, setPaused] = useState(false);
-  const [themeIndex, setThemeIndex] = useState(initialTheme);
+  const [themeIndex, setThemeIndex] = useState(
+    song.is_video ? SOURCE_VIDEO_INDEX : initialTheme,
+  );
   const [flavorIndex, setFlavorIndex] = useState(initialVideoFlavor);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [transcriptSource, setTranscriptSource] = useState('generated');
@@ -164,7 +167,9 @@ const PlaybackInner = ({
         case 'T':
           setThemeIndex((prev) => {
             const next = nextThemeIndex(prev, song.is_video);
-            persistConfig({ last_theme: next });
+            if (next !== SOURCE_VIDEO_INDEX) {
+              persistConfig({ last_theme: next });
+            }
             return next;
           });
           break;
