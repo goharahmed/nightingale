@@ -116,7 +116,9 @@ export const SettingsDialog = () => {
             </FieldDescription>
             <Select
               onValueChange={(value) =>
-                mutate({ preferred_mic: value === '__default__' ? null : value })
+                mutate({
+                  preferred_mic: value === '__default__' ? null : value,
+                })
               }
               defaultValue={config?.preferred_mic ?? '__default__'}
             >

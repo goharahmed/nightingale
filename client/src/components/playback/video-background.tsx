@@ -16,7 +16,8 @@ export const FLAVORS = [
 
 export type VideoFlavor = (typeof FLAVORS)[number];
 
-const VIDEO_CLASS = 'pointer-events-none absolute inset-0 size-full object-cover';
+const VIDEO_CLASS =
+  'pointer-events-none absolute inset-0 size-full object-cover';
 
 const SOURCE_VIDEO_DRIFT_LARGE = 0.75;
 const SOURCE_VIDEO_DRIFT_CORRECT = 0.5;
@@ -92,7 +93,9 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
     if (video) {
       video.addEventListener(
         'canplay',
-        () => { readyUrls.current.add(url); },
+        () => {
+          readyUrls.current.add(url);
+        },
         { once: true },
       );
     }
@@ -198,15 +201,21 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
           readyUrls.current.add(playUrl);
           doSwap();
         } else {
-          video.addEventListener('canplay', () => {
-            readyUrls.current.add(playUrl);
-            doSwap();
-          }, { once: true });
+          video.addEventListener(
+            'canplay',
+            () => {
+              readyUrls.current.add(playUrl);
+              doSwap();
+            },
+            { once: true },
+          );
         }
       }
     });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [flavor]);
 
   useEffect(() => {
@@ -224,7 +233,9 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
     if (!video) return;
 
     lastTimeRef.current = video.currentTime;
-    const onTimeUpdate = () => { lastTimeRef.current = video.currentTime; };
+    const onTimeUpdate = () => {
+      lastTimeRef.current = video.currentTime;
+    };
     video.addEventListener('timeupdate', onTimeUpdate);
 
     stallTimerRef.current = window.setInterval(() => {
@@ -296,11 +307,15 @@ export const SourceVideo = ({
       const t = getCurrentTime();
       if (t > 0.1) {
         video.currentTime = t;
-        video.addEventListener('seeked', () => {
-          initializedRef.current = true;
-          setVisible(true);
-          if (isPlayingRef.current) video.play().catch(() => {});
-        }, { once: true });
+        video.addEventListener(
+          'seeked',
+          () => {
+            initializedRef.current = true;
+            setVisible(true);
+            if (isPlayingRef.current) video.play().catch(() => {});
+          },
+          { once: true },
+        );
       } else {
         initializedRef.current = true;
         setVisible(true);

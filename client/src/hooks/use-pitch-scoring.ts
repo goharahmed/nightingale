@@ -14,10 +14,7 @@ import {
 } from '@/lib/pitch/state';
 import { useEffect, useRef, useState } from 'react';
 
-export function usePitchScoring(
-  audio: AudioPlayer,
-  micPitch: number | null,
-) {
+export function usePitchScoring(audio: AudioPlayer, micPitch: number | null) {
   const refDetector = useRef(createPitchDetector());
   const scratchRef = useRef(new Float32Array(PITCH_WINDOW_SAMPLES));
   const bufferRef = useRef(new PitchStateBuffer());
@@ -61,10 +58,7 @@ export function usePitchScoring(
       const vocals = audio.getVocalsBuffer();
       const mp = micPitchRef.current;
 
-      if (
-        !vocals ||
-        !sampleVocalsWindow(vocals, t, scratchRef.current)
-      ) {
+      if (!vocals || !sampleVocalsWindow(vocals, t, scratchRef.current)) {
         bufferRef.current.tryPush(null, mp, 0, t);
       } else {
         const refHz = detectPitchFromSamplesRef(

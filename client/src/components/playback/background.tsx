@@ -121,6 +121,14 @@ export const Background = ({
 }: BackgroundProps) => {
   const mode = themeMode(themeIndex);
 
+  if (!isReady) {
+    return (
+      <div className="fixed inset-0">
+        <ShaderVisualizer shaderIndex={0} isPlaying={true} customFragment={loadingFragment} />
+      </div>
+    )
+  }
+
   return (
     <div className="fixed inset-0">
       {backgroundContent(mode, {
@@ -131,11 +139,6 @@ export const Background = ({
         subscribe,
         getCurrentTime,
       })}
-      {!isReady && (
-        <div className="fixed inset-0">
-          <ShaderVisualizer shaderIndex={0} isPlaying={true} customFragment={loadingFragment} />
-        </div>
-      )}
     </div>
   );
 };

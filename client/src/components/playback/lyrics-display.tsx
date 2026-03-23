@@ -39,7 +39,7 @@ function parseRGB(color: string): RGB {
   let cached = rgbCache.get(color);
   if (cached) {
     return cached;
-  };
+  }
 
   const match = color.match(/[\d.]+/g);
   cached = match
@@ -85,7 +85,7 @@ function findCurrentSegment(
   for (let i = start; i < segments.length; i++) {
     if (time >= segments[i].end + SEGMENT_LINGER) {
       continue;
-    };
+    }
 
     // If we're already in the lead-in of the next segment, jump ahead
     const next = i + 1;
@@ -115,7 +115,11 @@ function computeWordColor(word: Word, time: number, isActive: boolean): string {
   }
 
   if (time >= wStart) {
-    return interpolateColor(base, COLORS.sung, (time - wStart) / (wEnd - wStart));
+    return interpolateColor(
+      base,
+      COLORS.sung,
+      (time - wStart) / (wEnd - wStart),
+    );
   }
 
   return base;
@@ -221,7 +225,7 @@ function LyricsDisplayImpl({
 
   if (segments.length === 0) {
     return null;
-  };
+  }
 
   const seg = segments[segIdx];
   const nextSeg = segIdx + 1 < segments.length ? segments[segIdx + 1] : null;

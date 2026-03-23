@@ -4,7 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 export function getPreloadedConfig(): AppConfig | undefined {
   if (typeof window === 'undefined') {
     return undefined;
-  };
+  }
 
   return window.__NIGHTINGALE_APP_CONFIG__;
 }

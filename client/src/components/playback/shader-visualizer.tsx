@@ -14,7 +14,10 @@ const ShaderQuad = ({ shaderIndex, isPlaying, customFragment }: Props) => {
   const timeRef = useRef(0);
 
   const fragment = customFragment ?? shaders[shaderIndex].fragmentShader;
-  const uniforms = useMemo(() => ({ uTime: { value: 0 } }), [shaderIndex, customFragment]);
+  const uniforms = useMemo(
+    () => ({ uTime: { value: 0 } }),
+    [shaderIndex, customFragment],
+  );
 
   useFrame((_, delta) => {
     if (isPlaying) {
@@ -37,11 +40,19 @@ const ShaderQuad = ({ shaderIndex, isPlaying, customFragment }: Props) => {
   );
 };
 
-export const ShaderVisualizer = ({ shaderIndex, isPlaying, customFragment }: Props) => {
+export const ShaderVisualizer = ({
+  shaderIndex,
+  isPlaying,
+  customFragment,
+}: Props) => {
   return (
     <div className="fixed inset-0">
       <Canvas flat dpr={1}>
-        <ShaderQuad shaderIndex={shaderIndex} isPlaying={isPlaying} customFragment={customFragment} />
+        <ShaderQuad
+          shaderIndex={shaderIndex}
+          isPlaying={isPlaying}
+          customFragment={customFragment}
+        />
       </Canvas>
     </div>
   );

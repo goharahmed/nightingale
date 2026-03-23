@@ -2,7 +2,6 @@ import type { TimeSubscriber } from '@/hooks/use-audio-player';
 import { forwardRef, memo, useEffect, useRef } from 'react';
 import type { VideoFlavor } from './video-background';
 import { isPixabayTheme, themeName } from './background';
-
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds) % 60;
@@ -14,10 +13,7 @@ function formatGuideText(volume: number): string {
   return pct === 0 ? 'Guide: OFF' : `Guide: ${pct}% [G +/-]`;
 }
 
-function formatThemeText(
-  themeIndex: number,
-  videoFlavor: VideoFlavor,
-): string {
+function formatThemeText(themeIndex: number, videoFlavor: VideoFlavor): string {
   return `Theme: ${themeName(themeIndex, videoFlavor)} [T${isPixabayTheme(themeIndex) ? ' / F' : ''}]`;
 }
 
@@ -37,12 +33,17 @@ const SkipButton = forwardRef<
   </button>
 ));
 
-function HintText({ children }: { children: React.ReactNode }) {
-  return <p className="text-sm text-white/50">{children}</p>;
+function HintText({
+  children,
+  fontSize = 'sm',
+}: {
+  children: React.ReactNode;
+  fontSize?: string;
+}) {
+  return <p className={`text-${fontSize} text-white/50`}>{children}</p>;
 }
 
-const FOOTER_NOTE_CLASS =
-  'pointer-events-none absolute bottom-2 z-20 text-[0.6rem] text-white/30';
+const FOOTER_NOTE_CLASS = `pointer-events-none absolute bottom-2 z-20 text-[0.6rem] text-white/30`;
 
 function Disclaimer({ source }: { source: string }) {
   const text =
@@ -51,7 +52,9 @@ function Disclaimer({ source }: { source: string }) {
       : 'Lyrics and timing are AI-generated and may not be perfectly accurate';
 
   return (
-    <p className={`${FOOTER_NOTE_CLASS} left-1/2 -translate-x-1/2 whitespace-nowrap text-center`}>
+    <p
+      className={`${FOOTER_NOTE_CLASS} left-1/2 -translate-x-1/2 whitespace-nowrap text-center`}
+    >
       {text}
     </p>
   );
@@ -75,6 +78,8 @@ interface PlaybackHudProps {
   getCurrentTime: () => number;
   transcriptSource: string;
   pitchScore: number | null;
+  micOn: boolean;
+  micName: string;
 }
 
 function PlaybackHudImpl({
@@ -93,6 +98,8 @@ function PlaybackHudImpl({
   getCurrentTime,
   transcriptSource,
   pitchScore,
+  micOn,
+  micName,
 }: PlaybackHudProps) {
   const lastSecondRef = useRef(-1);
   const timerRef = useRef<HTMLParagraphElement>(null);
@@ -145,16 +152,23 @@ function PlaybackHudImpl({
             0:00 / {formatTime(duration)}
           </p>
           <div className="mt-2 flex gap-2">
-            <SkipButton ref={skipIntroRef} label="Skip Intro" onClick={onSkipIntro} />
-            <SkipButton ref={skipOutroRef} label="Skip Outro" onClick={onSkipOutro} />
+            <SkipButton
+              ref={skipIntroRef}
+              label="Skip Intro"
+              onClick={onSkipIntro}
+            />
+            <SkipButton
+              ref={skipOutroRef}
+              label="Skip Outro"
+              onClick={onSkipOutro}
+            />
           </div>
         </div>
 
         <div className="flex flex-col items-end">
-          {pitchScore != null && (
-            <HintText>Score: {pitchScore}</HintText>
-          )}
+            <HintText fontSize="md">Score: {pitchScore ?? '--'}</HintText>
           <HintText>{formatGuideText(guideVolume)}</HintText>
+          <HintText>Mic: {micOn ? micName : 'OFF'} [M/N]</HintText>
           <HintText>{formatThemeText(themeIndex, videoFlavor)}</HintText>
           <HintText>[ESC] Back</HintText>
         </div>

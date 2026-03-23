@@ -1,6 +1,5 @@
 import {
   BASE_DISPLAY_HEIGHT,
-  BASE_DISPLAY_TOP_OFFSET,
   BASE_DISPLAY_WIDTH,
   PITCH_BUFFER_SIZE,
   REFERENCE_HEIGHT,
@@ -94,7 +93,7 @@ export function PitchGraph({ series, visible }: PitchGraphProps) {
     const centerY = padY + plotH / 2;
     const semiToY = (semi: number) => {
       const normalized = Math.min(1, Math.max(0, (semi - 45) / 36));
-      return centerY - plotH / 2 + normalized * plotH;
+      return centerY + plotH / 2 - normalized * plotH;
     };
 
     const len = series.refPitches.length;
@@ -106,8 +105,7 @@ export function PitchGraph({ series, visible }: PitchGraphProps) {
     const xStart = padX;
     const bufOffset = PITCH_BUFFER_SIZE - len;
     const xFor = (i: number) => xStart + (bufOffset + i) * xStep;
-    const ageAlpha = (i: number) =>
-      0.25 + 0.75 * (i / Math.max(1, len - 1));
+    const ageAlpha = (i: number) => 0.25 + 0.75 * (i / Math.max(1, len - 1));
 
     const refColor = { r: 0.5, g: 0.7, b: 1.0 };
 
@@ -146,7 +144,14 @@ export function PitchGraph({ series, visible }: PitchGraphProps) {
     flushRun(refRun);
 
     const userBase = { r: 0.85, g: 0.85, b: 1.0 };
-    const userRun: { x: number; y: number; r: number; g: number; b: number; a: number }[] = [];
+    const userRun: {
+      x: number;
+      y: number;
+      r: number;
+      g: number;
+      b: number;
+      a: number;
+    }[] = [];
 
     const flushUser = () => {
       if (userRun.length < 2) {
@@ -188,10 +193,11 @@ export function PitchGraph({ series, visible }: PitchGraphProps) {
             ? snapToRefOctave(freqToSemitone(refHz), userSemi)
             : userSemi;
         const sim = series.similarities[i] ?? 0;
+        const hasRef = refHz != null;
         const age = ageAlpha(i);
         const prox = similarityToRgb(sim);
-        const base = lerpRgb(userBase, prox, sim);
-        const alpha = (0.35 + sim * 0.65) * age;
+        const base = hasRef ? lerpRgb(userBase, prox, sim) : userBase;
+        const alpha = hasRef ? (0.35 + sim * 0.65) * age : 0.55 * age;
         userRun.push({
           x: xFor(i),
           y: semiToY(displaySemi),
@@ -212,9 +218,7 @@ export function PitchGraph({ series, visible }: PitchGraphProps) {
   }
 
   return (
-    <div
-      className="pointer-events-none top-3 absolute left-1/2 z-20 -translate-x-1/2 rounded-sm border-white/15 bg-black/40 p-1 shadow-lg backdrop-blur-md"
-    >
+    <div className="pointer-events-none top-3 absolute left-1/2 z-20 -translate-x-1/2 rounded-sm border-white/15 bg-black/40 p-1 shadow-lg">
       <canvas ref={canvasRef} className="block" />
     </div>
   );

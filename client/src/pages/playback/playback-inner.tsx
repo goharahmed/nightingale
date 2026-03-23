@@ -21,7 +21,7 @@ import {
   usePlaybackTranscript,
 } from '@/hooks/playback';
 import { useAudioPlayer } from '@/hooks/use-audio-player';
-import { useMicPitch } from '@/hooks/use-mic-pitch';
+import { useMicDevices, useMicPitch } from '@/hooks/use-mic-pitch';
 import { usePitchScoring } from '@/hooks/use-pitch-scoring';
 import type { Song } from '@/types/Song';
 import type { AppConfig } from '@/types/AppConfig';
@@ -54,12 +54,20 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
 
   const audio = useAudioPlayer(fileHash, initialGuideVolume);
 
-  const micEnabled = audio.isReady && audio.isPlaying && !paused;
-  const preferredMicId = config?.preferred_mic ?? null;
-  const { latestPitch, active: micActive, error: micError } = useMicPitch(
-    preferredMicId,
-    micEnabled,
+  const [micUserEnabled, setMicUserEnabled] = useState(
+    config?.mic_active ?? true,
   );
+  const [selectedMicId, setSelectedMicId] = useState<string | null>(
+    config?.preferred_mic ?? null,
+  );
+  const micDevices = useMicDevices();
+
+  const micEnabled = audio.isReady && audio.isPlaying && !paused && micUserEnabled;
+  const {
+    latestPitch,
+    active: micActive,
+    error: micError,
+  } = useMicPitch(selectedMicId, micEnabled);
   const { series, score } = usePitchScoring(audio, latestPitch);
   const micErrorShown = useRef(false);
 
@@ -69,6 +77,26 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
       toast.error(`Microphone: ${micError}`);
     }
   }, [micError]);
+
+  const handleToggleMic = useCallback(() => {
+    setMicUserEnabled((prev) => {
+      const next = !prev;
+      persistConfig({ mic_active: next });
+
+      return next;
+    });
+  }, [persistConfig]);
+
+  const handleCycleMic = useCallback(() => {
+    if (micDevices.length <= 1) return;
+    const currentIdx = micDevices.findIndex(
+      (d) => d.deviceId === selectedMicId,
+    );
+    const nextIdx = (currentIdx + 1) % micDevices.length;
+    const next = micDevices[nextIdx];
+    setSelectedMicId(next.deviceId);
+    persistConfig({ preferred_mic: next.deviceId });
+  }, [micDevices, selectedMicId, persistConfig]);
 
   useEffect(() => {
     if (audio.isFinished) {
@@ -129,6 +157,8 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
     onSkipOutro: handleSkipOutro,
     handlePause,
     handleContinue,
+    onToggleMic: handleToggleMic,
+    onCycleMic: handleCycleMic,
   });
 
   const videoFlavor: VideoFlavor = FLAVORS[flavorIndex % FLAVORS.length];
@@ -165,9 +195,11 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
             subscribe={audio.subscribe}
             getCurrentTime={audio.getCurrentTime}
             transcriptSource={transcriptSource}
-            pitchScore={micActive ? score : null}
+            pitchScore={micActive && micUserEnabled ? score : null}
+            micOn={micUserEnabled}
+            micName={selectedMicId ?? 'Default'}
           />
-          <PitchGraph series={series} visible={micActive} />
+          <PitchGraph series={series} visible={micActive && micUserEnabled} />
           <LyricsDisplay
             segments={segments}
             subscribe={audio.subscribe}

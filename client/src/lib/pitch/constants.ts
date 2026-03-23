@@ -21,5 +21,4 @@ export const MIC_LATENCY_COMPENSATION_SEC = 0.08;
 
 export const BASE_DISPLAY_WIDTH = 400;
 export const BASE_DISPLAY_HEIGHT = 44;
-export const BASE_DISPLAY_TOP_OFFSET = 50;
 export const REFERENCE_HEIGHT = 1080;

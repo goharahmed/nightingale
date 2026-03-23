@@ -3,7 +3,11 @@
  * Registers `window` listeners; cleans up on unmount or when dependencies change.
  */
 
-import { SOURCE_VIDEO_INDEX, nextFlavorIndex, nextThemeIndex } from '@/components/playback/background';
+import {
+  SOURCE_VIDEO_INDEX,
+  nextFlavorIndex,
+  nextThemeIndex,
+} from '@/components/playback/background';
 import type { AppConfig } from '@/types/AppConfig';
 import type { Song } from '@/types/Song';
 import type { Dispatch, SetStateAction } from 'react';
@@ -26,6 +30,8 @@ export interface UsePlaybackKeyboardParams {
   onSkipOutro: () => void;
   handlePause: () => void;
   handleContinue: () => void;
+  onToggleMic: () => void;
+  onCycleMic: () => void;
 }
 
 export function usePlaybackKeyboard({
@@ -45,6 +51,8 @@ export function usePlaybackKeyboard({
   onSkipOutro,
   handlePause,
   handleContinue,
+  onToggleMic,
+  onCycleMic,
 }: UsePlaybackKeyboardParams) {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -104,6 +112,16 @@ export function usePlaybackKeyboard({
           break;
         }
 
+        case 'm':
+        case 'M':
+          onToggleMic();
+          break;
+
+        case 'n':
+        case 'N':
+          onCycleMic();
+          break;
+
         case 'Enter': {
           if (!isReady) break;
           const t = getCurrentTime();
@@ -136,5 +154,7 @@ export function usePlaybackKeyboard({
     onSkipOutro,
     handlePause,
     handleContinue,
+    onToggleMic,
+    onCycleMic,
   ]);
 }

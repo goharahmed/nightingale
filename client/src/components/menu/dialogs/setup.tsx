@@ -33,10 +33,10 @@ const InitialStep = ({ onStart }: InitialStepProps) => (
     <AlertDialogHeader>
       <AlertDialogTitle>Welcome to Nightingale!</AlertDialogTitle>
       <AlertDialogDescription>
-        Nightingale — Karaoke from your music library. Before you get started, we
-        need to install a few dependencies:{' '}
-        <code>ffmpeg</code>, <code>uv</code>, <code>python 3.10</code>, Python
-        packages, and <code>CUDA</code> wheels (NVIDIA GPUs only).
+        Nightingale — Karaoke from your music library. Before you get started,
+        we need to install a few dependencies: <code>ffmpeg</code>,{' '}
+        <code>uv</code>, <code>python 3.10</code>, Python packages, and{' '}
+        <code>CUDA</code> wheels (NVIDIA GPUs only).
       </AlertDialogDescription>
       <AlertDialogDescription>
         This may take a few minutes. You can exit at any time if you'd prefer

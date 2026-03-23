@@ -73,8 +73,7 @@ export function useAudioPlayer(
     }
 
     return (
-      startOffsetRef.current +
-      (ctx.currentTime - startContextTimeRef.current)
+      startOffsetRef.current + (ctx.currentTime - startContextTimeRef.current)
     );
   }, []);
 
@@ -281,8 +280,7 @@ export function useAudioPlayer(
   const pause = useCallback(() => {
     const ctx = ctxRef.current;
     if (ctx && playingRef.current) {
-      startOffsetRef.current +=
-        ctx.currentTime - startContextTimeRef.current;
+      startOffsetRef.current += ctx.currentTime - startContextTimeRef.current;
     }
 
     stopSources();

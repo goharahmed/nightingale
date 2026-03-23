@@ -84,7 +84,9 @@ fn find_device(preferred: Option<&str>) -> Result<(cpal::Device, String), String
     let host = cpal::default_host();
 
     if let Some(name) = preferred {
-        let devices = host.input_devices().map_err(|e| format!("input devices: {e}"))?;
+        let devices = host
+            .input_devices()
+            .map_err(|e| format!("input devices: {e}"))?;
         for dev in devices {
             if device_display_name(&dev) == name {
                 return Ok((dev, name.to_string()));
@@ -219,7 +221,10 @@ fn run_mic_loop(device: cpal::Device, name: &str, app: AppHandle, shutdown: Arc<
     };
     let sr = config.sample_rate as usize;
 
-    eprintln!("[mic] opening '{name}': {sr} Hz, {}ch, {sample_format:?}", config.channels);
+    eprintln!(
+        "[mic] opening '{name}': {sr} Hz, {}ch, {sample_format:?}",
+        config.channels
+    );
 
     let shared = Arc::new(Mutex::new(VecDeque::<f32>::with_capacity(PITCH_WINDOW * 2)));
     let Some(_stream) = try_build_stream(&device, &config, sample_format, Arc::clone(&shared))
@@ -265,15 +270,4 @@ fn run_mic_loop(device: cpal::Device, name: &str, app: AppHandle, shutdown: Arc<
 #[tauri::command]
 pub fn stop_mic_capture() {
     MIC_SHUTDOWN.store(true, Ordering::SeqCst);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use ts_rs::{Config, TS};
-
-    #[test]
-    fn export_microphone_info() {
-        MicrophoneInfo::export(&Config::from_env()).unwrap();
-    }
 }
