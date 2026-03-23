@@ -14,7 +14,7 @@ import { useRef } from 'react';
 import type { AnalysisQueue } from '@/types/AnalysisQueue';
 
 const PAGE_SIZE = 25;
-const DEFAULT_REFETCH_INTERVAL = 2500
+const DEFAULT_REFETCH_INTERVAL = 2500;
 
 export const useSongsMeta = () => {
   return useQuery({
@@ -40,7 +40,8 @@ export const useSongs = () => {
       );
       return loaded < lastPage.processed_count ? loaded : undefined;
     },
-    refetchInterval: count !== processed_count ? DEFAULT_REFETCH_INTERVAL : undefined
+    refetchInterval:
+      count !== processed_count ? DEFAULT_REFETCH_INTERVAL : undefined,
   });
 };
 

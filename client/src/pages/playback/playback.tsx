@@ -146,15 +146,20 @@ const PlaybackInner = ({
   }, [audio, navigate]);
 
   useEffect(() => {
-    if (paused) return;
-
     const onKeyDown = (e: KeyboardEvent) => {
-      switch (e.key) {
-        case 'Escape':
-          e.preventDefault();
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (paused) {
+          handleContinue();
+        } else {
           handlePause();
-          break;
+        }
+        return;
+      }
 
+      if (paused) return;
+
+      switch (e.key) {
         case 't':
         case 'T':
           setThemeIndex((prev) => {
@@ -217,6 +222,7 @@ const PlaybackInner = ({
     firstSegmentStart,
     lastSegmentEnd,
     handlePause,
+    handleContinue,
     handleSkipIntro,
     handleSkipOutro,
     persistConfig,
@@ -225,7 +231,10 @@ const PlaybackInner = ({
   const videoFlavor: VideoFlavor = FLAVORS[flavorIndex % FLAVORS.length];
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-black" style={{ contain: 'strict' }}>
+    <div
+      className="fixed inset-0 overflow-hidden bg-black"
+      style={{ contain: 'strict' }}
+    >
       <Background
         themeIndex={themeIndex}
         videoFlavor={videoFlavor}
@@ -237,7 +246,6 @@ const PlaybackInner = ({
 
       <LyricsDisplay
         segments={segments}
-        transcriptSource={transcriptSource}
         subscribe={audio.subscribe}
         getCurrentTime={audio.getCurrentTime}
       />
@@ -255,6 +263,7 @@ const PlaybackInner = ({
         onSkipOutro={handleSkipOutro}
         subscribe={audio.subscribe}
         getCurrentTime={audio.getCurrentTime}
+        transcriptSource={transcriptSource}
       />
 
       <PauseOverlay

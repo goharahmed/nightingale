@@ -1,15 +1,27 @@
 import type { TimeSubscriber } from '@/hooks/use-audio-player';
-import { fetchPixabayVideos, getMediaPort, mediaUrl } from '@/tauri-bridge/playback';
+import {
+  fetchPixabayVideos,
+  getMediaPort,
+  mediaUrl,
+} from '@/tauri-bridge/playback';
 import { useEffect, useRef, useState } from 'react';
 
-const FLAVORS = ['nature', 'underwater', 'space', 'city', 'countryside'] as const;
+const FLAVORS = [
+  'nature',
+  'underwater',
+  'space',
+  'city',
+  'countryside',
+] as const;
 export type VideoFlavor = (typeof FLAVORS)[number];
 
 interface PixabayVideoProps {
   flavor: VideoFlavor;
+  isPlaying: boolean;
 }
 
-export const PixabayVideo = ({ flavor }: PixabayVideoProps) => {
+export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [videoUrls, setVideoUrls] = useState<string[]>([]);
   const [index, setIndex] = useState(0);
 
@@ -28,12 +40,24 @@ export const PixabayVideo = ({ flavor }: PixabayVideoProps) => {
     };
   }, [flavor]);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (isPlaying) {
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+    }
+  }, [isPlaying]);
+
   if (videoUrls.length === 0) return null;
 
   const src = videoUrls[index % videoUrls.length];
 
   return (
     <video
+      ref={videoRef}
       key={src}
       className="pointer-events-none absolute inset-0 size-full object-cover"
       src={src}

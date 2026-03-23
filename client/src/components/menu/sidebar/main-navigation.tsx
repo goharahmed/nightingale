@@ -11,7 +11,8 @@ import { useFolderActions } from '@/hooks/use-folder-actions';
 import { FolderIcon, RefreshCwIcon } from 'lucide-react';
 
 export const MainNavigation = () => {
-  const { rescanFolder, rescanFolderDisabled, selectFolder } = useFolderActions();
+  const { rescanFolder, rescanFolderDisabled, selectFolder } =
+    useFolderActions();
 
   return (
     <SidebarContent>
@@ -20,9 +21,7 @@ export const MainNavigation = () => {
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton
-                onClick={selectFolder}
-              >
+              <SidebarMenuButton onClick={selectFolder}>
                 <FolderIcon />
                 <span>Select folder</span>
               </SidebarMenuButton>

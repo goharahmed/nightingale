@@ -67,14 +67,12 @@ function findCurrentSegment(
 
 interface LyricsDisplayProps {
   segments: Segment[];
-  transcriptSource: string;
   subscribe: (fn: TimeSubscriber) => () => void;
   getCurrentTime: () => number;
 }
 
 export const LyricsDisplay = ({
   segments,
-  transcriptSource,
   subscribe,
   getCurrentTime,
 }: LyricsDisplayProps) => {
@@ -99,8 +97,7 @@ export const LyricsDisplay = ({
       }
 
       const seg = segments[newIdx];
-      const active =
-        time >= seg.start - LYRICS_LEAD && time <= seg.end + 0.5;
+      const active = time >= seg.start - LYRICS_LEAD && time <= seg.end + 0.5;
       const gapBefore =
         newIdx === 0 ? seg.start : seg.start - segments[newIdx - 1].end;
       const timeUntil = seg.start - time;
@@ -161,18 +158,19 @@ export const LyricsDisplay = ({
   wordRefs.current = [];
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-[60px] z-10 flex flex-col items-center gap-2 px-10" style={{ willChange: 'contents' }}>
+    <div
+      className="pointer-events-none absolute inset-x-0 bottom-[60px] z-10 flex flex-col items-center gap-2 px-10"
+      style={{ willChange: 'contents' }}
+    >
       <div
         ref={containerRef}
         className="relative max-w-full rounded-lg bg-black/40 px-5 py-2.5"
       >
-        <div className="absolute -left-9 -top-9 z-10 flex size-10 items-center justify-center rounded-full bg-white/20">
-          <span
-            ref={countdownRef}
-            className="text-[22px] font-bold text-white"
-            style={{ display: 'none' }}
-          />
-        </div>
+        <span
+          ref={countdownRef}
+          className="absolute -left-9 -top-9 z-10 flex size-10 items-center justify-center rounded-full bg-white/20 text-[22px] font-bold text-white"
+          style={{ display: 'none' }}
+        />
         {seg.words.length > 0 && (
           <p className="text-center text-[2.5rem] leading-tight font-bold">
             {seg.words.map((word, wi) => (
@@ -211,20 +209,7 @@ export const LyricsDisplay = ({
           </p>
         </div>
       )}
-
-      <Disclaimer source={transcriptSource} />
     </div>
   );
 };
 
-function Disclaimer({ source }: { source: string }) {
-  const text =
-    source === 'lyrics'
-      ? 'Timing is AI-generated and may not be perfectly accurate'
-      : 'Lyrics and timing are AI-generated and may not be perfectly accurate';
-  return (
-    <p className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-center text-[11px] whitespace-nowrap text-white/25">
-      {text}
-    </p>
-  );
-}

@@ -6,14 +6,14 @@ use ts_rs::TS;
 use walkdir::WalkDir;
 
 use crate::{
-    cache::{CacheDir, songs_path},
-    song::{Song, build_song},
+    cache::{songs_path, CacheDir},
+    song::{build_song, Song},
 };
 
 const AUDIO_EXTENSIONS: &[&str] = &["mp3", "flac", "ogg", "wav", "m4a", "aac", "wma"];
 const VIDEO_EXTENSIONS: &[&str] = &["mp4", "mkv", "avi", "webm", "mov", "m4v"];
 
-const SCAN_SAVE_BATCH_SIZE: usize = 20;
+const SCAN_SAVE_BATCH_SIZE: usize = 10;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
 #[ts(export)]
@@ -166,7 +166,8 @@ pub fn start_scan(folder: &Path) {
     let store = if same_folder {
         let media_paths: HashSet<&PathBuf> = media_files.iter().map(|(p, _)| p).collect();
         let mut kept = existing;
-        kept.processed.retain(|song| media_paths.contains(&song.path));
+        kept.processed
+            .retain(|song| media_paths.contains(&song.path));
         kept.count = media_files.len();
         kept
     } else {

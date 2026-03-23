@@ -29,10 +29,7 @@ export function themeMode(index: number): ThemeMode {
   return 'shader';
 }
 
-export function themeName(
-  index: number,
-  videoFlavor: VideoFlavor,
-): string {
+export function themeName(index: number, videoFlavor: VideoFlavor): string {
   const mode = themeMode(index);
   if (mode === 'source') return 'Source Video';
   if (mode === 'pixabay') {
@@ -74,9 +71,14 @@ export const Background = ({
   return (
     <div className="fixed inset-0">
       {mode === 'shader' && (
-        <ShaderVisualizer shaderIndex={themeIndex % SHADER_COUNT} />
+        <ShaderVisualizer
+          shaderIndex={themeIndex % SHADER_COUNT}
+          isPlaying={isPlaying}
+        />
       )}
-      {mode === 'pixabay' && <PixabayVideo flavor={videoFlavor} />}
+      {mode === 'pixabay' && (
+        <PixabayVideo flavor={videoFlavor} isPlaying={isPlaying} />
+      )}
       {mode === 'source' && sourceVideoPath && (
         <SourceVideo
           filePath={sourceVideoPath}

@@ -267,9 +267,9 @@ export interface ShaderDefinition {
 }
 
 export const shaders: ShaderDefinition[] = [
-  { name: "Plasma", fragmentShader: plasmaFragment },
-  { name: "Aurora", fragmentShader: auroraFragment },
-  { name: "Waves", fragmentShader: wavesFragment },
-  { name: "Nebula", fragmentShader: nebulaFragment },
-  { name: "Starfield", fragmentShader: starfieldFragment },
+  { name: 'Plasma', fragmentShader: plasmaFragment },
+  { name: 'Aurora', fragmentShader: auroraFragment },
+  { name: 'Waves', fragmentShader: wavesFragment },
+  { name: 'Nebula', fragmentShader: nebulaFragment },
+  { name: 'Starfield', fragmentShader: starfieldFragment },
 ];

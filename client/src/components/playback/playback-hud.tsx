@@ -11,14 +11,15 @@ function formatTime(seconds: number): string {
 
 function formatGuideText(volume: number): string {
   const pct = Math.round(volume * 100);
-  return pct === 0 ? 'Guide: OFF [G +/-]' : `Guide: ${pct}% [G +/-]`;
+
+  return pct === 0 ? 'Guide: OFF' : `Guide: ${pct}% [G +/-]`;
 }
 
 function formatThemeText(
   themeIndex: number,
   videoFlavor: VideoFlavor,
 ): string {
-  return `Theme: ${themeName(themeIndex, videoFlavor)} [T]`;
+  return `Theme: ${themeName(themeIndex, videoFlavor)} [T / F]`;
 }
 
 interface PlaybackHudProps {
@@ -34,6 +35,19 @@ interface PlaybackHudProps {
   onSkipOutro: () => void;
   subscribe: (fn: TimeSubscriber) => () => void;
   getCurrentTime: () => number;
+  transcriptSource: string;
+}
+
+function Disclaimer({ source }: { source: string }) {
+  const text =
+    source === 'lyrics'
+      ? 'Timing is AI-generated and may not be perfectly accurate'
+      : 'Lyrics and timing are AI-generated and may not be perfectly accurate';
+  return (
+    <p className="absolute bottom-2 left-1/2 -translate-x-1/2 text-center whitespace-nowrap pointer-events-none z-20 text-[12px] text-white/30">
+      {text}
+    </p>
+  );
 }
 
 export const PlaybackHud = ({
@@ -49,11 +63,13 @@ export const PlaybackHud = ({
   onSkipOutro,
   subscribe,
   getCurrentTime,
+  transcriptSource
 }: PlaybackHudProps) => {
+  const lastSecondRef = useRef(-1);
   const timerRef = useRef<HTMLParagraphElement>(null);
   const skipIntroRef = useRef<HTMLButtonElement>(null);
   const skipOutroRef = useRef<HTMLButtonElement>(null);
-  const lastSecondRef = useRef(-1);
+
   const showPixabayCredit = isPixabayTheme(themeIndex);
 
   useEffect(() => {
@@ -84,13 +100,13 @@ export const PlaybackHud = ({
 
   return (
     <>
-      <div className="pointer-events-auto absolute inset-x-0 top-4 z-20 flex justify-between px-6">
-        <div className="flex max-w-[40%] flex-col gap-0.5 overflow-hidden">
-          <h1 className="truncate text-[22px] font-semibold text-white">
+      <div className="pointer-events-auto absolute inset-x-0 top-3 z-20 flex justify-between px-4">
+        <div className="max-w-[40%] overflow-hidden">
+          <h1 className="truncate text-[22px] text-white">
             {title}
           </h1>
-          <p className="truncate text-base text-white/70">{artist}</p>
-          <p ref={timerRef} className="text-sm text-white/70">
+          <p className="truncate text-[16px] text-white/70">{artist}</p>
+          <p ref={timerRef} className="text-[16px] text-white/70">
             0:00 / {formatTime(duration)}
           </p>
 
@@ -98,38 +114,40 @@ export const PlaybackHud = ({
             <button
               ref={skipIntroRef}
               onClick={onSkipIntro}
-              className="pointer-events-auto rounded-lg border-2 border-white/30 bg-white/10 px-3.5 py-1.5 text-[13px] text-white/80 transition-colors hover:bg-white/20"
+              className="text-[14px] pointer-events-auto rounded-md border-2 border-white/70 bg-black/10 px-3 py-1 text-white/90 transition-colors hover:bg-black/20 flex gap-1"
               style={{ display: 'none' }}
             >
-              Skip Intro ⏎
+              <span>Skip Intro</span> <span>⏎</span>
             </button>
             <button
               ref={skipOutroRef}
               onClick={onSkipOutro}
-              className="pointer-events-auto rounded-lg border-2 border-white/30 bg-white/10 px-3.5 py-1.5 text-[13px] text-white/80 transition-colors hover:bg-white/20"
+              className="text-[14px] pointer-events-auto rounded-md border-2 border-white/70 bg-black/10 px-3 py-1 text-white/90 transition-colors hover:bg-black/20 flex gap-1"
               style={{ display: 'none' }}
             >
-              Skip Outro ⏎
+              <span>Skip Outro</span><span>⏎</span>
             </button>
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-0.5">
-          <p className="text-sm text-white/50">
+        <div className="flex flex-col items-end">
+          <p className="text-[14px] text-white/50">
             {formatGuideText(guideVolume)}
           </p>
-          <p className="text-sm text-white/50">
+          <p className="text-[14px] text-white/50">
             {formatThemeText(themeIndex, videoFlavor)}
           </p>
-          <p className="text-sm text-white/50">[ESC] Back</p>
+          <p className="text-[14px] text-white/50">[ESC] Back</p>
         </div>
       </div>
 
       {showPixabayCredit && (
-        <p className="pointer-events-none absolute right-4 bottom-2 z-20 text-[10px] text-white/30">
+        <p className="pointer-events-none absolute right-4 bottom-2 z-20 text-[12px] text-white/30">
           Videos by Pixabay
         </p>
       )}
+
+      <Disclaimer source={transcriptSource} />
     </>
   );
 };

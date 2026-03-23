@@ -96,6 +96,10 @@ export const SongCard = memo(({ song, queueStatus }: SongCardProps) => {
     queueStatus,
   );
 
+  const displaySource = isReady
+    ? ` (${song.transcript_source === 'Lyrics' ? 'Lyrics' : 'Generated'})`
+    : '';
+
   return (
     <Item
       variant="outline"
@@ -137,10 +141,15 @@ export const SongCard = memo(({ song, queueStatus }: SongCardProps) => {
       </ItemContent>
 
       <ItemContent className="flex flex-col items-end gap-1">
-        <Badge variant={variant} className={className}>
-          {isAnalyzing && <LoaderCircleIcon className="size-3 animate-spin" />}
-          {label}
-        </Badge>
+        <div className="flex items-center gap-1">
+          <Badge variant={variant} className={className}>
+            {isAnalyzing && (
+              <LoaderCircleIcon className="size-3 animate-spin" />
+            )}
+            {label}
+            {displaySource}
+          </Badge>
+        </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="xs" disabled={!isReady}>

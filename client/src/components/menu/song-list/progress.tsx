@@ -6,7 +6,7 @@ export const Progress = () => {
 
   if (!meta) {
     return null;
-  };
+  }
 
   const { songs_count, videos_count, analyzed_count, count, processed_count } =
     meta;

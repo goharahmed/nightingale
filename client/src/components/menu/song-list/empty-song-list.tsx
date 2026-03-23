@@ -26,10 +26,7 @@ export const EmptySongList = () => {
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent className="flex-row justify-center gap-2">
-        <Button
-          variant="outline"
-          onClick={selectFolder}
-        >
+        <Button variant="outline" onClick={selectFolder}>
           Select Folder
         </Button>
       </EmptyContent>

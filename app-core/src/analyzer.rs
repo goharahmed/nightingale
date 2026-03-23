@@ -12,7 +12,7 @@ use crate::cache::{analysis_queue_path, models_dir, CacheDir};
 use crate::config::AppConfig;
 use crate::error::NightingaleError;
 use crate::scanner::SongsStore;
-use crate::song::{read_transcript_meta, Song};
+use crate::song::{read_transcript_meta, Song, TranscriptSource};
 
 // ─── Analysis queue (persisted to disk) ──────────────────────────────
 
@@ -201,7 +201,12 @@ fn remove_from_queue(file_hash: &str) {
     queue.remove(file_hash);
 }
 
-fn update_song_analyzed(file_hash: &str, is_analyzed: bool, language: Option<String>) {
+fn update_song_analyzed(
+    file_hash: &str,
+    is_analyzed: bool,
+    language: Option<String>,
+    transcript_source: Option<TranscriptSource>,
+) {
     let mut store = SongsStore::load_all();
     if let Some(song) = store
         .processed
@@ -210,6 +215,7 @@ fn update_song_analyzed(file_hash: &str, is_analyzed: bool, language: Option<Str
     {
         song.is_analyzed = is_analyzed;
         song.language = language;
+        song.transcript_source = transcript_source;
     }
     store.save();
 }
@@ -282,7 +288,7 @@ pub fn shutdown_server() {
 pub fn delete_cache(file_hash: &str) {
     let cache = CacheDir::new();
     cache.delete_song_cache(file_hash);
-    update_song_analyzed(file_hash, false, None);
+    update_song_analyzed(file_hash, false, None, None);
 }
 
 pub fn reanalyze_transcript(file_hash: &str) {
@@ -301,7 +307,7 @@ fn reanalyze(file_hash: &str, full: bool) {
         let _ = std::fs::remove_file(cache.transcript_path(file_hash));
         let _ = std::fs::remove_file(cache.lyrics_path(file_hash));
     }
-    update_song_analyzed(file_hash, false, None);
+    update_song_analyzed(file_hash, false, None, None);
     enqueue_one(file_hash);
 }
 
@@ -432,9 +438,9 @@ fn process_song(file_hash: &str, cache: &CacheDir) {
 
 fn finalize_song(file_hash: &str, cache: &CacheDir) {
     if cache.transcript_exists(file_hash) {
-        let (_source, language) = read_transcript_meta(cache, file_hash);
+        let (source, language) = read_transcript_meta(cache, file_hash);
         remove_from_queue(file_hash);
-        update_song_analyzed(file_hash, true, language);
+        update_song_analyzed(file_hash, true, language, Some(source));
         eprintln!("[analyzer] Analysis complete for {file_hash}");
     } else {
         update_queue_status(

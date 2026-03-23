@@ -34,6 +34,8 @@ pub struct Song {
     pub album_art_path: Option<PathBuf>,
     pub is_analyzed: bool,
     pub language: Option<String>,
+    #[serde(default)]
+    pub transcript_source: Option<TranscriptSource>,
     pub is_video: bool,
 }
 
@@ -44,6 +46,7 @@ impl Song {
         cache: &CacheDir,
         is_analyzed: bool,
         language: Option<String>,
+        transcript_source: Option<TranscriptSource>,
         is_video: bool,
     ) -> Self {
         let (mut title, mut artist, mut album, duration_secs, cover_bytes) = if is_video {
@@ -67,8 +70,11 @@ impl Song {
         }
 
         let album_art_path = cover_bytes.and_then(|bytes| {
-            let cover_path = cache.cover_path(&file_hash);
-            std::fs::write(&cover_path, &bytes).ok()?;
+            let cover_hash = blake3::hash(&bytes).to_hex()[..32].to_string();
+            let cover_path = cache.cover_path(&cover_hash);
+            if !cover_path.exists() {
+                std::fs::write(&cover_path, &bytes).ok()?;
+            }
             Some(cover_path)
         });
 
@@ -82,6 +88,7 @@ impl Song {
             album_art_path,
             is_analyzed,
             language,
+            transcript_source,
             is_video,
         }
     }
@@ -109,11 +116,11 @@ pub fn build_song(path: &Path, cache: &CacheDir, is_video: bool) -> Result<Song,
     let file_hash = compute_file_hash(path)?;
 
     let is_analyzed = cache.transcript_exists(&file_hash);
-    let language = if is_analyzed {
-        let (_source, lang) = read_transcript_meta(cache, &file_hash);
-        lang
+    let (transcript_source, language) = if is_analyzed {
+        let (source, lang) = read_transcript_meta(cache, &file_hash);
+        (Some(source), lang)
     } else {
-        None
+        (None, None)
     };
 
     Ok(Song::from_path(
@@ -122,6 +129,7 @@ pub fn build_song(path: &Path, cache: &CacheDir, is_video: bool) -> Result<Song,
         cache,
         is_analyzed,
         language,
+        transcript_source,
         is_video,
     ))
 }

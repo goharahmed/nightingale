@@ -18,10 +18,9 @@ export const Menu = () => {
   useEffect(() => {
     const openExitModal = ({ key }: KeyboardEvent) => {
       if (key === 'Escape') {
-
         setMode((mode) => {
           if (mode === null) {
-            return 'exit'
+            return 'exit';
           }
 
           if (mode === 'exit') {

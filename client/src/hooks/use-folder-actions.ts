@@ -1,7 +1,7 @@
-import { SONGS, SONGS_META } from "@/queries/keys";
-import { useSongsMeta } from "@/queries/use-songs";
-import { selectFolder, triggerScan } from "@/tauri-bridge/folder";
-import { useQueryClient } from "@tanstack/react-query"
+import { SONGS, SONGS_META } from '@/queries/keys';
+import { useSongsMeta } from '@/queries/use-songs';
+import { selectFolder, triggerScan } from '@/tauri-bridge/folder';
+import { useQueryClient } from '@tanstack/react-query';
 
 export const useFolderActions = () => {
   const queryClient = useQueryClient();
@@ -25,6 +25,6 @@ export const useFolderActions = () => {
       await triggerScan(meta.folder);
       invalidateAll();
     },
-    rescanFolderDisabled: !meta?.folder || meta.count !== meta.processed_count
-  }
-}
+    rescanFolderDisabled: !meta?.folder || meta.count !== meta.processed_count,
+  };
+};

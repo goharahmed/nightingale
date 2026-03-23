@@ -1,8 +1,4 @@
-import {
-  getAudioPaths,
-  getMediaPort,
-  mediaUrl,
-} from '@/tauri-bridge/playback';
+import { getAudioPaths, getMediaPort, mediaUrl } from '@/tauri-bridge/playback';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 function amplitudeToVolume(amp: number): number {
@@ -43,6 +39,7 @@ export function useAudioPlayer(
   const [guideVolume, setGuideVolumeState] = useState(initialGuideVolume);
   const readyCountRef = useRef(0);
   const startedRef = useRef(false);
+  const cancelledRef = useRef(false);
 
   const getCurrentTime = useCallback(() => currentTimeRef.current, []);
 
@@ -55,6 +52,7 @@ export function useAudioPlayer(
 
   useEffect(() => {
     let cancelled = false;
+    cancelledRef.current = false;
     const instrumental = new Audio();
     const vocals = new Audio();
     instrumentalRef.current = instrumental;
@@ -62,13 +60,15 @@ export function useAudioPlayer(
     readyCountRef.current = 0;
     startedRef.current = false;
 
+    const isCancelled = () => cancelled || cancelledRef.current;
+
     const tryStart = () => {
       readyCountRef.current++;
-      if (readyCountRef.current >= 2 && !startedRef.current && !cancelled) {
+      if (readyCountRef.current >= 2 && !startedRef.current && !isCancelled()) {
         startedRef.current = true;
         setDuration(instrumental.duration || 0);
         instrumental.play().catch((e) => {
-          if (!cancelled) setError(`Playback failed: ${e.message}`);
+          if (!isCancelled()) setError(`Playback failed: ${e.message}`);
         });
         vocals.play().catch(() => {});
         setIsPlaying(true);
@@ -76,7 +76,7 @@ export function useAudioPlayer(
     };
 
     const handleError = (label: string) => () => {
-      if (cancelled) return;
+      if (isCancelled()) return;
       const code = instrumental.error?.code ?? vocals.error?.code;
       const messages: Record<number, string> = {
         1: 'Playback aborted',
@@ -96,7 +96,7 @@ export function useAudioPlayer(
     vocals.addEventListener('error', handleError('vocals'), { once: true });
 
     instrumental.addEventListener('ended', () => {
-      if (!cancelled) {
+      if (!isCancelled()) {
         setIsFinished(true);
         setIsPlaying(false);
       }
@@ -104,7 +104,7 @@ export function useAudioPlayer(
 
     Promise.all([getMediaPort(), getAudioPaths(fileHash)])
       .then(([port, paths]) => {
-        if (cancelled) return;
+        if (isCancelled()) return;
         instrumental.src = mediaUrl(port, paths.instrumental);
         vocals.src = mediaUrl(port, paths.vocals);
         vocals.volume = amplitudeToVolume(initialGuideVolume);
@@ -112,13 +112,13 @@ export function useAudioPlayer(
         vocals.load();
       })
       .catch((e) => {
-        if (!cancelled) setError(`Failed to load audio: ${e}`);
+        if (!isCancelled()) setError(`Failed to load audio: ${e}`);
       });
 
     let lastNotify = 0;
     const NOTIFY_INTERVAL = 33; // ~30fps
     const tick = () => {
-      if (instrumentalRef.current && !cancelled) {
+      if (instrumentalRef.current && !isCancelled()) {
         const t = instrumentalRef.current.currentTime;
         currentTimeRef.current = t;
         const now = performance.now();
@@ -183,6 +183,7 @@ export function useAudioPlayer(
   }, []);
 
   const cleanup = useCallback(() => {
+    cancelledRef.current = true;
     cancelAnimationFrame(rafRef.current);
     if (instrumentalRef.current) {
       instrumentalRef.current.pause();
