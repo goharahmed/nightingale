@@ -22,6 +22,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 import { toast } from 'sonner';
 
+const INTRO_SKIP_LEAD_SEC = 3;
+
 function splitLongSegments(segments: Segment[], maxWords: number): Segment[] {
   const result: Segment[] = [];
   for (const seg of segments) {
@@ -54,6 +56,7 @@ export const Playback = () => {
 
   return (
     <PlaybackInner
+      key={song.file_hash}
       song={song}
       initialGuideVolume={config?.guide_volume ?? 0.3}
       initialTheme={config?.last_theme ?? 0}
@@ -125,9 +128,10 @@ const PlaybackInner = ({
   }, []);
 
   const handleSkipIntro = useCallback(() => {
-    const target = Math.max(0, firstSegmentStart - 3);
+    if (segments.length === 0) return;
+    const target = Math.max(0, firstSegmentStart - INTRO_SKIP_LEAD_SEC);
     audio.seek(target);
-  }, [audio, firstSegmentStart]);
+  }, [audio, firstSegmentStart, segments.length]);
 
   const handleSkipOutro = useCallback(() => {
     navigate('/', { replace: true });
@@ -208,7 +212,7 @@ const PlaybackInner = ({
 
         case 'Enter': {
           const t = audio.getCurrentTime();
-          if (t < firstSegmentStart - 3) {
+          if (t < firstSegmentStart - INTRO_SKIP_LEAD_SEC) {
             handleSkipIntro();
           } else if (t > lastSegmentEnd + 1) {
             handleSkipOutro();
@@ -263,6 +267,7 @@ const PlaybackInner = ({
         themeIndex={themeIndex}
         videoFlavor={videoFlavor}
         firstSegmentStart={firstSegmentStart}
+        introSkipLeadSec={INTRO_SKIP_LEAD_SEC}
         lastSegmentEnd={lastSegmentEnd}
         onSkipIntro={handleSkipIntro}
         onSkipOutro={handleSkipOutro}

@@ -5,6 +5,16 @@ function amplitudeToVolume(amp: number): number {
   return Math.max(0, Math.min(1, amp));
 }
 
+function waitSeeked(el: HTMLMediaElement): Promise<void> {
+  return new Promise((resolve) => {
+    if (!el.seeking) {
+      resolve();
+      return;
+    }
+    el.addEventListener('seeked', () => resolve(), { once: true });
+  });
+}
+
 export type TimeSubscriber = (time: number) => void;
 
 export interface AudioPlayer {
@@ -31,7 +41,8 @@ export function useAudioPlayer(
   const vocalsRef = useRef<HTMLAudioElement | null>(null);
   const rafRef = useRef<number>(0);
   const currentTimeRef = useRef(0);
-  const seekUntilRef = useRef(0);
+  const seekingRef = useRef(false);
+  const seekGenerationRef = useRef(0);
   const subscribersRef = useRef<Set<TimeSubscriber>>(new Set());
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -49,6 +60,12 @@ export function useAudioPlayer(
     return () => {
       subscribersRef.current.delete(fn);
     };
+  }, []);
+
+  const notifySubscribers = useCallback((t: number) => {
+    for (const fn of subscribersRef.current) {
+      fn(t);
+    }
   }, []);
 
   useEffect(() => {
@@ -118,18 +135,23 @@ export function useAudioPlayer(
 
     let lastNotify = 0;
     let lastVocalSync = 0;
-    const NOTIFY_INTERVAL = 33; // ~30fps
+    const NOTIFY_INTERVAL = 33;
     const VOCAL_SYNC_INTERVAL = 500;
     const VOCAL_DRIFT_THRESHOLD = 0.15;
     const tick = () => {
       if (instrumentalRef.current && !isCancelled()) {
         const now = performance.now();
-        const t = now < seekUntilRef.current
+        const inst = instrumentalRef.current;
+        const t = seekingRef.current
           ? currentTimeRef.current
-          : instrumentalRef.current.currentTime;
+          : inst.currentTime;
         currentTimeRef.current = t;
 
-        if (vocalsRef.current && now - lastVocalSync >= VOCAL_SYNC_INTERVAL) {
+        if (
+          vocalsRef.current &&
+          !seekingRef.current &&
+          now - lastVocalSync >= VOCAL_SYNC_INTERVAL
+        ) {
           lastVocalSync = now;
           const vDrift = Math.abs(vocalsRef.current.currentTime - t);
           if (vDrift > VOCAL_DRIFT_THRESHOLD) {
@@ -178,24 +200,49 @@ export function useAudioPlayer(
     setIsPlaying(true);
   }, []);
 
-  const seek = useCallback((time: number) => {
-    currentTimeRef.current = time;
-    seekUntilRef.current = performance.now() + 200;
+  const seek = useCallback(
+    (time: number) => {
+      const gen = ++seekGenerationRef.current;
+      seekingRef.current = true;
+      currentTimeRef.current = time;
 
-    if (instrumentalRef.current) {
-      instrumentalRef.current.currentTime = time;
-      instrumentalRef.current.play().catch(() => {});
-    }
-    if (vocalsRef.current) {
-      vocalsRef.current.currentTime = time;
-      vocalsRef.current.play().catch(() => {});
-    }
+      const inst = instrumentalRef.current;
+      const voc = vocalsRef.current;
 
-    for (const fn of subscribersRef.current) {
-      fn(time);
-    }
-    setIsFinished(false);
-  }, []);
+      if (!inst) {
+        seekingRef.current = false;
+        return;
+      }
+
+      inst.currentTime = time;
+      if (voc) voc.currentTime = time;
+      inst.play().catch(() => {});
+      if (voc) voc.play().catch(() => {});
+
+      notifySubscribers(time);
+      setIsFinished(false);
+
+      Promise.all([waitSeeked(inst), voc ? waitSeeked(voc) : Promise.resolve()])
+        .then(() => {
+          if (gen !== seekGenerationRef.current || cancelledRef.current) return;
+          const master = instrumentalRef.current?.currentTime ?? time;
+          currentTimeRef.current = master;
+          if (vocalsRef.current) {
+            vocalsRef.current.currentTime = master;
+          }
+          seekingRef.current = false;
+          const drift = Math.abs(master - time);
+          if (drift > 0.05) {
+            notifySubscribers(master);
+          }
+        })
+        .catch(() => {
+          if (gen !== seekGenerationRef.current || cancelledRef.current) return;
+          seekingRef.current = false;
+        });
+    },
+    [notifySubscribers],
+  );
 
   const setGuideVolume = useCallback((v: number) => {
     const clamped = Math.max(0, Math.min(1, v));
@@ -207,6 +254,7 @@ export function useAudioPlayer(
 
   const cleanup = useCallback(() => {
     cancelledRef.current = true;
+    seekingRef.current = false;
     cancelAnimationFrame(rafRef.current);
     if (instrumentalRef.current) {
       instrumentalRef.current.pause();

@@ -18,6 +18,10 @@ export type VideoFlavor = (typeof FLAVORS)[number];
 
 const VIDEO_CLASS = 'pointer-events-none absolute inset-0 size-full object-cover';
 
+const SOURCE_VIDEO_DRIFT_LARGE = 0.75;
+const SOURCE_VIDEO_DRIFT_CORRECT = 0.5;
+const SOURCE_VIDEO_SYNC_THROTTLE_MS = 500;
+
 function getNextFlavor(flavor: VideoFlavor): VideoFlavor {
   const idx = FLAVORS.indexOf(flavor);
   return FLAVORS[(idx + 1) % FLAVORS.length];
@@ -317,7 +321,13 @@ export const SourceVideo = ({
       const drift = Math.abs(video.currentTime - time);
       const now = performance.now();
 
-      if (drift > 0.5 && now - lastSyncRef.current > 500) {
+      if (drift > SOURCE_VIDEO_DRIFT_LARGE) {
+        video.currentTime = time;
+        lastSyncRef.current = now;
+      } else if (
+        drift > SOURCE_VIDEO_DRIFT_CORRECT &&
+        now - lastSyncRef.current > SOURCE_VIDEO_SYNC_THROTTLE_MS
+      ) {
         video.currentTime = time;
         lastSyncRef.current = now;
       }

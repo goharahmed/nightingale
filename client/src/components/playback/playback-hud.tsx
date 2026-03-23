@@ -67,6 +67,7 @@ interface PlaybackHudProps {
   themeIndex: number;
   videoFlavor: VideoFlavor;
   firstSegmentStart: number;
+  introSkipLeadSec: number;
   lastSegmentEnd: number;
   onSkipIntro: () => void;
   onSkipOutro: () => void;
@@ -83,6 +84,7 @@ export const PlaybackHud = ({
   themeIndex,
   videoFlavor,
   firstSegmentStart,
+  introSkipLeadSec,
   lastSegmentEnd,
   onSkipIntro,
   onSkipOutro,
@@ -115,14 +117,21 @@ export const PlaybackHud = ({
 
       if (skipIntroRef.current) {
         skipIntroRef.current.style.display =
-          time < firstSegmentStart - 3 ? '' : 'none';
+          time < firstSegmentStart - introSkipLeadSec ? '' : 'none';
       }
       if (skipOutroRef.current) {
         skipOutroRef.current.style.display =
           time > lastSegmentEnd + 1 ? '' : 'none';
       }
     });
-  }, [subscribe, getCurrentTime, duration, firstSegmentStart, lastSegmentEnd]);
+  }, [
+    subscribe,
+    getCurrentTime,
+    duration,
+    firstSegmentStart,
+    introSkipLeadSec,
+    lastSegmentEnd,
+  ]);
 
   return (
     <>
