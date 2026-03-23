@@ -275,11 +275,13 @@ export const SourceVideo = ({
   const lastSyncRef = useRef(0);
   const [src, setSrc] = useState<string | null>(null);
   const initializedRef = useRef(false);
+  const [visible, setVisible] = useState(false);
   const isPlayingRef = useRef(isPlaying);
   isPlayingRef.current = isPlaying;
 
   useEffect(() => {
     initializedRef.current = false;
+    setVisible(false);
     getMediaPort().then((port) => setSrc(mediaUrl(port, filePath)));
   }, [filePath]);
 
@@ -287,12 +289,22 @@ export const SourceVideo = ({
     const video = videoRef.current;
     if (!video || !src) return;
     initializedRef.current = false;
+    setVisible(false);
 
     const init = () => {
       const t = getCurrentTime();
-      if (t > 0.1) video.currentTime = t;
-      initializedRef.current = true;
-      if (isPlayingRef.current) video.play().catch(() => {});
+      if (t > 0.1) {
+        video.currentTime = t;
+        video.addEventListener('seeked', () => {
+          initializedRef.current = true;
+          setVisible(true);
+          if (isPlayingRef.current) video.play().catch(() => {});
+        }, { once: true });
+      } else {
+        initializedRef.current = true;
+        setVisible(true);
+        if (isPlayingRef.current) video.play().catch(() => {});
+      }
     };
 
     if (video.readyState >= 1) {
@@ -340,6 +352,7 @@ export const SourceVideo = ({
     <video
       ref={videoRef}
       className={VIDEO_CLASS}
+      style={{ visibility: visible ? 'visible' : 'hidden' }}
       src={src}
       muted
       playsInline

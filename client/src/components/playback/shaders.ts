@@ -261,6 +261,47 @@ void main() {
 }
 `;
 
+export const loadingFragment = `
+uniform float uTime;
+varying vec2 vUv;
+${SRGB_CONVERSION}
+void main() {
+  float t = uTime;
+  vec2 uv = vUv * 2.0 - 1.0;
+  uv.x *= 16.0 / 9.0;
+
+  float dist = length(uv);
+  float angle = atan(uv.y, uv.x);
+
+  float rings = sin(dist * 10.0 - t * 2.0) * 0.5 + 0.5;
+  rings *= smoothstep(2.0, 0.0, dist);
+  rings = pow(rings, 3.0);
+
+  float spiral = sin(angle * 4.0 + dist * 6.0 - t * 1.5) * 0.5 + 0.5;
+  spiral *= smoothstep(1.8, 0.2, dist);
+
+  float blob1 = exp(-length(uv - vec2(cos(t * 0.3) * 0.5, sin(t * 0.4) * 0.4)) * 3.0);
+  float blob2 = exp(-length(uv - vec2(cos(t * 0.5 + 2.0) * 0.4, sin(t * 0.3 + 1.0) * 0.5)) * 3.0);
+
+  float breath = sin(t * 1.2) * 0.5 + 0.5;
+  float center = exp(-dist * 3.0) * (0.3 + 0.3 * breath);
+
+  vec3 color = vec3(0.02, 0.01, 0.05);
+  color += vec3(0.06, 0.03, 0.14) * rings;
+  color += vec3(0.04, 0.02, 0.08) * spiral * 0.5;
+  color += vec3(0.08, 0.04, 0.18) * blob1;
+  color += vec3(0.03, 0.07, 0.14) * blob2;
+  color += vec3(0.14, 0.07, 0.25) * center;
+
+  float vignette = 1.0 - length((vUv - 0.5) * 1.6);
+  color *= smoothstep(0.0, 0.7, vignette);
+
+  color = clamp(color, vec3(0.0), vec3(0.5));
+
+  gl_FragColor = vec4(linearToSRGB(color), 1.0);
+}
+`;
+
 export interface ShaderDefinition {
   name: string;
   fragmentShader: string;

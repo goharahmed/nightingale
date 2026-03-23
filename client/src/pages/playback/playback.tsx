@@ -211,6 +211,7 @@ const PlaybackInner = ({
         }
 
         case 'Enter': {
+          if (!audio.isReady) break;
           const t = audio.getCurrentTime();
           if (t < firstSegmentStart - INTRO_SKIP_LEAD_SEC) {
             handleSkipIntro();
@@ -248,33 +249,37 @@ const PlaybackInner = ({
         themeIndex={themeIndex}
         videoFlavor={videoFlavor}
         sourceVideoPath={song.is_video ? song.path : undefined}
+        isReady={audio.isReady}
         isPlaying={audio.isPlaying}
         subscribe={audio.subscribe}
         getCurrentTime={audio.getCurrentTime}
       />
 
-      <LyricsDisplay
-        segments={segments}
-        subscribe={audio.subscribe}
-        getCurrentTime={audio.getCurrentTime}
-      />
-
-      <PlaybackHud
-        title={song.title}
-        artist={song.artist}
-        duration={audio.duration}
-        guideVolume={audio.guideVolume}
-        themeIndex={themeIndex}
-        videoFlavor={videoFlavor}
-        firstSegmentStart={firstSegmentStart}
-        introSkipLeadSec={INTRO_SKIP_LEAD_SEC}
-        lastSegmentEnd={lastSegmentEnd}
-        onSkipIntro={handleSkipIntro}
-        onSkipOutro={handleSkipOutro}
-        subscribe={audio.subscribe}
-        getCurrentTime={audio.getCurrentTime}
-        transcriptSource={transcriptSource}
-      />
+      {audio.isReady && (
+        <>
+          <PlaybackHud
+            title={song.title}
+            artist={song.artist}
+            duration={audio.duration}
+            guideVolume={audio.guideVolume}
+            themeIndex={themeIndex}
+            videoFlavor={videoFlavor}
+            firstSegmentStart={firstSegmentStart}
+            introSkipLeadSec={INTRO_SKIP_LEAD_SEC}
+            lastSegmentEnd={lastSegmentEnd}
+            onSkipIntro={handleSkipIntro}
+            onSkipOutro={handleSkipOutro}
+            subscribe={audio.subscribe}
+            getCurrentTime={audio.getCurrentTime}
+            transcriptSource={transcriptSource}
+          />
+          <LyricsDisplay
+            segments={segments}
+            subscribe={audio.subscribe}
+            getCurrentTime={audio.getCurrentTime}
+          />
+        </>
+      )}
 
       <PauseOverlay
         open={paused}

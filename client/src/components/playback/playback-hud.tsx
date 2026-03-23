@@ -42,7 +42,7 @@ function HintText({ children }: { children: React.ReactNode }) {
 }
 
 const FOOTER_NOTE_CLASS =
-  'pointer-events-none absolute bottom-2 z-20 text-xs text-white/30';
+  'pointer-events-none absolute bottom-2 z-20 text-[0.6rem] text-white/30';
 
 function Disclaimer({ source }: { source: string }) {
   const text =
@@ -142,7 +142,6 @@ export const PlaybackHud = ({
           <p ref={timerRef} className="text-base text-white/70">
             0:00 / {formatTime(duration)}
           </p>
-
           <div className="mt-2 flex gap-2">
             <SkipButton ref={skipIntroRef} label="Skip Intro" onClick={onSkipIntro} />
             <SkipButton ref={skipOutroRef} label="Skip Outro" onClick={onSkipOutro} />

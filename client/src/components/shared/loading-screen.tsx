@@ -1,7 +1,8 @@
-import { Spinner } from '@/components/ui/spinner';
+
+import squareLogo from '@/assets/images/logo_square.png'
 
 export const LoadingScreen = () => (
   <div className="fixed inset-0 flex flex-col items-center justify-center bg-background">
-    <Spinner className="size-24 text-muted-foreground" />
+    <img src={squareLogo} width={180} height={180} />
   </div>
 );

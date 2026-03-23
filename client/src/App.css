@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
+
 @font-face {
   font-family: 'Noto Sans CJK SC';
   src: url('./assets/fonts/NotoSansCJKsc-Regular.otf') format('opentype');

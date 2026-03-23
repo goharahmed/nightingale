@@ -1,5 +1,5 @@
 import type { TimeSubscriber } from '@/hooks/use-audio-player';
-import { shaders } from './shaders';
+import { loadingFragment, shaders } from './shaders';
 import { ShaderVisualizer } from './shader-visualizer';
 import {
   FLAVORS,
@@ -14,6 +14,7 @@ export interface BackgroundProps {
   themeIndex: number;
   videoFlavor: VideoFlavor;
   sourceVideoPath?: string;
+  isReady: boolean;
   isPlaying: boolean;
   subscribe: (fn: TimeSubscriber) => () => void;
   getCurrentTime: () => number;
@@ -74,11 +75,20 @@ export const Background = ({
   themeIndex,
   videoFlavor,
   sourceVideoPath,
+  isReady,
   isPlaying,
   subscribe,
   getCurrentTime,
 }: BackgroundProps) => {
   const mode = themeMode(themeIndex);
+
+  if (!isReady) {
+    return (
+      <div className="fixed inset-0">
+        <ShaderVisualizer shaderIndex={0} isPlaying={true} customFragment={loadingFragment} />
+      </div>
+    );
+  }
 
   const background = (() => {
     switch (mode) {

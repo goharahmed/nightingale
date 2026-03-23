@@ -6,13 +6,15 @@ import { shaders, vertexShader } from './shaders';
 interface Props {
   shaderIndex: number;
   isPlaying: boolean;
+  customFragment?: string;
 }
 
-const ShaderQuad = ({ shaderIndex, isPlaying }: Props) => {
+const ShaderQuad = ({ shaderIndex, isPlaying, customFragment }: Props) => {
   const materialRef = useRef<THREE.ShaderMaterial>(null!);
   const timeRef = useRef(0);
 
-  const uniforms = useMemo(() => ({ uTime: { value: 0 } }), [shaderIndex]);
+  const fragment = customFragment ?? shaders[shaderIndex].fragmentShader;
+  const uniforms = useMemo(() => ({ uTime: { value: 0 } }), [shaderIndex, customFragment]);
 
   useFrame((_, delta) => {
     if (isPlaying) {
@@ -26,20 +28,20 @@ const ShaderQuad = ({ shaderIndex, isPlaying }: Props) => {
       <planeGeometry args={[2, 2]} />
       <shaderMaterial
         ref={materialRef}
-        key={shaderIndex}
+        key={customFragment ? 'custom' : shaderIndex}
         vertexShader={vertexShader}
-        fragmentShader={shaders[shaderIndex].fragmentShader}
+        fragmentShader={fragment}
         uniforms={uniforms}
       />
     </mesh>
   );
 };
 
-export const ShaderVisualizer = ({ shaderIndex, isPlaying }: Props) => {
+export const ShaderVisualizer = ({ shaderIndex, isPlaying, customFragment }: Props) => {
   return (
     <div className="fixed inset-0">
       <Canvas flat dpr={1}>
-        <ShaderQuad shaderIndex={shaderIndex} isPlaying={isPlaying} />
+        <ShaderQuad shaderIndex={shaderIndex} isPlaying={isPlaying} customFragment={customFragment} />
       </Canvas>
     </div>
   );

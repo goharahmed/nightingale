@@ -236,6 +236,7 @@ export const LyricsDisplay = ({
       <div
         ref={containerRef}
         className="relative max-w-full rounded-lg bg-black/40 px-5 py-2.5"
+        style={{ display: 'none' }}
       >
         <span
           ref={countdownRef}
@@ -264,6 +265,7 @@ export const LyricsDisplay = ({
         <div
           ref={nextContainerRef}
           className="max-w-full rounded-md bg-black/25 px-4 py-1.5"
+          style={{ display: 'none' }}
         >
           <p className="text-center text-[1.5rem] leading-tight">
             {nextSeg.words.map((word, wi) => (
