@@ -1,6 +1,7 @@
 mod analyzer;
 mod cache;
 mod config;
+mod playback;
 mod profile;
 mod scanner;
 mod vendor;
@@ -9,10 +10,16 @@ use analyzer::{delete_song_cache, enqueue_all, enqueue_one, reanalyze_full, rean
 use app_core::AppConfig;
 use cache::{calculate_cache_stats, clear_all, clear_models_command, clear_videos_command};
 use config::{load_config, save_config};
+use playback::{fetch_pixabay_videos, get_audio_paths, load_transcript};
 use profile::{create_profile, delete_profile, load_profiles, switch_profile};
 use scanner::{load_analysis_queue, load_songs, load_songs_meta, trigger_scan};
 use tauri::{Manager, RunEvent};
 use vendor::{is_ready, trigger_setup};
+
+#[tauri::command]
+fn get_media_port() -> u16 {
+    app_core::media_server::port()
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -45,12 +52,19 @@ pub fn run() {
             delete_song_cache,
             reanalyze_transcript,
             reanalyze_full,
+            // Playback
+            load_transcript,
+            get_audio_paths,
+            fetch_pixabay_videos,
+            get_media_port,
             // Vendor
             is_ready,
             trigger_setup
         ])
         .setup(|app| {
+            let _ = dotenvy::dotenv();
             app_core::AnalysisQueue::clear();
+            app_core::media_server::start();
 
             let config = AppConfig::load();
 

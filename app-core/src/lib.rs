@@ -2,6 +2,8 @@ mod analyzer;
 mod cache;
 mod config;
 mod error;
+pub mod media_server;
+mod playback;
 mod profile;
 mod scanner;
 mod song;
@@ -12,7 +14,8 @@ pub use analyzer::{
     AnalysisQueue, delete_cache, enqueue_all, enqueue_one, reanalyze_full, reanalyze_transcript,
     shutdown_server,
 };
-pub use cache::{CacheStats, clear_models, clear_videos};
+pub use cache::{CacheDir, CacheStats, clear_models, clear_videos};
+pub use playback::{fetch_pixabay_videos, get_audio_paths, load_transcript, prefetch_one_per_flavor, AudioPaths};
 pub use config::AppConfig;
 pub use profile::ProfileStore;
 pub use scanner::{SongsMeta, SongsStore, start_scan};

@@ -103,7 +103,7 @@ export const SongCard = memo(({ song, queueStatus }: SongCardProps) => {
       className="cursor-pointer transition-colors hover:bg-muted"
       onClick={() => {
         if (isReady) {
-          return navigate('playback');
+          return navigate('/playback', { state: { song } });
         }
 
         enqueueOne(song.file_hash);

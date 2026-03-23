@@ -36,7 +36,7 @@ const ShaderQuad = ({ shaderIndex }: Props) => {
 export const ShaderVisualizer = ({ shaderIndex }: Props) => {
   return (
     <div className="fixed inset-0">
-      <Canvas flat>
+      <Canvas flat dpr={1}>
         <ShaderQuad shaderIndex={shaderIndex} />
       </Canvas>
     </div>

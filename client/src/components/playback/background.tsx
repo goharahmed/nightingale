@@ -1,48 +1,90 @@
-import { useCallback, useEffect, useState } from "react";
-import { shaders } from "./shaders";
-import { ShaderVisualizer } from "./shader-visualizer";
+import type { TimeSubscriber } from '@/hooks/use-audio-player';
+import { shaders } from './shaders';
+import { ShaderVisualizer } from './shader-visualizer';
+import {
+  FLAVORS,
+  PixabayVideo,
+  SourceVideo,
+  type VideoFlavor,
+} from './video-background';
 
-const FLAVORS = ['nature', 'underwater', 'space', 'city', 'countryside'];
+export type ThemeMode = 'shader' | 'pixabay' | 'source';
 
-export const Background = () => {
-  const [shaderIndex, setShaderIndex] = useState(0);
-  const [_videoFlavor, setVideoFlavor] = useState(FLAVORS[0]);
+export interface BackgroundProps {
+  themeIndex: number;
+  videoFlavor: VideoFlavor;
+  sourceVideoPath?: string;
+  isPlaying: boolean;
+  subscribe: (fn: TimeSubscriber) => () => void;
+  getCurrentTime: () => number;
+}
 
-  const cycleShader = useCallback(() => {
-    setShaderIndex((prev) => (prev + 1) % shaders.length);
-  }, []);
+const SHADER_COUNT = shaders.length;
+const PIXABAY_INDEX = SHADER_COUNT;
+const SOURCE_VIDEO_INDEX = SHADER_COUNT + 1;
 
-  const cycleVideo = useCallback(() => {
-    setVideoFlavor((prev) => {
-      const flavIndex = FLAVORS.findIndex(flavor => flavor === prev);
+export function themeMode(index: number): ThemeMode {
+  if (index === PIXABAY_INDEX) return 'pixabay';
+  if (index === SOURCE_VIDEO_INDEX) return 'source';
+  return 'shader';
+}
 
-      if (flavIndex === (FLAVORS.length - 1)) {
-        return FLAVORS[0];
-      }
+export function themeName(
+  index: number,
+  videoFlavor: VideoFlavor,
+): string {
+  const mode = themeMode(index);
+  if (mode === 'source') return 'Source Video';
+  if (mode === 'pixabay') {
+    const name = videoFlavor.charAt(0).toUpperCase() + videoFlavor.slice(1);
+    return `Video — ${name}`;
+  }
+  return shaders[index % SHADER_COUNT].name;
+}
 
-      return FLAVORS[flavIndex + 1];
-    });
-  }, []);
+export function themeCount(hasSourceVideo: boolean): number {
+  return SHADER_COUNT + 1 + (hasSourceVideo ? 1 : 0);
+}
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "t" || e.key === "T") {
-        cycleShader();
-      }
+export function nextThemeIndex(
+  current: number,
+  hasSourceVideo: boolean,
+): number {
+  return (current + 1) % themeCount(hasSourceVideo);
+}
 
-      if (e.key === "f" || e.key === "F") {
-        cycleVideo();
-      }
-    };
+export function nextFlavorIndex(current: number): number {
+  return (current + 1) % FLAVORS.length;
+}
 
-    window.addEventListener("keydown", onKeyDown);
+export function isPixabayTheme(index: number): boolean {
+  return index === PIXABAY_INDEX;
+}
 
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [cycleShader]);
+export const Background = ({
+  themeIndex,
+  videoFlavor,
+  sourceVideoPath,
+  isPlaying,
+  subscribe,
+  getCurrentTime,
+}: BackgroundProps) => {
+  const mode = themeMode(themeIndex);
 
   return (
     <div className="fixed inset-0">
-      <ShaderVisualizer shaderIndex={shaderIndex} />
+      {mode === 'shader' && (
+        <ShaderVisualizer shaderIndex={themeIndex % SHADER_COUNT} />
+      )}
+      {mode === 'pixabay' && <PixabayVideo flavor={videoFlavor} />}
+      {mode === 'source' && sourceVideoPath && (
+        <SourceVideo
+          filePath={sourceVideoPath}
+          isPlaying={isPlaying}
+          subscribe={subscribe}
+          getCurrentTime={getCurrentTime}
+        />
+      )}
     </div>
   );
-}
+};
