@@ -24,18 +24,30 @@ const PIXABAY_INDEX = SHADER_COUNT;
 const SOURCE_VIDEO_INDEX = SHADER_COUNT + 1;
 
 export function themeMode(index: number): ThemeMode {
-  if (index === PIXABAY_INDEX) return 'pixabay';
-  if (index === SOURCE_VIDEO_INDEX) return 'source';
+  if (index === PIXABAY_INDEX) {
+    return 'pixabay';
+  };
+
+  if (index === SOURCE_VIDEO_INDEX) {
+    return 'source'
+  };
+
   return 'shader';
 }
 
 export function themeName(index: number, videoFlavor: VideoFlavor): string {
   const mode = themeMode(index);
-  if (mode === 'source') return 'Source Video';
+
+  if (mode === 'source') {
+    return 'Source Video';
+  };
+
   if (mode === 'pixabay') {
     const name = videoFlavor.charAt(0).toUpperCase() + videoFlavor.slice(1);
+
     return `Video — ${name}`;
   }
+
   return shaders[index % SHADER_COUNT].name;
 }
 
@@ -68,25 +80,38 @@ export const Background = ({
 }: BackgroundProps) => {
   const mode = themeMode(themeIndex);
 
+  const background = (() => {
+    switch (mode) {
+      case 'shader':
+        return (
+          <ShaderVisualizer
+            shaderIndex={themeIndex % SHADER_COUNT}
+            isPlaying={isPlaying}
+          />
+        );
+      case 'pixabay':
+        return (
+          <PixabayVideo flavor={videoFlavor} isPlaying={isPlaying} />
+        );
+      case 'source':
+        if (!sourceVideoPath) {
+          return null;
+        };
+
+        return (
+          <SourceVideo
+            filePath={sourceVideoPath}
+            isPlaying={isPlaying}
+            subscribe={subscribe}
+            getCurrentTime={getCurrentTime}
+          />
+        );
+    }
+  })();
+
   return (
     <div className="fixed inset-0">
-      {mode === 'shader' && (
-        <ShaderVisualizer
-          shaderIndex={themeIndex % SHADER_COUNT}
-          isPlaying={isPlaying}
-        />
-      )}
-      {mode === 'pixabay' && (
-        <PixabayVideo flavor={videoFlavor} isPlaying={isPlaying} />
-      )}
-      {mode === 'source' && sourceVideoPath && (
-        <SourceVideo
-          filePath={sourceVideoPath}
-          isPlaying={isPlaying}
-          subscribe={subscribe}
-          getCurrentTime={getCurrentTime}
-        />
-      )}
+      {background}
     </div>
   );
 };

@@ -6,14 +6,36 @@ import {
 } from '@/tauri-bridge/playback';
 import { useEffect, useRef, useState } from 'react';
 
-const FLAVORS = [
+export const FLAVORS = [
   'nature',
   'underwater',
   'space',
   'city',
   'countryside',
 ] as const;
+
 export type VideoFlavor = (typeof FLAVORS)[number];
+
+const VIDEO_CLASS = 'pointer-events-none absolute inset-0 size-full object-cover';
+
+// Syncs a <video> element's play/pause state with the audio player
+function usePlayPause(
+  videoRef: React.RefObject<HTMLVideoElement | null>,
+  isPlaying: boolean,
+) {
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    };
+
+    if (isPlaying) {
+      video.play();
+    } else {
+      video.pause();
+    }
+  }, [isPlaying]);
+}
 
 interface PixabayVideoProps {
   flavor: VideoFlavor;
@@ -22,8 +44,8 @@ interface PixabayVideoProps {
 
 export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [videoUrls, setVideoUrls] = useState<string[]>([]);
   const [index, setIndex] = useState(0);
+  const [videoUrls, setVideoUrls] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -33,23 +55,14 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
           setVideoUrls(paths.map((p) => mediaUrl(port, p)));
           setIndex(0);
         }
-      })
-      .catch(() => {});
+      });
+
     return () => {
       cancelled = true;
     };
   }, [flavor]);
 
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    if (isPlaying) {
-      video.play().catch(() => {});
-    } else {
-      video.pause();
-    }
-  }, [isPlaying]);
+  usePlayPause(videoRef, isPlaying);
 
   if (videoUrls.length === 0) return null;
 
@@ -59,7 +72,7 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
     <video
       ref={videoRef}
       key={src}
-      className="pointer-events-none absolute inset-0 size-full object-cover"
+      className={VIDEO_CLASS}
       src={src}
       autoPlay
       muted
@@ -90,24 +103,20 @@ export const SourceVideo = ({
     getMediaPort().then((port) => setSrc(mediaUrl(port, filePath)));
   }, [filePath]);
 
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
+  usePlayPause(videoRef, isPlaying);
 
-    if (isPlaying) {
-      video.play().catch(() => {});
-    } else {
-      video.pause();
-    }
-  }, [isPlaying]);
-
+  // Corrects drift between the video and audio clocks.
+  // Throttled to avoid excessive seeks (at most once per 500ms).
   useEffect(() => {
     return subscribe((time) => {
       const video = videoRef.current;
-      if (!video) return;
+      if (!video) {
+        return;
+      };
 
       const drift = Math.abs(video.currentTime - time);
       const now = performance.now();
+
       if (drift > 0.5 && now - lastSyncRef.current > 500) {
         video.currentTime = time;
         lastSyncRef.current = now;
@@ -120,12 +129,10 @@ export const SourceVideo = ({
   return (
     <video
       ref={videoRef}
-      className="pointer-events-none absolute inset-0 size-full object-cover"
+      className={VIDEO_CLASS}
       src={src}
       muted
       playsInline
     />
   );
 };
-
-export { FLAVORS };

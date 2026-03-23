@@ -25,7 +25,7 @@ export const ExitDialog = () => {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={close}>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={() => exit()}>Exit</AlertDialogAction>
+          <AlertDialogAction variant="destructive" onClick={() => exit()}>Exit</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
