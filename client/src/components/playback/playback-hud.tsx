@@ -18,7 +18,7 @@ function formatThemeText(
   themeIndex: number,
   videoFlavor: VideoFlavor,
 ): string {
-  return `Theme: ${themeName(themeIndex, videoFlavor)} [T / F]`;
+  return `Theme: ${themeName(themeIndex, videoFlavor)} [T${isPixabayTheme(themeIndex) ? ' / F' : ''}]`;
 }
 
 // --- Shared sub-components ---

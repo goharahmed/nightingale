@@ -36,12 +36,6 @@ const ThemeWrapper = () => {
     return <div>{error.stack}</div>;
   }
 
-  const canvas = document.createElement('canvas');
-  const gl = canvas.getContext('webgl');
-  const debugInfo = gl?.getExtension('WEBGL_debug_renderer_info');
-
-  console.log(gl?.getParameter(debugInfo?.UNMASKED_RENDERER_WEBGL));
-
   return (
     <ThemeProvider
       defaultTheme={config?.dark_mode === false ? 'light' : 'dark'}
