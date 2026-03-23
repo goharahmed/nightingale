@@ -9,7 +9,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { useDialog } from '@/hooks/use-dialog';
-import { openUrl } from '@tauri-apps/plugin-opener';
+import { openUrl } from '@/tauri-bridge/opener';
 
 const GithubIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 24 24" fill="currentColor" {...props}>

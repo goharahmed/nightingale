@@ -8,7 +8,8 @@
  * pair because BufferSourceNode is one-shot: pause/seek recreate sources rather than mutating time.
  */
 
-import { getAudioPaths, getMediaPort, mediaUrl } from '@/tauri-bridge/playback';
+import type { PlaybackAdapter } from '@/adapters/playback';
+import { joinMediaUrl, tauriPlaybackAdapter } from '@/adapters/playback';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 export type TimeSubscriber = (time: number) => void;
@@ -28,11 +29,14 @@ export interface AudioPlayer {
   seek: (time: number) => void;
   setGuideVolume: (v: number) => void;
   cleanup: () => void;
+  getVocalsBuffer: () => AudioBuffer | null;
+  getAudioContext: () => AudioContext | null;
 }
 
 export function useAudioPlayer(
   fileHash: string,
   initialGuideVolume: number,
+  adapter: PlaybackAdapter = tauriPlaybackAdapter,
 ): AudioPlayer {
   const ctxRef = useRef<AudioContext | null>(null);
   const instrumentalBufRef = useRef<AudioBuffer | null>(null);
@@ -58,8 +62,10 @@ export function useAudioPlayer(
   const [error, setError] = useState<string | null>(null);
   const [guideVolume, setGuideVolumeState] = useState(initialGuideVolume);
 
-  // While playing: position = offset at start + elapsed AudioContext time since start.
-  // While paused/stopped: fall back to currentTimeRef (last value from the tick, or seek target).
+  const getVocalsBuffer = useCallback(() => vocalsBufRef.current, []);
+
+  const getAudioContext = useCallback(() => ctxRef.current, []);
+
   const getCurrentTime = useCallback(() => {
     const ctx = ctxRef.current;
     if (!ctx || !playingRef.current) {
@@ -119,7 +125,6 @@ export function useAudioPlayer(
 
       const clamped = Math.max(0, Math.min(offset, instBuf.duration));
 
-      // New BufferSourceNodes each time — Web Audio sources are one-shot after start/stop.
       const instSrc = ctx.createBufferSource();
       instSrc.buffer = instBuf;
       instSrc.connect(ctx.destination);
@@ -128,7 +133,6 @@ export function useAudioPlayer(
       vocSrc.buffer = vocBuf;
       vocSrc.connect(gainNode);
 
-      // End-of-track is tied to the instrumental only (vocals length is assumed aligned).
       instSrc.onended = () => {
         if (
           !cancelledRef.current &&
@@ -165,7 +169,6 @@ export function useAudioPlayer(
     startContextTimeRef.current = 0;
     currentTimeRef.current = 0;
 
-    // One context + decode per fileHash; effect cleanup tears everything down on track change.
     const ctx = new AudioContext();
     ctxRef.current = ctx;
 
@@ -176,15 +179,14 @@ export function useAudioPlayer(
 
     const isCancelled = () => cancelled || cancelledRef.current;
 
-    // Fetch PCM via Tauri media server, decode, then autoplay from t=0 via startSources(0).
-    Promise.all([getMediaPort(), getAudioPaths(fileHash)])
-      .then(async ([port, paths]) => {
+    Promise.all([adapter.getMediaBaseUrl(), adapter.getAudioPaths(fileHash)])
+      .then(async ([baseUrl, paths]) => {
         if (isCancelled()) {
           return;
         }
 
         const [instData, vocData] = await Promise.all([
-          fetch(mediaUrl(port, paths.instrumental)).then((r) => {
+          fetch(joinMediaUrl(baseUrl, paths.instrumental)).then((r) => {
             if (!r.ok) {
               throw new Error(`Failed to fetch instrumental: ${r.status}`);
             }
@@ -192,7 +194,7 @@ export function useAudioPlayer(
             return r.arrayBuffer();
           }),
 
-          fetch(mediaUrl(port, paths.vocals)).then((r) => {
+          fetch(joinMediaUrl(baseUrl, paths.vocals)).then((r) => {
             if (!r.ok) {
               throw new Error(`Failed to fetch vocals: ${r.status}`);
             }
@@ -248,7 +250,6 @@ export function useAudioPlayer(
           (ctxRef.current.currentTime - startContextTimeRef.current);
         currentTimeRef.current = t;
 
-        // Throttle subscriber calls (~30 Hz) so lyrics/HUD don't run every rAF frame.
         if (now - lastNotify >= NOTIFY_INTERVAL) {
           lastNotify = now;
           for (const fn of subscribersRef.current) fn(t);
@@ -270,7 +271,7 @@ export function useAudioPlayer(
       ctx.close();
       ctxRef.current = null;
     };
-  }, [fileHash, initialGuideVolume, startSources, stopSources]);
+  }, [adapter, fileHash, initialGuideVolume, startSources, stopSources]);
 
   const play = useCallback(() => {
     startSources(startOffsetRef.current);
@@ -280,7 +281,6 @@ export function useAudioPlayer(
   const pause = useCallback(() => {
     const ctx = ctxRef.current;
     if (ctx && playingRef.current) {
-      // Freeze logical position into startOffsetRef before stopping sources.
       startOffsetRef.current +=
         ctx.currentTime - startContextTimeRef.current;
     }
@@ -294,7 +294,6 @@ export function useAudioPlayer(
     setIsPlaying(true);
   }, [startSources]);
 
-  // Pushes time to subscribers immediately so scrubbing UI stays in sync between rAF ticks.
   const seek = useCallback(
     (time: number) => {
       const wasPlaying = playingRef.current;
@@ -325,7 +324,6 @@ export function useAudioPlayer(
     }
   }, []);
 
-  // Optional explicit teardown (e.g. navigation); React effect cleanup also runs on unmount/file change.
   const cleanup = useCallback(() => {
     cancelledRef.current = true;
 
@@ -337,7 +335,6 @@ export function useAudioPlayer(
     ctxRef.current = null;
   }, [stopSources]);
 
-  // Single object identity per dependency set so consumers (e.g. memo children) don't re-render unnecessarily.
   return useMemo(
     () => ({
       getCurrentTime,
@@ -354,6 +351,8 @@ export function useAudioPlayer(
       seek,
       setGuideVolume,
       cleanup,
+      getVocalsBuffer,
+      getAudioContext,
     }),
     [
       getCurrentTime,
@@ -370,6 +369,8 @@ export function useAudioPlayer(
       seek,
       setGuideVolume,
       cleanup,
+      getVocalsBuffer,
+      getAudioContext,
     ],
   );
 }

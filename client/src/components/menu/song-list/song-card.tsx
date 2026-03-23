@@ -17,7 +17,7 @@ import {
 import { useAnalysis } from '@/hooks/use-analysis';
 import type { QueuedStatus } from '@/types/QueuedStatus';
 import type { Song } from '@/types/Song';
-import { convertFileSrc } from '@tauri-apps/api/core';
+import { convertFileSrc } from '@/tauri-bridge/media';
 import {
   AudioLinesIcon,
   FileTextIcon,

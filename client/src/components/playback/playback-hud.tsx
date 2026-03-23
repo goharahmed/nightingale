@@ -74,6 +74,7 @@ interface PlaybackHudProps {
   subscribe: (fn: TimeSubscriber) => () => void;
   getCurrentTime: () => number;
   transcriptSource: string;
+  pitchScore: number | null;
 }
 
 function PlaybackHudImpl({
@@ -91,6 +92,7 @@ function PlaybackHudImpl({
   subscribe,
   getCurrentTime,
   transcriptSource,
+  pitchScore,
 }: PlaybackHudProps) {
   const lastSecondRef = useRef(-1);
   const timerRef = useRef<HTMLParagraphElement>(null);
@@ -149,6 +151,9 @@ function PlaybackHudImpl({
         </div>
 
         <div className="flex flex-col items-end">
+          {pitchScore != null && (
+            <HintText>Score: {pitchScore}</HintText>
+          )}
           <HintText>{formatGuideText(guideVolume)}</HintText>
           <HintText>{formatThemeText(themeIndex, videoFlavor)}</HintText>
           <HintText>[ESC] Back</HintText>

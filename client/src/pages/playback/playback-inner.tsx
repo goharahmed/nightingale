@@ -9,6 +9,7 @@ import {
 } from '@/components/playback/background';
 import { LyricsDisplay } from '@/components/playback/lyrics-display';
 import { PauseOverlay } from '@/components/playback/pause-overlay';
+import { PitchGraph } from '@/components/playback/pitch-graph';
 import { PlaybackHud } from '@/components/playback/playback-hud';
 import {
   FLAVORS,
@@ -20,9 +21,11 @@ import {
   usePlaybackTranscript,
 } from '@/hooks/playback';
 import { useAudioPlayer } from '@/hooks/use-audio-player';
+import { useMicPitch } from '@/hooks/use-mic-pitch';
+import { usePitchScoring } from '@/hooks/use-pitch-scoring';
 import type { Song } from '@/types/Song';
 import type { AppConfig } from '@/types/AppConfig';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { INTRO_SKIP_LEAD_SEC } from '@/utils/playback/transcript-segments';
@@ -50,6 +53,22 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
   const persistConfig = usePlaybackConfigPersist(config);
 
   const audio = useAudioPlayer(fileHash, initialGuideVolume);
+
+  const micEnabled = audio.isReady && audio.isPlaying && !paused;
+  const preferredMicId = config?.preferred_mic ?? null;
+  const { latestPitch, active: micActive, error: micError } = useMicPitch(
+    preferredMicId,
+    micEnabled,
+  );
+  const { series, score } = usePitchScoring(audio, latestPitch);
+  const micErrorShown = useRef(false);
+
+  useEffect(() => {
+    if (micError && !micErrorShown.current) {
+      micErrorShown.current = true;
+      toast.error(`Microphone: ${micError}`);
+    }
+  }, [micError]);
 
   useEffect(() => {
     if (audio.isFinished) {
@@ -146,7 +165,9 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
             subscribe={audio.subscribe}
             getCurrentTime={audio.getCurrentTime}
             transcriptSource={transcriptSource}
+            pitchScore={micActive ? score : null}
           />
+          <PitchGraph series={series} visible={micActive} />
           <LyricsDisplay
             segments={segments}
             subscribe={audio.subscribe}

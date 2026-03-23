@@ -27,6 +27,7 @@ import {
 import { useDialog } from '@/hooks/use-dialog';
 import { useConfig } from '@/queries/use-config';
 import { useConfigMutation } from '@/mutations/use-config-mutation';
+import { useMicDevices } from '@/hooks/use-mic-pitch';
 
 const SEPARATORS = [
   { value: 'karaoke', label: 'UVR Karaoke' },
@@ -66,6 +67,7 @@ export const SettingsDialog = () => {
 
   const batchSize = config?.batch_size ?? DEFAULT_BEAM_BATCH_SIZE;
   const beamSize = config?.beam_size ?? DEFAULT_BEAM_BATCH_SIZE;
+  const micDevices = useMicDevices();
 
   return (
     <Dialog open={mode === 'settings'} onOpenChange={close}>
@@ -107,6 +109,33 @@ export const SettingsDialog = () => {
           </Field>
         </FieldGroup>
         <FieldGroup>
+          <Field>
+            <Label>Microphone</Label>
+            <FieldDescription>
+              Select which microphone to use for pitch scoring
+            </FieldDescription>
+            <Select
+              onValueChange={(value) =>
+                mutate({ preferred_mic: value === '__default__' ? null : value })
+              }
+              defaultValue={config?.preferred_mic ?? '__default__'}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Default microphone" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>Microphone</SelectLabel>
+                  <SelectItem value="__default__">Default</SelectItem>
+                  {micDevices.map((d) => (
+                    <SelectItem key={d.deviceId} value={d.deviceId}>
+                      {d.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
           <Field>
             <Label htmlFor="model-1">Separator</Label>
             <FieldDescription>

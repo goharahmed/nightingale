@@ -1,4 +1,9 @@
-import { isAppReady, triggerSetup } from '@/tauri-bridge/setup';
+import {
+  isAppReady,
+  onSetupError,
+  onSetupProgress,
+  triggerSetup,
+} from '@/tauri-bridge/setup';
 import { useEffect, useMemo, useState } from 'react';
 import {
   AlertDialog,
@@ -12,9 +17,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { exit } from '@/tauri-bridge/exit';
 import { Progress } from '@/components/ui/progress';
-import { listen } from '@tauri-apps/api/event';
-import { SetupProgress } from '@/types/SetupProgress';
-import { SetupStep } from '@/types/SetupStep';
+import type { SetupProgress } from '@/types/SetupProgress';
+import type { SetupStep } from '@/types/SetupStep';
 
 interface ExtendedSetupProgress extends Omit<SetupProgress, 'step'> {
   step: SetupStep | 'init' | 'error';
@@ -125,26 +129,21 @@ export const Setup = () => {
     let unlistenProgress: (() => void) | undefined;
     let unlistenError: (() => void) | undefined;
 
-    listen<SetupProgress>('setup-progress', ({ payload }) => {
-      setSetupProgress(payload);
+    onSetupProgress((progress) => {
+      setSetupProgress(progress);
     }).then((fn) => {
       unlistenProgress = fn;
     });
 
-    listen<string>('setup-error', ({ payload }) => {
-      setSetupProgress({ step: 'error', percent: 0, action: payload });
+    onSetupError((error) => {
+      setSetupProgress({ step: 'error', percent: 0, action: error });
     }).then((fn) => {
       unlistenError = fn;
     });
 
     return () => {
-      if (unlistenProgress) {
-        unlistenProgress();
-      }
-
-      if (unlistenError) {
-        unlistenError();
-      }
+      unlistenProgress?.();
+      unlistenError?.();
     };
   }, []);
 
