@@ -46,7 +46,13 @@ fn handle_request(request: tiny_http::Request) {
         .map(|d| d.into_owned())
         .unwrap_or_else(|_| request.url().to_string());
 
-    let file_path = PathBuf::from(&raw_path);
+    let cleaned = if cfg!(windows) && raw_path.get(1..3).is_some_and(|s| s.as_bytes()[0].is_ascii_alphabetic() && s.as_bytes()[1] == b':') {
+        &raw_path[1..]
+    } else {
+        &raw_path
+    };
+
+    let file_path = PathBuf::from(cleaned);
 
     if !file_path.is_file() {
         let _ = request.respond(
