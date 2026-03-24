@@ -14,7 +14,7 @@ function formatGuideText(volume: number): string {
 }
 
 function formatThemeText(themeIndex: number, videoFlavor: VideoFlavor): string {
-  return `Theme: ${themeName(themeIndex, videoFlavor)} [T${isPixabayTheme(themeIndex) ? ' / F' : ''}]`;
+  return `Theme: ${themeName(themeIndex, videoFlavor)} [T${isPixabayTheme(themeIndex) ? '/F' : ''}]`;
 }
 
 // --- Shared sub-components ---
@@ -166,7 +166,7 @@ function PlaybackHudImpl({
         </div>
 
         <div className="flex flex-col items-end">
-            <HintText fontSize="md">Score: {pitchScore ?? '--'}</HintText>
+          <div className={`text-md text-white${pitchScore ? '' : '/50'}`}>Score: {pitchScore ?? '--'}</div>
           <HintText>{formatGuideText(guideVolume)}</HintText>
           <HintText>Mic: {micOn ? micName : 'OFF'} [M/N]</HintText>
           <HintText>{formatThemeText(themeIndex, videoFlavor)}</HintText>

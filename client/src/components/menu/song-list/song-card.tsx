@@ -14,6 +14,7 @@ import {
   ItemMedia,
   ItemTitle,
 } from '@/components/ui/item';
+import { Stars } from '@/components/shared/stars';
 import { useAnalysis } from '@/hooks/use-analysis';
 import type { QueuedStatus } from '@/types/QueuedStatus';
 import type { Song } from '@/types/Song';
@@ -84,9 +85,10 @@ function getStatusInfo(
 interface SongCardProps {
   song: Song;
   queueStatus?: QueuedStatus;
+  bestScore?: number;
 }
 
-export const SongCard = memo(({ song, queueStatus }: SongCardProps) => {
+export const SongCard = memo(({ song, queueStatus, bestScore }: SongCardProps) => {
   const navigate = useNavigate();
   const { enqueueOne, deleteSongCache, reanalyzeFull, reanalyzeTranscript } =
     useAnalysis();
@@ -132,7 +134,12 @@ export const SongCard = memo(({ song, queueStatus }: SongCardProps) => {
             <VideoIcon /> Video
           </Badge>
         )}
-        <ItemTitle className="line-clamp-1">{song.title}</ItemTitle>
+        <ItemTitle className="flex min-w-0 flex-row flex-wrap items-center gap-2">
+          <span className="line-clamp-1 min-w-0">{song.title}</span>
+          {bestScore != null ? (
+            <Stars score={bestScore} size="sm" className="shrink-0" />
+          ) : null}
+        </ItemTitle>
         <ItemDescription>
           {song.artist} &bull; {song.album} &bull;{' '}
           {formatSeconds(song.duration_secs)}

@@ -3,6 +3,7 @@ import {
   fetchPixabayVideos,
   getMediaPort,
   mediaUrl,
+  onPixabayVideoDownloaded,
 } from '@/tauri-bridge/playback';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -108,9 +109,9 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
 
     if (nextSrc && readyUrls.current.has(nextSrc)) {
       activate(nextSlot);
-      const refillFlavor = getNextFlavor(flavorRef.current);
-      const url = pullUrl(refillFlavor);
-      if (url) setSlot(cur, url, refillFlavor);
+      const fl = flavorRef.current;
+      const url = pullUrl(fl);
+      if (url) setSlot(cur, url, fl);
     } else {
       const video = videoRefs[cur].current;
       if (video) {
@@ -169,17 +170,22 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
         const nextVideoSlot = (preloadedSlot + 1) % 3;
         const nextFlavorSlot = (preloadedSlot + 2) % 3;
         const nextUrl = pullUrl(flavor);
-        const flavorUrl = pullUrl(upcoming);
 
         if (nextUrl) setSlot(nextVideoSlot, nextUrl, flavor);
-        if (flavorUrl) setSlot(nextFlavorSlot, flavorUrl, upcoming);
+
+        const upcomingUrl = pullUrl(upcoming);
+        if (upcomingUrl) {
+          setSlot(nextFlavorSlot, upcomingUrl, upcoming);
+        } else {
+          const extraUrl = pullUrl(flavor);
+          if (extraUrl) setSlot(nextFlavorSlot, extraUrl, flavor);
+        }
       } else {
         const playSlot = (cur + 1) % 3;
         const preSlot = (cur + 2) % 3;
 
         const playUrl = pullUrl(flavor);
         const nextUrl = pullUrl(flavor);
-        const flavorUrl = pullUrl(upcoming);
         if (!playUrl) return;
 
         setSlot(playSlot, playUrl, flavor);
@@ -191,9 +197,13 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
         const doSwap = () => {
           if (cancelled || gen !== generationRef.current) return;
           activate(playSlot);
-          if (flavorUrl) {
-            const fSlot = (playSlot + 2) % 3;
-            setSlot(fSlot, flavorUrl, upcoming);
+          const fSlot = (playSlot + 2) % 3;
+          const upcomingUrl = pullUrl(upcoming);
+          if (upcomingUrl) {
+            setSlot(fSlot, upcomingUrl, upcoming);
+          } else {
+            const extraUrl = pullUrl(flavor);
+            if (extraUrl) setSlot(fSlot, extraUrl, flavor);
           }
         };
 
@@ -249,6 +259,65 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
       clearInterval(stallTimerRef.current);
     };
   }, [activeIdx, handleEnded]);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+
+    onPixabayVideoDownloaded(({ flavor: dlFlavor, path }) => {
+      if (!portRef.current) return;
+
+      const url = mediaUrl(portRef.current, path);
+      const existing = urlsPerFlavor.current.get(dlFlavor);
+      if (existing) {
+        existing.push(url);
+      } else {
+        urlsPerFlavor.current.set(dlFlavor, [url]);
+        indexPerFlavor.current.set(dlFlavor, 0);
+      }
+
+      if (dlFlavor !== flavorRef.current) return;
+
+      const cur = activeIdxRef.current;
+
+      const hasActiveSlot = slotFlavors.current.some(
+        (f, i) => f === dlFlavor && srcsRef.current[i] !== '',
+      );
+
+      if (!hasActiveSlot) {
+        const playSlot = (cur + 1) % 3;
+        setSlot(playSlot, url, dlFlavor);
+
+        const vid = videoRefs[playSlot].current;
+        if (!vid) return;
+
+        const startPlayback = () => {
+          readyUrls.current.add(url);
+          activate(playSlot);
+        };
+
+        if (vid.readyState >= 3) {
+          startPlayback();
+        } else {
+          vid.addEventListener('canplay', startPlayback, { once: true });
+        }
+        return;
+      }
+
+      for (let i = 0; i < 3; i++) {
+        if (i === cur) continue;
+        if (!srcsRef.current[i]) {
+          setSlot(i, url, dlFlavor);
+          break;
+        }
+      }
+    }).then((fn) => {
+      unlisten = fn;
+    });
+
+    return () => {
+      unlisten?.();
+    };
+  }, []);
 
   return (
     <>

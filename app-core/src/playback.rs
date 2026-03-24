@@ -203,37 +203,19 @@ fn download_file(url: &str, dest: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
-/// Returns local file paths of cached videos for the given flavor.
-/// Downloads new videos in the background if cache is below MAX_CACHED_VIDEOS.
-pub fn fetch_pixabay_videos(flavor: &str) -> Result<Vec<String>, String> {
+const ROTATE_COUNT: usize = 2;
+
+pub fn get_cached_pixabay_videos(flavor: &str) -> Vec<String> {
     let mut cached = cached_video_paths(flavor);
     let mut rng = rand::rng();
-
-    if cached.is_empty() {
-        let listing = fetch_video_listing(flavor)?;
-        if let Some(dl) = listing.into_iter().find(|p| !p.dest.exists()) {
-            download_file(&dl.url, &dl.dest)?;
-            cached = cached_video_paths(flavor);
-        }
-    }
-
-    if cached.is_empty() {
-        return Err("No videos available".into());
-    }
-
-    let flavor_owned = flavor.to_string();
-    std::thread::spawn(move || {
-        download_and_refresh(&flavor_owned);
-    });
-
     cached.shuffle(&mut rng);
-    Ok(cached
+    cached
         .into_iter()
         .map(|p| p.to_string_lossy().into_owned())
-        .collect())
+        .collect()
 }
 
-fn download_and_refresh(flavor: &str) {
+pub fn download_pixabay_videos(flavor: &str, on_downloaded: impl Fn(String) + Send + 'static) {
     let listing = match fetch_video_listing(flavor) {
         Ok(l) => l,
         Err(_) => return,
@@ -249,6 +231,25 @@ fn download_and_refresh(flavor: &str) {
         }
         if download_file(&dl.url, &dl.dest).is_ok() {
             downloaded += 1;
+            on_downloaded(dl.dest.to_string_lossy().into_owned());
+        }
+    }
+
+    let mut rotated = 0;
+    for dl in listing.iter().filter(|p| !p.dest.exists()) {
+        if rotated >= ROTATE_COUNT {
+            break;
+        }
+        if download_file(&dl.url, &dl.dest).is_ok() {
+            on_downloaded(dl.dest.to_string_lossy().into_owned());
+
+            let mut cached = cached_video_paths(flavor);
+            cached.sort();
+            if cached.len() > MAX_CACHED_VIDEOS {
+                let evicted = &cached[0];
+                std::fs::remove_file(evicted).ok();
+            }
+            rotated += 1;
         }
     }
 }

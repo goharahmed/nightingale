@@ -6,6 +6,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{LazyLock, Mutex};
 
 use serde::{Deserialize, Serialize};
+use tracing::{info, warn};
 use ts_rs::TS;
 
 use crate::cache::{analysis_queue_path, models_dir, CacheDir};
@@ -86,7 +87,7 @@ struct ServerProcess {
 impl Drop for ServerProcess {
     fn drop(&mut self) {
         let pid = self.child.id();
-        eprintln!("[analyzer] Killing server process (pid={pid})");
+        info!("[analyzer] Killing server process (pid={pid})");
         SERVER_PID.store(0, Ordering::SeqCst);
         let _ = self.child.kill();
         let _ = self.child.wait();
@@ -131,7 +132,7 @@ fn spawn_server() -> Result<ServerProcess, NightingaleError> {
     })?;
     let pid = child.id();
     SERVER_PID.store(pid, Ordering::SeqCst);
-    eprintln!("[analyzer] Server process spawned (pid={pid})");
+    info!("[analyzer] Server process spawned (pid={pid})");
 
     let stdin = BufWriter::new(
         child
@@ -150,7 +151,7 @@ fn spawn_server() -> Result<ServerProcess, NightingaleError> {
         std::thread::spawn(move || {
             let reader = BufReader::new(stderr);
             for line in reader.lines().flatten() {
-                eprintln!("[analyzer stderr] {line}");
+                info!("[analyzer stderr] {line}");
             }
         });
     }
@@ -280,7 +281,7 @@ pub fn enqueue_all() {
 pub fn shutdown_server() {
     let pid = SERVER_PID.swap(0, Ordering::SeqCst);
     if pid != 0 {
-        eprintln!("[analyzer] Killing server process (pid={pid}) on app exit");
+        info!("[analyzer] Killing server process (pid={pid}) on app exit");
         let _ = Command::new("kill").args(["-9", &pid.to_string()]).status();
     }
 }
@@ -344,12 +345,12 @@ fn spawn_worker() {
 fn process_song(file_hash: &str, cache: &CacheDir) {
     let store = SongsStore::load_all();
     let Some(song) = store.processed.iter().find(|s| s.file_hash == file_hash) else {
-        eprintln!("[analyzer] Song with hash {file_hash} not found in store, skipping");
+        warn!("[analyzer] Song with hash {file_hash} not found in store, skipping");
         return;
     };
     let song = song.clone();
 
-    eprintln!(
+    info!(
         "[analyzer] Starting analysis: {} (hash={})",
         song.path.display(),
         file_hash
@@ -385,7 +386,7 @@ fn process_song(file_hash: &str, cache: &CacheDir) {
         let mut guard = ANALYZER_SERVER.lock().unwrap();
 
         if let Err(e) = ensure_server(&mut guard) {
-            eprintln!("[analyzer] Failed to start server: {e}");
+            warn!("[analyzer] Failed to start server: {e}");
             update_queue_status(file_hash, QueuedStatus::Failed(e.to_string()));
             return;
         }
@@ -397,12 +398,12 @@ fn process_song(file_hash: &str, cache: &CacheDir) {
                 return;
             }
             Ok(SongResult::Oom) => {
-                eprintln!("[analyzer] CUDA OOM, killing server to free GPU memory");
+                warn!("[analyzer] CUDA OOM, killing server to free GPU memory");
                 *guard = None;
 
                 if !retried {
                     retried = true;
-                    eprintln!("[analyzer] Respawning server and retrying with clean GPU");
+                    info!("[analyzer] Respawning server and retrying with clean GPU");
                     update_queue_status(file_hash, QueuedStatus::Analyzing(0));
                     continue;
                 }
@@ -417,12 +418,12 @@ fn process_song(file_hash: &str, cache: &CacheDir) {
                 return;
             }
             Err(e) => {
-                eprintln!("[analyzer] Server crashed: {e}");
+                warn!("[analyzer] Server crashed: {e}");
                 *guard = None;
 
                 if !retried {
                     retried = true;
-                    eprintln!("[analyzer] Respawning server and retrying");
+                    info!("[analyzer] Respawning server and retrying");
                     update_queue_status(file_hash, QueuedStatus::Analyzing(0));
                     continue;
                 }
@@ -441,7 +442,7 @@ fn finalize_song(file_hash: &str, cache: &CacheDir) {
         let (source, language) = read_transcript_meta(cache, file_hash);
         remove_from_queue(file_hash);
         update_song_analyzed(file_hash, true, language, Some(source));
-        eprintln!("[analyzer] Analysis complete for {file_hash}");
+        info!("[analyzer] Analysis complete for {file_hash}");
     } else {
         update_queue_status(
             file_hash,
@@ -477,7 +478,7 @@ fn send_and_monitor(
         }
 
         let line = line_buf.trim_end();
-        eprintln!("[analyzer] {line}");
+        info!("[analyzer] {line}");
 
         if line.contains("[nightingale:DONE]") {
             return Ok(SongResult::Done);
@@ -524,7 +525,7 @@ fn fetch_lrclib_lyrics(song: &Song, cache: &CacheDir) -> Option<PathBuf> {
 
     let agent = ureq::Agent::new_with_defaults();
 
-    eprintln!(
+    info!(
         "[lrclib] Searching: \"{title}\" by \"{artist}\" ({:.0}s, album=\"{}\")",
         song.duration_secs, song.album
     );
@@ -541,14 +542,14 @@ fn fetch_lrclib_lyrics(song: &Song, cache: &CacheDir) -> Option<PathBuf> {
     {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("[lrclib] Search request failed: {e}");
+            warn!("[lrclib] Search request failed: {e}");
             return None;
         }
     };
     let results: Vec<serde_json::Value> = match resp.into_body().read_json() {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("[lrclib] Failed to parse search results: {e}");
+            warn!("[lrclib] Failed to parse search results: {e}");
             return None;
         }
     };
@@ -565,7 +566,7 @@ fn fetch_lrclib_lyrics(song: &Song, cache: &CacheDir) -> Option<PathBuf> {
         })
         .collect();
 
-    eprintln!(
+    info!(
         "[lrclib] Search returned {} results with lyrics",
         with_lyrics.len()
     );
@@ -593,7 +594,7 @@ fn fetch_lrclib_lyrics(song: &Song, cache: &CacheDir) -> Option<PathBuf> {
             .get("albumName")
             .and_then(|v| v.as_str())
             .unwrap_or("?");
-        eprintln!(
+        info!(
             "[lrclib] Picked \"{}\" from \"{}\" (duration {:.0}s, delta {:.1}s)",
             name,
             album,
@@ -616,21 +617,21 @@ fn fetch_lrclib_lyrics(song: &Song, cache: &CacheDir) -> Option<PathBuf> {
         .collect();
 
     if lines.is_empty() {
-        eprintln!("[lrclib] Extracted 0 lines, skipping");
+        warn!("[lrclib] Extracted 0 lines, skipping");
         return None;
     }
 
-    eprintln!("[lrclib] Extracted {} lines", lines.len());
+    info!("[lrclib] Extracted {} lines", lines.len());
     let lyrics_json = serde_json::json!({"lines": lines});
 
     let out = cache.lyrics_path(&song.file_hash);
     match std::fs::write(&out, serde_json::to_string_pretty(&lyrics_json).unwrap()) {
         Ok(_) => {
-            eprintln!("[lrclib] Lyrics saved to {}", out.display());
+            info!("[lrclib] Lyrics saved to {}", out.display());
             Some(out)
         }
         Err(e) => {
-            eprintln!("[lrclib] Failed to write lyrics: {e}");
+            warn!("[lrclib] Failed to write lyrics: {e}");
             None
         }
     }

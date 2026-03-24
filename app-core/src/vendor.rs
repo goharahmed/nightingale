@@ -1,5 +1,7 @@
 use std::{path::PathBuf, process::Command};
 
+use tracing::info;
+
 use crate::{cache::nightingale_dir, vendor_scripts};
 
 // ─── Directory Helpers ───────────────────────────────────────────────
@@ -368,14 +370,14 @@ fn detect_gpu() -> GpuInfo {
         match nvidia_smi_path() {
             Some(smi) => {
                 let cuda_index = query_cuda_index(&smi);
-                eprintln!("[vendor] GPU detection: CUDA (index {cuda_index})");
+                info!("[vendor] GPU detection: CUDA (index {cuda_index})");
                 GpuInfo {
                     device: "cuda",
                     torch_index: cuda_index,
                 }
             }
             None => {
-                eprintln!("[vendor] GPU detection: CPU (nvidia-smi not found)");
+                info!("[vendor] GPU detection: CPU (nvidia-smi not found)");
                 GpuInfo {
                     device: "cpu",
                     torch_index: "https://download.pytorch.org/whl/cpu",
@@ -394,10 +396,10 @@ fn nvidia_smi_path() -> Option<&'static str> {
         .is_ok_and(|s| s.success());
 
     if ok {
-        eprintln!("[vendor] nvidia-smi found on PATH");
+        info!("[vendor] nvidia-smi found on PATH");
         Some("nvidia-smi")
     } else {
-        eprintln!("[vendor] nvidia-smi not found on PATH");
+        info!("[vendor] nvidia-smi not found on PATH");
         None
     }
 }
@@ -410,7 +412,7 @@ fn query_cuda_index(nvidia_smi: &str) -> &'static str {
 
     let major = output.ok().filter(|o| o.status.success()).and_then(|o| {
         let text = String::from_utf8_lossy(&o.stdout).trim().to_string();
-        eprintln!("[vendor] GPU compute capability: {text}");
+        info!("[vendor] GPU compute capability: {text}");
         text.split('.').next().and_then(|m| m.parse::<u32>().ok())
     });
 
@@ -418,7 +420,7 @@ fn query_cuda_index(nvidia_smi: &str) -> &'static str {
         Some(v) if v >= 10 => "https://download.pytorch.org/whl/cu128",
         Some(_) => "https://download.pytorch.org/whl/cu121",
         None => {
-            eprintln!("[vendor] Could not query compute capability, falling back to cu126");
+            info!("[vendor] Could not query compute capability, falling back to cu126");
             "https://download.pytorch.org/whl/cu126"
         }
     }

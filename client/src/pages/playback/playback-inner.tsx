@@ -23,12 +23,19 @@ import {
 import { useAudioPlayer } from '@/hooks/use-audio-player';
 import { useMicDevices, useMicPitch } from '@/hooks/use-mic-pitch';
 import { usePitchScoring } from '@/hooks/use-pitch-scoring';
+import { PROFILES } from '@/queries/keys';
+import { useProfiles } from '@/queries/use-profiles';
+import { addScore } from '@/tauri-bridge/profile';
 import type { Song } from '@/types/Song';
 import type { AppConfig } from '@/types/AppConfig';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { INTRO_SKIP_LEAD_SEC } from '@/utils/playback/transcript-segments';
+
+import successSoundUrl from '@/assets/sounds/success.mp3';
+import { ResultDialog } from '@/components/playback/dialogs/result';
 
 export interface PlaybackInnerProps {
   song: Song;
@@ -38,6 +45,11 @@ export interface PlaybackInnerProps {
 export function PlaybackInner({ song, config }: PlaybackInnerProps) {
   const fileHash = song.file_hash;
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { data: profileData, isLoading: profilesLoading } = useProfiles();
+
+  const [showResult, setShowResult] = useState(false);
+  const [resultScore, setResultScore] = useState(0);
 
   const initialTheme = config?.last_theme ?? 0;
   const initialGuideVolume = config?.guide_volume ?? 0.3;
@@ -70,6 +82,9 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
   } = useMicPitch(selectedMicId, micEnabled);
   const { series, score } = usePitchScoring(audio, latestPitch);
   const micErrorShown = useRef(false);
+  const scoreRef = useRef(score);
+  scoreRef.current = score;
+  const finishHandledRef = useRef(false);
 
   useEffect(() => {
     if (micError && !micErrorShown.current) {
@@ -99,10 +114,73 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
   }, [micDevices, selectedMicId, persistConfig]);
 
   useEffect(() => {
-    if (audio.isFinished) {
-      navigate('/', { replace: true });
+    if (!audio.isFinished) {
+      return;
     }
-  }, [audio.isFinished, navigate]);
+
+    if (profilesLoading && !profileData) {
+      return;
+    }
+
+    if (finishHandledRef.current) {
+      return;
+    }
+
+    finishHandledRef.current = true;
+
+    const finalScore = scoreRef.current;
+    const active = profileData?.active ?? null;
+    const shouldShowResult =
+      active != null && micUserEnabled && finalScore > 0;
+
+    if (!shouldShowResult) {
+      navigate('/', { replace: true });
+
+      return;
+    }
+
+    void (async () => {
+      try {
+        await addScore(fileHash, finalScore);
+        await queryClient.invalidateQueries({ queryKey: PROFILES });
+        setResultScore(finalScore);
+        setShowResult(true);
+      } catch (e) {
+        toast.error(
+          `Could not save score: ${e instanceof Error ? e.message : String(e)}`,
+        );
+        navigate('/', { replace: true });
+      }
+    })();
+  }, [
+    audio.isFinished,
+    fileHash,
+    micUserEnabled,
+    navigate,
+    profileData,
+    profilesLoading,
+    queryClient,
+  ]);
+
+  useEffect(() => {
+    if (!showResult) {
+      return;
+    }
+
+    const audioEl = new Audio(successSoundUrl);
+    void audioEl.play().catch(() => { });
+
+    return () => {
+      audioEl.pause();
+      audioEl.src = '';
+    };
+  }, [showResult]);
+
+  const handleResultFinish = useCallback(() => {
+    audio.cleanup();
+    setShowResult(false);
+    navigate('/', { replace: true });
+  }, [audio.cleanup, navigate]);
 
   useEffect(() => {
     if (audio.error) {
@@ -209,9 +287,18 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
       )}
 
       <PauseOverlay
-        open={paused}
+        open={paused && !showResult}
         onContinue={handleContinue}
         onExit={handleExit}
+      />
+
+      <ResultDialog
+        open={showResult}
+        score={resultScore}
+        song={song}
+        scores={profileData?.scores ?? []}
+        activeProfile={profileData?.active ?? null}
+        onFinish={handleResultFinish}
       />
     </div>
   );

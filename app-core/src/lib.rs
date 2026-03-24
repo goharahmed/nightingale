@@ -15,7 +15,7 @@ pub use analyzer::{
     shutdown_server,
 };
 pub use cache::{CacheDir, CacheStats, clear_models, clear_videos};
-pub use playback::{fetch_pixabay_videos, get_audio_paths, load_transcript, prefetch_one_per_flavor, AudioPaths};
+pub use playback::{get_cached_pixabay_videos, download_pixabay_videos, get_audio_paths, load_transcript, prefetch_one_per_flavor, AudioPaths};
 pub use config::AppConfig;
 pub use profile::ProfileStore;
 pub use scanner::{SongsMeta, SongsStore, start_scan};

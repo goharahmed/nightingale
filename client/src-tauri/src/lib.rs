@@ -1,6 +1,7 @@
 mod analyzer;
 mod cache;
 mod config;
+mod logging;
 mod microphones;
 mod playback;
 mod profile;
@@ -14,7 +15,7 @@ use cache::{calculate_cache_stats, clear_all, clear_models_command, clear_videos
 use config::{load_config, save_config};
 use microphones::{list_microphones, start_mic_capture, stop_mic_capture};
 use playback::{fetch_pixabay_videos, get_audio_paths, load_transcript};
-use profile::{create_profile, delete_profile, load_profiles, switch_profile};
+use profile::{add_score, create_profile, delete_profile, load_profiles, switch_profile};
 use scanner::{load_analysis_queue, load_songs, load_songs_meta, trigger_scan};
 use tauri::{RunEvent, WebviewWindowBuilder};
 use vendor::{is_ready, trigger_setup};
@@ -26,6 +27,8 @@ fn get_media_port() -> u16 {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    logging::init();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -44,6 +47,7 @@ pub fn run() {
             switch_profile,
             create_profile,
             delete_profile,
+            add_score,
             // Scanner
             trigger_scan,
             load_songs,

@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 use ts_rs::TS;
 use walkdir::WalkDir;
 
@@ -196,7 +197,7 @@ pub fn start_scan(folder: &Path) {
             match build_song(path, &cache, *is_video) {
                 Ok(song) => batch.push(song),
                 Err(e) => {
-                    eprintln!("Failed to process {}: {e}", path.display());
+                    warn!("Failed to process {}: {e}", path.display());
                 }
             }
             if (i + 1) % SCAN_SAVE_BATCH_SIZE == 0 && !batch.is_empty() {

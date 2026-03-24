@@ -3,6 +3,7 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use pitch_detection::detector::mcleod::McLeodDetector;
 use pitch_detection::detector::PitchDetector;
 use serde::{Deserialize, Serialize};
+use tracing::{info, warn};
 use std::collections::{HashSet, VecDeque};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -155,7 +156,7 @@ fn try_build_stream(
             device.build_input_stream(
                 config,
                 move |data: &[f32], _: &cpal::InputCallbackInfo| push(data),
-                |err| eprintln!("[mic] stream error: {err}"),
+                |err| warn!("[mic] stream error: {err}"),
                 None,
             )
         }
@@ -168,7 +169,7 @@ fn try_build_stream(
                         data.iter().map(|&s| s as f32 / i16::MAX as f32).collect();
                     push(&floats);
                 },
-                |err| eprintln!("[mic] stream error: {err}"),
+                |err| warn!("[mic] stream error: {err}"),
                 None,
             )
         }
@@ -181,7 +182,7 @@ fn try_build_stream(
                         data.iter().map(|&s| s as f32 / i32::MAX as f32).collect();
                     push(&floats);
                 },
-                |err| eprintln!("[mic] stream error: {err}"),
+                |err| warn!("[mic] stream error: {err}"),
                 None,
             )
         }
@@ -191,13 +192,13 @@ fn try_build_stream(
     let stream = match stream {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("[mic] build stream failed: {e}");
+            warn!("[mic] build stream failed: {e}");
             return None;
         }
     };
 
     if let Err(e) = stream.play() {
-        eprintln!("[mic] play failed: {e}");
+        warn!("[mic] play failed: {e}");
         return None;
     }
 
@@ -208,7 +209,7 @@ fn run_mic_loop(device: cpal::Device, name: &str, app: AppHandle, shutdown: Arc<
     let default_cfg = match device.default_input_config() {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("[mic] '{name}' config error: {e}");
+            warn!("[mic] '{name}' config error: {e}");
             return;
         }
     };
@@ -221,7 +222,7 @@ fn run_mic_loop(device: cpal::Device, name: &str, app: AppHandle, shutdown: Arc<
     };
     let sr = config.sample_rate as usize;
 
-    eprintln!(
+    info!(
         "[mic] opening '{name}': {sr} Hz, {}ch, {sample_format:?}",
         config.channels
     );
@@ -229,11 +230,11 @@ fn run_mic_loop(device: cpal::Device, name: &str, app: AppHandle, shutdown: Arc<
     let shared = Arc::new(Mutex::new(VecDeque::<f32>::with_capacity(PITCH_WINDOW * 2)));
     let Some(_stream) = try_build_stream(&device, &config, sample_format, Arc::clone(&shared))
     else {
-        eprintln!("[mic] failed to open '{name}'");
+        warn!("[mic] failed to open '{name}'");
         return;
     };
 
-    eprintln!("[mic] active: {name}");
+    info!("[mic] active: {name}");
 
     let mut detector = McLeodDetector::new(PITCH_WINDOW, PITCH_WINDOW / 2);
     let sleep_dur = std::time::Duration::from_millis(25);

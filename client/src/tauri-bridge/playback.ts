@@ -1,6 +1,7 @@
 import type { AudioPaths } from '@/types/Transcript';
 import type { Transcript } from '@/types/Transcript';
 import { invoke } from '@tauri-apps/api/core';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 
 export const loadTranscript = async (fileHash: string): Promise<Transcript> => {
   return await invoke<Transcript>('load_transcript', { fileHash });
@@ -20,4 +21,18 @@ export const getMediaPort = async (): Promise<number> => {
 
 export const mediaUrl = (port: number, absolutePath: string): string => {
   return `http://127.0.0.1:${port}${absolutePath}`;
+};
+
+export interface PixabayVideoDownloaded {
+  flavor: string;
+  path: string;
+}
+
+export const onPixabayVideoDownloaded = async (
+  cb: (event: PixabayVideoDownloaded) => void,
+): Promise<UnlistenFn> => {
+  return await listen<PixabayVideoDownloaded>(
+    'pixabay-video-downloaded',
+    ({ payload }) => cb(payload),
+  );
 };

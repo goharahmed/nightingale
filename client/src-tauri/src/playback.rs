@@ -1,4 +1,12 @@
 use app_core::AudioPaths;
+use serde::Serialize;
+use tauri::{AppHandle, Emitter};
+
+#[derive(Clone, Serialize)]
+struct PixabayVideoDownloaded {
+    flavor: String,
+    path: String,
+}
 
 #[tauri::command]
 pub fn load_transcript(file_hash: String) -> Result<serde_json::Value, String> {
@@ -11,6 +19,21 @@ pub fn get_audio_paths(file_hash: String) -> AudioPaths {
 }
 
 #[tauri::command]
-pub fn fetch_pixabay_videos(flavor: String) -> Result<Vec<String>, String> {
-    app_core::fetch_pixabay_videos(&flavor)
+pub fn fetch_pixabay_videos(app: AppHandle, flavor: String) -> Vec<String> {
+    let cached = app_core::get_cached_pixabay_videos(&flavor);
+
+    let flavor_clone = flavor.clone();
+    std::thread::spawn(move || {
+        app_core::download_pixabay_videos(&flavor_clone, move |path| {
+            let _ = app.emit(
+                "pixabay-video-downloaded",
+                PixabayVideoDownloaded {
+                    flavor: flavor.clone(),
+                    path,
+                },
+            );
+        });
+    });
+
+    cached
 }
