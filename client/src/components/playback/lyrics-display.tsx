@@ -1,4 +1,3 @@
-import type { TimeSubscriber } from '@/hooks/use-audio-player';
 import type { Segment, Word } from '@/types/Transcript';
 import { memo, useEffect, useRef, useState } from 'react';
 
@@ -134,7 +133,11 @@ function updateWordSpans(
   for (let i = 0; i < words.length; i++) {
     const span = spans[i];
 
-    if (span) span.style.color = computeWordColor(words[i], time, isActive);
+    if (!span) continue;
+
+    const c = computeWordColor(words[i], time, isActive);
+    span.style.color = c;
+    span.style.setProperty('-webkit-text-fill-color', c);
   }
 }
 
@@ -159,14 +162,16 @@ function updateCountdown(
 
 interface LyricsDisplayProps {
   segments: Segment[];
-  subscribe: (fn: TimeSubscriber) => () => void;
+  subscribe: (fn: (time: number) => void) => () => void;
   getCurrentTime: () => number;
+  animate: boolean;
 }
 
 function LyricsDisplayImpl({
   segments,
   subscribe,
   getCurrentTime,
+  animate,
 }: LyricsDisplayProps) {
   const [segIdx, setSegIdx] = useState(() =>
     segments.length === 0
@@ -180,14 +185,13 @@ function LyricsDisplayImpl({
   const containerRef = useRef<HTMLDivElement>(null);
   const nextContainerRef = useRef<HTMLDivElement>(null);
 
-  // Subscribes to the audio player's rAF time updates.
-  // All DOM mutations happen here directly via refs to avoid per-frame re-renders.
-  // The only React state update is setSegIdx when the active segment changes.
   useEffect(() => {
     if (segments.length === 0) return;
 
-    return subscribe((time) => {
-      // Track which segment we're on; only trigger a React re-render when it changes
+    let raf = 0;
+    let cancelled = false;
+
+    const apply = (time: number) => {
       const idx = findCurrentSegment(segments, time, hintRef.current);
       if (idx !== hintRef.current) {
         hintRef.current = idx;
@@ -198,7 +202,6 @@ function LyricsDisplayImpl({
       const isActive =
         time >= seg.start - LYRICS_LEAD && time <= seg.end + SEGMENT_LINGER;
 
-      // Show a countdown badge when there's a long instrumental gap before this segment
       const gapBefore =
         idx === 0 ? seg.start : seg.start - segments[idx - 1].end;
       const timeUntil = seg.start - time;
@@ -207,11 +210,9 @@ function LyricsDisplayImpl({
         timeUntil > 0 &&
         timeUntil <= COUNTDOWN_DURATION;
 
-      // Current line is visible when actively singing or counting down to it
       const showCurrent = isActive || showCountdown;
       const hasNext = idx + 1 < segments.length;
 
-      // Toggle container visibility directly on DOM nodes
       if (containerRef.current)
         containerRef.current.style.display = showCurrent ? '' : 'none';
       if (nextContainerRef.current)
@@ -220,8 +221,24 @@ function LyricsDisplayImpl({
 
       updateCountdown(countdownRef.current, showCountdown, timeUntil);
       updateWordSpans(wordRefs.current, seg.words, time, isActive);
-    });
-  }, [segments, subscribe]);
+    };
+
+    if (animate) {
+      const loop = () => {
+        if (cancelled) return;
+        apply(getCurrentTime());
+        raf = requestAnimationFrame(loop);
+      };
+      raf = requestAnimationFrame(loop);
+      return () => {
+        cancelled = true;
+        cancelAnimationFrame(raf);
+      };
+    }
+
+    apply(getCurrentTime());
+    return subscribe((time) => apply(time));
+  }, [segments, subscribe, getCurrentTime, animate]);
 
   if (segments.length === 0) {
     return null;
@@ -233,10 +250,7 @@ function LyricsDisplayImpl({
   wordRefs.current = [];
 
   return (
-    <div
-      className="pointer-events-none absolute inset-x-0 bottom-[60px] z-10 flex flex-col items-center gap-2 px-10"
-      style={{ willChange: 'contents' }}
-    >
+    <div className="pointer-events-none absolute inset-x-0 bottom-[60px] z-10 flex flex-col items-center gap-2 px-10">
       <div
         ref={containerRef}
         className="relative max-w-full rounded-lg bg-black/40 px-5 py-2.5"
@@ -255,7 +269,10 @@ function LyricsDisplayImpl({
                 ref={(el) => {
                   wordRefs.current[wi] = el;
                 }}
-                style={{ color: COLORS.unsung }}
+                style={{
+                  color: COLORS.unsung,
+                  WebkitTextFillColor: COLORS.unsung,
+                }}
               >
                 {word.word}
                 {wi < seg.words.length - 1 ? ' ' : ''}
@@ -272,12 +289,18 @@ function LyricsDisplayImpl({
           style={{ display: 'none' }}
         >
           <p className="text-center text-[1.5rem] leading-tight">
-            {nextSeg.words.map((word, wi) => (
-              <span key={wi} style={{ color: nextLineColor(word) }}>
-                {word.word}
-                {wi < nextSeg.words.length - 1 ? ' ' : ''}
-              </span>
-            ))}
+            {nextSeg.words.map((word, wi) => {
+              const c = nextLineColor(word);
+              return (
+                <span
+                  key={wi}
+                  style={{ color: c, WebkitTextFillColor: c }}
+                >
+                  {word.word}
+                  {wi < nextSeg.words.length - 1 ? ' ' : ''}
+                </span>
+              );
+            })}
           </p>
         </div>
       )}

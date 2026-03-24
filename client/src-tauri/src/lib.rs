@@ -97,7 +97,7 @@ pub fn run() {
                 .map_err(|e| e.to_string())?;
 
             if config.fullscreen == Some(true) {
-                let _ = window.set_fullscreen(true);
+                let _ = window.set_simple_fullscreen(true);
             }
 
             Ok(())

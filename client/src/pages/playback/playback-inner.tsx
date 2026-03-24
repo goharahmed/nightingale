@@ -308,6 +308,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
             segments={segments}
             subscribe={audio.subscribe}
             getCurrentTime={audio.getCurrentTime}
+            animate={audio.isPlaying && !paused}
           />
         </>
       )}

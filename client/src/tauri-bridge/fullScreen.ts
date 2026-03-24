@@ -7,5 +7,5 @@ export const isFullScreen = (): Promise<boolean> => {
 };
 
 export const setFullScreen = (isFullScreen: boolean) => {
-  return win.setFullscreen(isFullScreen);
+  return win.setSimpleFullscreen(isFullScreen);
 };
