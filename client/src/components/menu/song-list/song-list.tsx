@@ -37,10 +37,10 @@ export const SongList = () => {
     <div className="flex min-h-0 w-full flex-1 justify-center">
       <div className="flex min-h-0 w-3/5 flex-col gap-4 p-4">
         <Filters />
-        <div className="flex flex-col gap-3">
+        <div className="flex min-h-0 flex-1 flex-col gap-3">
           <Progress />
           <div
-            className="flex min-h-0 flex-1 flex-col gap-2 overflow-auto overscroll-contain p-1"
+            className="no-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-auto p-1"
             role="list"
           >
             {songs.map((song) => (

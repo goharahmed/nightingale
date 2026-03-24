@@ -130,18 +130,10 @@
     @apply border-border outline-ring/50;
   }
 
-  html {
-    overscroll-behavior: none;
-  }
-
   body {
     @apply bg-background text-foreground;
-    overscroll-behavior: none;
-  }
-
-  #root {
-    min-height: 100%;
-    overscroll-behavior: none;
+    overflow: hidden;
+    height: 100svh;
   }
 
   code {
@@ -151,11 +143,6 @@
   html {
     @apply font-sans;
     font-size: clamp(20px, 1vw, 64px);
-  }
-
-  .lyric-word {
-    color: var(--wc);
-    -webkit-text-fill-color: var(--wc);
   }
 
   button:not(:disabled),

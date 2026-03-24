@@ -12,56 +12,40 @@ const COUNTDOWN_GAP_THRESHOLD = 3.5;
 // Grace period after a segment ends before it disappears
 const SEGMENT_LINGER = 0.5;
 
-type RGB = [number, number, number];
-
-// Color palette grouped by role.
-// "estimated" variants are used for words whose timing was inferred, not exact.
-const COLORS = {
-  unsung: 'rgba(255, 255, 255, 0.5)',
-  unsungEstimated: 'rgba(255, 200, 100, 0.4)',
-  sung: 'rgba(255, 255, 255, 1.0)',
-  nextLine: 'rgba(255, 255, 255, 0.35)',
-  nextLineEstimated: 'rgba(255, 200, 100, 0.25)',
-} as const;
-
-const unsungColor = (word: Word) =>
-  word.estimated ? COLORS.unsungEstimated : COLORS.unsung;
-
-const nextLineColor = (word: Word) =>
-  word.estimated ? COLORS.nextLineEstimated : COLORS.nextLine;
-
-// --- Color interpolation utilities ---
-
-const rgbCache = new Map<string, RGB>();
-
-function parseRGB(color: string): RGB {
-  let cached = rgbCache.get(color);
-  if (cached) {
-    return cached;
-  }
-
-  const match = color.match(/[\d.]+/g);
-  cached = match
-    ? [parseFloat(match[0]), parseFloat(match[1]), parseFloat(match[2])]
-    : [255, 255, 255];
-  rgbCache.set(color, cached);
-
-  return cached;
+interface WordStyle {
+  rgb: string;
+  opacity: number;
 }
 
-// Linearly blends two rgba colors. Alpha fades from 0.5 → 1.0 as t goes 0 → 1.
-function interpolateColor(from: string, to: string, t: number): string {
-  const [fr, fg, fb] = parseRGB(from);
-  const [tr, tg, tb] = parseRGB(to);
+const STYLES = {
+  unsung: { rgb: 'rgb(255,255,255)', opacity: 0.5 },
+  unsungEstimated: { rgb: 'rgb(255,200,100)', opacity: 0.4 },
+  sung: { rgb: 'rgb(255,255,255)', opacity: 1.0 },
+  nextLine: { rgb: 'rgb(255,255,255)', opacity: 0.35 },
+  nextLineEstimated: { rgb: 'rgb(255,200,100)', opacity: 0.25 },
+} as const;
 
+const unsungStyle = (word: Word): WordStyle =>
+  word.estimated ? STYLES.unsungEstimated : STYLES.unsung;
+
+const nextLineStyle = (word: Word): WordStyle =>
+  word.estimated ? STYLES.nextLineEstimated : STYLES.nextLine;
+
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t;
+}
+
+function interpolateStyle(from: WordStyle, to: WordStyle, t: number): WordStyle {
   const p = Math.max(0, Math.min(1, t));
-
-  const r = fr + (tr - fr) * p;
-  const g = fg + (tg - fg) * p;
-  const b = fb + (tb - fb) * p;
-  const a = 0.5 + 0.5 * p;
-
-  return `rgba(${r}, ${g}, ${b}, ${a})`;
+  if (from.rgb === to.rgb) {
+    return { rgb: to.rgb, opacity: lerp(from.opacity, to.opacity, p) };
+  }
+  const fm = from.rgb.match(/\d+/g)!;
+  const tm = to.rgb.match(/\d+/g)!;
+  const r = Math.round(lerp(+fm[0], +tm[0], p));
+  const g = Math.round(lerp(+fm[1], +tm[1], p));
+  const b = Math.round(lerp(+fm[2], +tm[2], p));
+  return { rgb: `rgb(${r},${g},${b})`, opacity: lerp(from.opacity, to.opacity, p) };
 }
 
 // --- Segment search ---
@@ -100,27 +84,17 @@ function findCurrentSegment(
 
 // --- Per-frame DOM updates (called via rAF subscriber, no React re-renders) ---
 
-function computeWordColor(word: Word, time: number, isActive: boolean): string {
-  const base = unsungColor(word);
-  if (!isActive) {
-    return base;
-  }
+function computeWordStyle(word: Word, time: number, isActive: boolean): WordStyle {
+  const base = unsungStyle(word);
+  if (!isActive) return base;
 
   const wStart = word.start - WORD_HIGHLIGHT_LEAD;
   const wEnd = word.end - WORD_HIGHLIGHT_LEAD;
 
-  if (time >= wEnd) {
-    return COLORS.sung;
-  }
-
+  if (time >= wEnd) return STYLES.sung;
   if (time >= wStart) {
-    return interpolateColor(
-      base,
-      COLORS.sung,
-      (time - wStart) / (wEnd - wStart),
-    );
+    return interpolateStyle(base, STYLES.sung, (time - wStart) / (wEnd - wStart));
   }
-
   return base;
 }
 
@@ -133,7 +107,9 @@ function updateWordSpans(
   for (let i = 0; i < words.length; i++) {
     const span = spans[i];
     if (!span) continue;
-    span.style.setProperty('--wc', computeWordColor(words[i], time, isActive));
+    const s = computeWordStyle(words[i], time, isActive);
+    span.style.color = s.rgb;
+    span.style.opacity = String(s.opacity);
   }
 }
 
@@ -262,11 +238,13 @@ function LyricsDisplayImpl({
             {seg.words.map((word, wi) => (
               <span
                 key={`${segIdx}-${wi}`}
-                className="lyric-word"
                 ref={(el) => {
                   wordRefs.current[wi] = el;
                 }}
-                style={{ '--wc': COLORS.unsung } as React.CSSProperties}
+                style={{
+                  color: STYLES.unsung.rgb,
+                  opacity: STYLES.unsung.opacity,
+                }}
               >
                 {word.word}
                 {wi < seg.words.length - 1 ? ' ' : ''}
@@ -283,16 +261,18 @@ function LyricsDisplayImpl({
           style={{ display: 'none' }}
         >
           <p className="text-center text-[1.5rem] leading-tight">
-            {nextSeg.words.map((word, wi) => (
-              <span
-                key={wi}
-                className="lyric-word"
-                style={{ '--wc': nextLineColor(word) } as React.CSSProperties}
-              >
-                {word.word}
-                {wi < nextSeg.words.length - 1 ? ' ' : ''}
-              </span>
-            ))}
+            {nextSeg.words.map((word, wi) => {
+              const ns = nextLineStyle(word);
+              return (
+                <span
+                  key={wi}
+                  style={{ color: ns.rgb, opacity: ns.opacity }}
+                >
+                  {word.word}
+                  {wi < nextSeg.words.length - 1 ? ' ' : ''}
+                </span>
+              );
+            })}
           </p>
         </div>
       )}
