@@ -14,6 +14,9 @@ import { exit } from '@/tauri-bridge/exit';
 import { useCallback } from 'react';
 import { cn } from '@/lib/utils';
 
+const RING = 'ring-2 ring-primary';
+const NO_FOCUS_RING = 'focus-visible:ring-0 focus-visible:border-transparent';
+
 export const ExitDialog = () => {
   const { close, mode } = useDialog();
 
@@ -50,10 +53,8 @@ export const ExitDialog = () => {
           <AlertDialogCancel
             onClick={close}
             className={cn(
-              'focus-visible:ring-0 focus-visible:border-transparent',
-              open &&
-                focusedIndex === 0 &&
-                'outline-2 outline-primary outline-offset-2',
+              NO_FOCUS_RING,
+              open && focusedIndex === 0 && RING,
             )}
           >
             Cancel
@@ -62,10 +63,8 @@ export const ExitDialog = () => {
             variant="destructive"
             onClick={() => exit()}
             className={cn(
-              'focus-visible:ring-0 focus-visible:border-transparent',
-              open &&
-                focusedIndex === 1 &&
-                'outline-2 outline-primary outline-offset-2',
+              NO_FOCUS_RING,
+              open && focusedIndex === 1 && RING,
             )}
           >
             Exit

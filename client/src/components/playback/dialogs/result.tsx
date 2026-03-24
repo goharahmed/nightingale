@@ -24,6 +24,9 @@ import { Stars } from '@/components/shared/stars';
 
 const TOP_LIMIT = 5;
 
+const RING = 'ring-2 ring-primary';
+const NO_FOCUS_RING = 'focus-visible:ring-0 focus-visible:border-transparent';
+
 interface Props {
   open: boolean;
   score: number;
@@ -43,7 +46,7 @@ export const ResultDialog = ({
 }: Props) => {
   const board = topScoresForSong(scores, song.file_hash, TOP_LIMIT);
 
-  useDialogNav({
+  const { focusedIndex } = useDialogNav({
     open,
     itemCount: 1,
     onConfirm: () => onFinish(),
@@ -54,7 +57,7 @@ export const ResultDialog = ({
     <Dialog open={open} modal>
       <DialogContent
         showCloseButton={false}
-        className="p-0 sm:max-w-sm"
+        className="overflow-visible p-0 sm:max-w-sm"
         onEscapeKeyDown={(e) => e.preventDefault()}
         onPointerDownOutside={(e) => e.preventDefault()}
       >
@@ -134,7 +137,11 @@ export const ResultDialog = ({
           <DialogFooter className="mt-2 sm:justify-center">
             <Button
               type="button"
-              className="w-full sm:w-auto"
+              className={cn(
+                'w-full sm:w-auto',
+                NO_FOCUS_RING,
+                open && focusedIndex === 0 && RING,
+              )}
               onClick={onFinish}
             >
               Back to Menu
