@@ -86,9 +86,9 @@ function TitleBar() {
   return (
     <header className="flex h-8 shrink-0 select-none items-stretch border-b border-border bg-background">
       <div
-        data-tauri-drag-region
         className="min-h-0 min-w-0 flex-1"
         aria-hidden
+        onMouseDown={() => void win.startDragging()}
       />
       <div className="flex items-center gap-0.5 pl-1 pr-1.5">
         <button
