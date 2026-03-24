@@ -16,6 +16,7 @@ import {
 import { useClearCache } from '@/hooks/use-clear-cache';
 import { useCurrentProfile } from '@/hooks/use-current-profile';
 import { useDialog } from '@/hooks/use-dialog';
+import { useShouldRunSetup } from '@/hooks/use-should-run-setup';
 import { useConfigMutation } from '@/mutations/use-config-mutation';
 import { useTheme } from '@/providers/theme/ThemeProvider';
 import {
@@ -25,6 +26,7 @@ import {
   DoorOpenIcon,
   InfoIcon,
   MoonIcon,
+  RefreshCcwDotIcon,
   SunIcon,
   Trash2Icon,
   UserIcon,
@@ -35,6 +37,7 @@ import { useMemo } from 'react';
 export const Actions = () => {
   const { setMode } = useDialog();
   const { toggle, theme } = useTheme();
+  const { setShouldRunSetup } = useShouldRunSetup();
 
   const clearCache = useClearCache();
   const { mutate } = useConfigMutation();
@@ -67,6 +70,14 @@ export const Actions = () => {
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="right" align="end" className="min-w-56">
+            <DropdownMenuLabel>Setup</DropdownMenuLabel>
+            <DropdownMenuGroup>
+              <DropdownMenuItem onClick={() => setShouldRunSetup(true)}>
+                <RefreshCcwDotIcon />
+                Re-run Setup
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
             <DropdownMenuLabel>Cache</DropdownMenuLabel>
             <DropdownMenuGroup>
               <DropdownMenuItem onClick={clearCache.all}>

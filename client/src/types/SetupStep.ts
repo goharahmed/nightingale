@@ -7,4 +7,5 @@ export type SetupStep =
   | 'venv'
   | 'dependencies'
   | 'extractscripts'
+  | 'videos'
   | 'finish';

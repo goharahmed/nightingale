@@ -1,5 +1,4 @@
 import {
-  isAppReady,
   onSetupError,
   onSetupProgress,
   triggerSetup,
@@ -20,6 +19,7 @@ import { Progress } from '@/components/ui/progress';
 import type { SetupProgress } from '@/types/SetupProgress';
 import type { SetupStep } from '@/types/SetupStep';
 import logoSrc from '@/assets/images/logo_square.png'
+import { useShouldRunSetup } from '@/hooks/use-should-run-setup';
 
 interface ExtendedSetupProgress extends Omit<SetupProgress, 'step'> {
   step: SetupStep | 'init' | 'error';
@@ -112,21 +112,16 @@ const FinalStep = ({ onFinish }: FinalStepProps) => (
 );
 
 export const Setup = () => {
-  const [shouldRunSetup, setShouldRunSetup] = useState(false);
+  const { shouldRunSetup, setShouldRunSetup } = useShouldRunSetup();
+
   const [setupProgress, setSetupProgress] = useState<ExtendedSetupProgress>({
     step: 'init',
     percent: 0,
     action: '',
   });
 
+
   useEffect(() => {
-    // Check, if setup is required
-    const checkIsAppReady = async () => {
-      return await isAppReady();
-    };
-
-    checkIsAppReady().then((isAppReady) => setShouldRunSetup(!isAppReady));
-
     let unlistenProgress: (() => void) | undefined;
     let unlistenError: (() => void) | undefined;
 
@@ -160,6 +155,7 @@ export const Setup = () => {
       case 'venv':
       case 'dependencies':
       case 'extractscripts':
+      case 'videos':
         return () => <LoadStep action={action} percent={percent} />;
       case 'finish':
         return () => <FinalStep onFinish={() => setShouldRunSetup(false)} />;

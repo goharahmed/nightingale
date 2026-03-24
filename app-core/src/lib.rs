@@ -20,6 +20,6 @@ pub use config::AppConfig;
 pub use profile::ProfileStore;
 pub use scanner::{SongsMeta, SongsStore, start_scan};
 pub use vendor::{
-    is_ready, mark_ready, step_create_venv, step_download_ffmpeg, step_download_uv,
-    step_extract_scripts, step_install_packages, step_install_python,
+    clear_vendor_dir, is_ready, mark_ready, step_create_venv, step_download_ffmpeg,
+    step_download_uv, step_extract_scripts, step_install_packages, step_install_python,
 };

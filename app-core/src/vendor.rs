@@ -10,6 +10,14 @@ pub fn vendor_dir() -> PathBuf {
     nightingale_dir().join("vendor")
 }
 
+pub fn clear_vendor_dir() -> Result<(), String> {
+    let dir = vendor_dir();
+    if dir.is_dir() {
+        std::fs::remove_dir_all(&dir).map_err(|e| format!("Failed to clear vendor directory: {e}"))?;
+    }
+    Ok(())
+}
+
 pub fn ffmpeg_path() -> PathBuf {
     let name = if cfg!(windows) {
         "ffmpeg.exe"

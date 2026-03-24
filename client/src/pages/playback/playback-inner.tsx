@@ -85,6 +85,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
   const scoreRef = useRef(score);
   scoreRef.current = score;
   const finishHandledRef = useRef(false);
+  const [skipOutroPending, setSkipOutroPending] = useState(false);
 
   useEffect(() => {
     if (micError && !micErrorShown.current) {
@@ -114,7 +115,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
   }, [micDevices, selectedMicId, persistConfig]);
 
   useEffect(() => {
-    if (!audio.isFinished) {
+    if (!audio.isFinished && !skipOutroPending) {
       return;
     }
 
@@ -127,6 +128,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
     }
 
     finishHandledRef.current = true;
+    setSkipOutroPending(false);
 
     const finalScore = scoreRef.current;
     const active = profileData?.active ?? null;
@@ -154,6 +156,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
     })();
   }, [
     audio.isFinished,
+    skipOutroPending,
     fileHash,
     micUserEnabled,
     navigate,
@@ -194,14 +197,17 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
     segments.length > 0 ? segments[segments.length - 1].end : 0;
 
   const handleSkipIntro = useCallback(() => {
-    if (segments.length === 0) return;
+    if (segments.length === 0) {
+      return;
+    }
     const target = Math.max(0, firstSegmentStart - INTRO_SKIP_LEAD_SEC);
     audio.seek(target);
   }, [audio.seek, firstSegmentStart, segments.length]);
 
   const handleSkipOutro = useCallback(() => {
-    navigate('/', { replace: true });
-  }, [navigate]);
+    audio.pause();
+    setSkipOutroPending(true);
+  }, [audio.pause]);
 
   const handlePause = useCallback(() => {
     audio.pause();

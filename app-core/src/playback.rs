@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use rand::prelude::{IndexedRandom, SliceRandom};
 use serde::Serialize;
+use tracing::{info, warn};
 
 use crate::cache::{CacheDir, videos_dir};
 use crate::error::NightingaleError;
@@ -254,16 +255,38 @@ pub fn download_pixabay_videos(flavor: &str, on_downloaded: impl Fn(String) + Se
     }
 }
 
-pub fn prefetch_one_per_flavor() {
+pub fn prefetch_one_per_flavor(mut on_progress: impl FnMut(&str) + Send) {
     let flavors = ["nature", "underwater", "space", "city", "countryside"];
     for flavor in flavors {
         let existing = cached_video_paths(flavor);
         if !existing.is_empty() {
+            on_progress(&format!("{flavor}: already cached"));
             continue;
         }
-        if let Ok(listing) = fetch_video_listing(flavor) {
-            if let Some(dl) = listing.into_iter().find(|p| !p.dest.exists()) {
-                let _ = download_file(&dl.url, &dl.dest);
+
+        on_progress(&format!("{flavor}: fetching listing..."));
+        let listing = match fetch_video_listing(flavor) {
+            Ok(l) => l,
+            Err(e) => {
+                on_progress(&format!("{flavor}: listing failed ({e})"));
+                continue;
+            }
+        };
+        let first = listing.into_iter().find(|p| !p.dest.exists());
+        let Some(dl) = first else {
+            on_progress(&format!("{flavor}: no videos available"));
+            continue;
+        };
+
+        on_progress(&format!("{flavor}: downloading..."));
+        match download_file(&dl.url, &dl.dest) {
+            Ok(_) => {
+                on_progress(&format!("{flavor}: ready"));
+                info!("Prefetch: saved {} for {flavor}", dl.dest.display());
+            }
+            Err(e) => {
+                on_progress(&format!("{flavor}: download failed"));
+                warn!("Prefetch: failed for {flavor}: {e}");
             }
         }
     }
