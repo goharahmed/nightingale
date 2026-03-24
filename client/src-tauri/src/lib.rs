@@ -25,6 +25,11 @@ fn get_media_port() -> u16 {
     app_core::media_server::port()
 }
 
+#[tauri::command]
+fn frontend_ready(window: tauri::Window) {
+    window.show().unwrap();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     logging::init();
@@ -34,6 +39,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
+            // Init
+            frontend_ready,
             // Config
             load_config,
             save_config,

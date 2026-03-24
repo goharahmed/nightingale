@@ -50,7 +50,7 @@ export function useMicPitch(
   useEffect(() => {
     if (!enabled) {
       if (startedRef.current) {
-        adapter.stopCapture().catch(() => {});
+        adapter.stopCapture().catch(() => { });
         startedRef.current = false;
       }
       setLatestPitch(null);
@@ -72,18 +72,14 @@ export function useMicPitch(
         }
         stopListening = stop;
 
-        const preferred = deviceId === '__default__' ? null : deviceId;
-        const deviceName = await adapter.startCapture(preferred);
         if (cancelled) return;
 
         startedRef.current = true;
         setActive(true);
         setError(null);
-        console.log(`[mic] capturing from: ${deviceName}`);
       } catch (e) {
         if (!cancelled) {
           const msg = e instanceof Error ? e.message : String(e);
-          console.error('[mic] capture failed:', msg);
           setError(msg);
           setLatestPitch(null);
           setActive(false);
@@ -97,7 +93,7 @@ export function useMicPitch(
       cancelled = true;
       stopListening?.();
       if (startedRef.current) {
-        adapter.stopCapture().catch(() => {});
+        adapter.stopCapture().catch(() => { });
         startedRef.current = false;
       }
       setLatestPitch(null);

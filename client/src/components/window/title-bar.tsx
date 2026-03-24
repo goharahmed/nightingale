@@ -1,0 +1,117 @@
+import { triggerFrontendReady } from '@/tauri-bridge/window';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { MinusIcon, SquareIcon, XIcon } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
+export function TauriAppShell({ children }: { children: React.ReactNode }) {
+  const isTauri =
+    typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+
+  useEffect(() => {
+    triggerFrontendReady();
+  }, []);
+
+  if (!isTauri) {
+    return children;
+  }
+
+  return (
+    <div className="flex h-svh min-h-0 flex-col">
+      <TitleBar />
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function TitleBar() {
+  const [fullscreen, setFullscreen] = useState(false);
+
+  useEffect(() => {
+    const win = getCurrentWindow();
+
+    const sync = async () => {
+      setFullscreen(await win.isFullscreen());
+    };
+
+    void sync();
+
+    let unlistenResize: (() => void) | undefined;
+    let unlistenFocus: (() => void) | undefined;
+
+    void win
+      .onResized(() => {
+        void sync();
+      })
+      .then((fn) => {
+        unlistenResize = fn;
+      });
+
+    void win
+      .onFocusChanged(() => {
+        void sync();
+      })
+      .then((fn) => {
+        unlistenFocus = fn;
+      });
+
+    return () => {
+      unlistenResize?.();
+      unlistenFocus?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      '--titlebar-offset',
+      fullscreen ? '0px' : '2rem',
+    );
+
+    return () => {
+      document.documentElement.style.removeProperty('--titlebar-offset');
+    };
+  }, [fullscreen]);
+
+  if (fullscreen) {
+    return null;
+  }
+
+  const win = getCurrentWindow();
+
+  return (
+    <header className="flex h-8 shrink-0 select-none items-stretch border-b border-border bg-background">
+      <div
+        data-tauri-drag-region
+        className="min-h-0 min-w-0 flex-1"
+        aria-hidden
+      />
+      <div className="flex items-center gap-0.5 pl-1 pr-1.5">
+        <button
+          type="button"
+          className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+          aria-label="Minimize"
+          onClick={() => void win.minimize()}
+        >
+          <MinusIcon className="size-3.5" strokeWidth={2} />
+        </button>
+        <button
+          type="button"
+          className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+          aria-label="Maximize"
+          onClick={() => void win.toggleMaximize()}
+        >
+          <SquareIcon className="size-3" strokeWidth={2} />
+        </button>
+        <button
+          type="button"
+          className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive"
+          aria-label="Close"
+          onClick={() => void win.close()}
+        >
+          <XIcon className="size-3.5" strokeWidth={2} />
+        </button>
+      </div>
+    </header>
+  );
+}

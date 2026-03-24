@@ -1,8 +1,8 @@
 import { BrowserRouter, Routes, Route } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
 import './App.css';
 import { Toaster } from './components/ui/sonner';
+import { TauriAppShell } from './components/window/title-bar';
 import { NavInputProvider } from './contexts/nav-input-context';
 import { Menu } from './pages/menu/menu';
 import { Playback } from './pages/playback/playback';
@@ -32,7 +32,9 @@ const ThemeWrapper = () => {
     <ThemeProvider
       defaultTheme={config?.dark_mode === false ? 'light' : 'dark'}
     >
-      <InnerWrapper />
+      <TauriAppShell>
+        <InnerWrapper />
+      </TauriAppShell>
     </ThemeProvider>
   );
 };

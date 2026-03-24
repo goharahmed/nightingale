@@ -22,7 +22,6 @@ export function useMenuNav({ overlayOpen, onBack }: UseMenuNavOptions) {
   overlayOpenRef.current = overlayOpen;
   const navLockTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-
   // Mouse coexistence: deactivate focus on mouse move
   useEffect(() => {
     const onMouseMove = () => {
@@ -87,7 +86,8 @@ export function useMenuNav({ overlayOpen, onBack }: UseMenuNavOptions) {
         if (cardTop < container.scrollTop) {
           container.scrollTop = cardTop - BORDER_PADDING;
         } else if (cardBottom > container.scrollTop + containerRect.height) {
-          container.scrollTop = cardBottom - containerRect.height + BORDER_PADDING;
+          container.scrollTop =
+            cardBottom - containerRect.height + BORDER_PADDING;
         }
         break;
       }
