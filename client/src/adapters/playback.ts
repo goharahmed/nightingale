@@ -11,7 +11,7 @@ export interface PlaybackAdapter {
 
 export function joinMediaUrl(baseUrl: string, absolutePath: string): string {
   const base = baseUrl.replace(/\/$/, '');
-  return `${base}${absolutePath}`;
+  return `${base}/${encodeURIComponent(absolutePath)}`;
 }
 
 export const tauriPlaybackAdapter: PlaybackAdapter = {

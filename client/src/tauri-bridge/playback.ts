@@ -36,10 +36,6 @@ export const getMediaPort = async (): Promise<number> => {
   return await invoke<number>('get_media_port');
 };
 
-export const mediaUrl = (port: number, absolutePath: string): string => {
-  return `http://127.0.0.1:${port}/${encodeURIComponent(absolutePath)}`;
-};
-
 export interface PixabayVideoDownloaded {
   flavor: string;
   path: string;

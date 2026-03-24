@@ -1,8 +1,8 @@
 import type { TimeSubscriber } from '@/hooks/use-audio-player';
+import { joinMediaUrl } from '@/adapters/playback';
 import {
   fetchPixabayVideos,
   getMediaPort,
-  mediaUrl,
   onPixabayVideoDownloaded,
 } from '@/tauri-bridge/playback';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -139,7 +139,7 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
       if (paths.length > 0) {
         urlsPerFlavor.current.set(
           flav,
-          paths.map((p) => mediaUrl(portRef.current, p)),
+          paths.map((p) => joinMediaUrl(`http://127.0.0.1:${portRef.current}`, p)),
         );
         indexPerFlavor.current.set(flav, 0);
       }
@@ -266,7 +266,7 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
     onPixabayVideoDownloaded(({ flavor: dlFlavor, path }) => {
       if (!portRef.current) return;
 
-      const url = mediaUrl(portRef.current, path);
+      const url = joinMediaUrl(`http://127.0.0.1:${portRef.current}`, path);
       const existing = urlsPerFlavor.current.get(dlFlavor);
       if (existing) {
         existing.push(url);
@@ -363,7 +363,7 @@ export const SourceVideo = ({
   useEffect(() => {
     initializedRef.current = false;
     setVisible(false);
-    getMediaPort().then((port) => setSrc(mediaUrl(port, filePath)));
+    getMediaPort().then((port) => setSrc(joinMediaUrl(`http://127.0.0.1:${port}`, filePath)));
   }, [filePath]);
 
   useEffect(() => {
