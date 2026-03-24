@@ -70,4 +70,10 @@ impl AppConfig {
             .and_then(|m| m.get(file_hash))
             .map(|s| s.as_str())
     }
+
+    pub fn set_language_override(&mut self, file_hash: String, lang: String) {
+        self.language_overrides
+            .get_or_insert_with(HashMap::new)
+            .insert(file_hash, lang);
+    }
 }

@@ -21,6 +21,7 @@ import type { Song } from '@/types/Song';
 import { convertFileSrc } from '@/tauri-bridge/media';
 import {
   AudioLinesIcon,
+  LanguagesIcon,
   FileTextIcon,
   LoaderCircleIcon,
   MenuIcon,
@@ -32,6 +33,7 @@ import { memo } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useDialog } from '@/hooks/use-dialog';
 
 function formatSeconds(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
@@ -102,6 +104,7 @@ export const SongCard = memo(
       song.is_analyzed,
       queueStatus,
     );
+    const { setMode } = useDialog();
 
     const displaySource = isReady
       ? ` (${song.transcript_source === 'Lyrics' ? 'Lyrics' : 'Generated'})`
@@ -212,6 +215,16 @@ export const SongCard = memo(
                 >
                   <AudioLinesIcon />
                   Reanalyze full (with stems)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={async (e) => {
+                    e.stopPropagation();
+
+                    setMode({ mode: 'language', song })
+                  }}
+                >
+                  <LanguagesIcon />
+                  Change language
                 </DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>

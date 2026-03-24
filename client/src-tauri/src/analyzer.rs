@@ -20,8 +20,8 @@ pub fn delete_song_cache(file_hash: String) {
 }
 
 #[tauri::command]
-pub fn reanalyze_transcript(file_hash: String) {
-    core_reanalyze_transcript(&file_hash);
+pub fn reanalyze_transcript(file_hash: String, language: Option<String>) {
+    core_reanalyze_transcript(&file_hash, language);
 }
 
 #[tauri::command]

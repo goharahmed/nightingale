@@ -292,7 +292,14 @@ pub fn delete_cache(file_hash: &str) {
     update_song_analyzed(file_hash, false, None, None);
 }
 
-pub fn reanalyze_transcript(file_hash: &str) {
+pub fn reanalyze_transcript(file_hash: &str, language: Option<String>) {
+    if let Some(lang) = language {
+        if !lang.is_empty() {
+            let mut config = AppConfig::load();
+            config.set_language_override(file_hash.to_string(), lang);
+            config.save();
+        }
+    }
     reanalyze(file_hash, false);
 }
 

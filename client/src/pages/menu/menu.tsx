@@ -1,5 +1,6 @@
 import { ExitDialog } from '@/components/menu/dialogs/exit';
 import { InfoDialog } from '@/components/menu/dialogs/info';
+import { SelectLanguageDialog } from '@/components/menu/dialogs/language';
 import { CreateProfileDialog } from '@/components/menu/dialogs/profile/create';
 import { SelectProfileDialog } from '@/components/menu/dialogs/profile/select';
 import { SettingsDialog } from '@/components/menu/dialogs/settings';
@@ -54,6 +55,7 @@ const MenuInner = () => {
       <CreateProfileDialog />
       <SelectProfileDialog />
       <InfoDialog />
+      <SelectLanguageDialog />
       <SidebarInset>{content}</SidebarInset>
     </Sidebar>
   );
