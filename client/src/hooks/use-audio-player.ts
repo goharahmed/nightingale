@@ -36,6 +36,7 @@ export interface AudioPlayer {
 export function useAudioPlayer(
   fileHash: string,
   initialGuideVolume: number,
+  enabled: boolean,
   adapter: PlaybackAdapter = tauriPlaybackAdapter,
 ): AudioPlayer {
   const ctxRef = useRef<AudioContext | null>(null);
@@ -159,6 +160,10 @@ export function useAudioPlayer(
   );
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     let cancelled = false;
 
     cancelledRef.current = false;
@@ -178,11 +183,7 @@ export function useAudioPlayer(
 
     const isCancelled = () => cancelled || cancelledRef.current;
 
-    adapter
-      .ensureMp3Stems(fileHash)
-      .then(() =>
-        Promise.all([adapter.getMediaBaseUrl(), adapter.getAudioPaths(fileHash)]),
-      )
+    Promise.all([adapter.getMediaBaseUrl(), adapter.getAudioPaths(fileHash)])
       .then(async ([baseUrl, paths]) => {
         if (isCancelled()) {
           return;
@@ -274,7 +275,7 @@ export function useAudioPlayer(
       ctx.close();
       ctxRef.current = null;
     };
-  }, [adapter, fileHash, initialGuideVolume, startSources, stopSources]);
+  }, [adapter, enabled, fileHash, initialGuideVolume, startSources, stopSources]);
 
   const play = useCallback(() => {
     startSources(startOffsetRef.current);

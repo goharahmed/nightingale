@@ -18,9 +18,24 @@ pub fn get_audio_paths(file_hash: String) -> AudioPaths {
     app_core::get_audio_paths(&file_hash)
 }
 
+#[derive(Clone, Serialize)]
+struct StemsReady {
+    file_hash: String,
+    error: Option<String>,
+}
+
 #[tauri::command]
-pub fn ensure_mp3_stems(file_hash: String) -> Result<(), String> {
-    app_core::ensure_mp3_stems(&file_hash).map_err(|e| e.to_string())
+pub fn ensure_mp3_stems(app: AppHandle, file_hash: String) {
+    std::thread::spawn(move || {
+        let result = app_core::ensure_mp3_stems(&file_hash);
+        let _ = app.emit(
+            "stems-ready",
+            StemsReady {
+                file_hash,
+                error: result.err().map(|e| e.to_string()),
+            },
+        );
+    });
 }
 
 #[tauri::command]

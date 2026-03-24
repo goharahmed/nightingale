@@ -1,6 +1,5 @@
 import type { AudioPaths } from '@/types/Transcript';
 import {
-  ensureMp3Stems as tauriEnsureMp3Stems,
   getAudioPaths as tauriGetAudioPaths,
   getMediaPort,
 } from '@/tauri-bridge/playback';
@@ -8,7 +7,6 @@ import {
 export interface PlaybackAdapter {
   getMediaBaseUrl(): Promise<string>;
   getAudioPaths(fileHash: string): Promise<AudioPaths>;
-  ensureMp3Stems(fileHash: string): Promise<void>;
 }
 
 export function joinMediaUrl(baseUrl: string, absolutePath: string): string {
@@ -22,5 +20,4 @@ export const tauriPlaybackAdapter: PlaybackAdapter = {
     return `http://127.0.0.1:${port}`;
   },
   getAudioPaths: tauriGetAudioPaths,
-  ensureMp3Stems: tauriEnsureMp3Stems,
 };

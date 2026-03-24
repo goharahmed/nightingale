@@ -36,6 +36,7 @@ import { INTRO_SKIP_LEAD_SEC } from '@/utils/playback/transcript-segments';
 
 import successSoundUrl from '@/assets/sounds/success.mp3';
 import { ResultDialog } from '@/components/playback/dialogs/result';
+import { ensureMp3Stems, onStemsReady } from '@/tauri-bridge/playback';
 
 export interface PlaybackInnerProps {
   song: Song;
@@ -64,7 +65,26 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
   const { segments, transcriptSource } = usePlaybackTranscript(fileHash);
   const persistConfig = usePlaybackConfigPersist(config);
 
-  const audio = useAudioPlayer(fileHash, initialGuideVolume);
+  const [stemsReady, setStemsReady] = useState(false);
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+
+    onStemsReady((event) => {
+      if (event.file_hash !== fileHash) return;
+      if (event.error) {
+        toast.error(`Stem conversion failed: ${event.error}`);
+        navigate('/', { replace: true });
+      } else {
+        setStemsReady(true);
+      }
+    }).then((fn) => { unlisten = fn; });
+
+    ensureMp3Stems(fileHash);
+
+    return () => { unlisten?.(); };
+  }, [fileHash, navigate]);
+
+  const audio = useAudioPlayer(fileHash, initialGuideVolume, stemsReady);
 
   const [micUserEnabled, setMicUserEnabled] = useState(
     config?.mic_active ?? true,

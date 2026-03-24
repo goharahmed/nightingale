@@ -11,8 +11,21 @@ export const getAudioPaths = async (fileHash: string): Promise<AudioPaths> => {
   return await invoke<AudioPaths>('get_audio_paths', { fileHash });
 };
 
-export const ensureMp3Stems = async (fileHash: string): Promise<void> => {
-  await invoke<void>('ensure_mp3_stems', { fileHash });
+export const ensureMp3Stems = (fileHash: string): void => {
+  void invoke<void>('ensure_mp3_stems', { fileHash });
+};
+
+export interface StemsReadyEvent {
+  file_hash: string;
+  error: string | null;
+}
+
+export const onStemsReady = async (
+  cb: (event: StemsReadyEvent) => void,
+): Promise<UnlistenFn> => {
+  return await listen<StemsReadyEvent>('stems-ready', ({ payload }) =>
+    cb(payload),
+  );
 };
 
 export const fetchPixabayVideos = async (flavor: string): Promise<string[]> => {

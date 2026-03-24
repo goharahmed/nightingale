@@ -37,7 +37,7 @@ export const Menu = () => {
     return () => {
       document.removeEventListener('keydown', openExitModal);
     };
-  }, []);
+  }, [setMode]);
 
   return (
     <Sidebar>
