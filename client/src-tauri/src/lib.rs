@@ -30,6 +30,38 @@ fn frontend_ready(window: tauri::Window) {
     window.show().unwrap();
 }
 
+/// True for native fullscreen or macOS "simple" fullscreen (`set_simple_fullscreen`), where
+/// `isFullscreen()` stays false but the window fills the screen.
+#[tauri::command]
+fn window_immersive(window: tauri::WebviewWindow) -> Result<bool, String> {
+    if window.is_fullscreen().map_err(|e| e.to_string())? {
+        return Ok(true);
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let inner = window.inner_size().map_err(|e| e.to_string())?;
+        if let Some(monitor) = window.current_monitor().map_err(|e| e.to_string())? {
+            let ms = monitor.size();
+            let dw = (inner.width as i32 - ms.width as i32).abs();
+            let dh = (inner.height as i32 - ms.height as i32).abs();
+            if dw <= 2 && dh <= 2 {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
+}
+
+/// macOS simple fullscreen clears `Miniaturizable`; exit that mode before minimizing.
+#[tauri::command]
+fn minimize_window(window: tauri::WebviewWindow) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let _ = window.set_simple_fullscreen(false);
+    }
+    window.minimize().map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     logging::init();
@@ -41,6 +73,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             // Init
             frontend_ready,
+            window_immersive,
+            minimize_window,
             // Config
             load_config,
             save_config,

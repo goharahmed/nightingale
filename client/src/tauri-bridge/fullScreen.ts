@@ -1,9 +1,11 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
+import { windowImmersive } from '@/tauri-bridge/window';
+
 const win = getCurrentWindow();
 
 export const isFullScreen = (): Promise<boolean> => {
-  return win.isFullscreen();
+  return windowImmersive();
 };
 
 export const setFullScreen = (isFullScreen: boolean) => {

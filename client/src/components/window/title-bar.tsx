@@ -1,4 +1,8 @@
-import { triggerFrontendReady } from '@/tauri-bridge/window';
+import {
+  minimizeWindow,
+  triggerFrontendReady,
+  windowImmersive,
+} from '@/tauri-bridge/window';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { MinusIcon, SquareIcon, XIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -32,7 +36,7 @@ function TitleBar() {
     const win = getCurrentWindow();
 
     const sync = async () => {
-      setFullscreen(await win.isFullscreen());
+      setFullscreen(await windowImmersive());
     };
 
     void sync();
@@ -91,7 +95,7 @@ function TitleBar() {
           type="button"
           className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
           aria-label="Minimize"
-          onClick={() => void win.minimize()}
+          onClick={() => void minimizeWindow()}
         >
           <MinusIcon className="size-3.5" strokeWidth={2} />
         </button>

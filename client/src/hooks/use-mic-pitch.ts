@@ -62,22 +62,33 @@ export function useMicPitch(
     let stopListening: StopListening | null = null;
 
     const run = async () => {
+      let unlisten: StopListening | null = null;
       try {
-        const stop = await adapter.onPitch((pitch) => {
+        unlisten = await adapter.onPitch((pitch) => {
           if (!cancelled) setLatestPitch(pitch);
         });
         if (cancelled) {
-          stop();
+          unlisten();
           return;
         }
-        stopListening = stop;
+        stopListening = unlisten;
 
         if (cancelled) return;
+
+        await adapter.startCapture(deviceId);
+
+        if (cancelled) {
+          unlisten();
+          await adapter.stopCapture().catch(() => {});
+          return;
+        }
 
         startedRef.current = true;
         setActive(true);
         setError(null);
       } catch (e) {
+        unlisten?.();
+        void adapter.stopCapture().catch(() => {});
         if (!cancelled) {
           const msg = e instanceof Error ? e.message : String(e);
           setError(msg);
