@@ -19,6 +19,7 @@ import { exit } from '@/tauri-bridge/exit';
 import { Progress } from '@/components/ui/progress';
 import type { SetupProgress } from '@/types/SetupProgress';
 import type { SetupStep } from '@/types/SetupStep';
+import logoSrc from '@/assets/images/logo_square.png'
 
 interface ExtendedSetupProgress extends Omit<SetupProgress, 'step'> {
   step: SetupStep | 'init' | 'error';
@@ -33,7 +34,7 @@ const InitialStep = ({ onStart }: InitialStepProps) => (
     <AlertDialogHeader>
       <AlertDialogTitle>Welcome to Nightingale!</AlertDialogTitle>
       <AlertDialogDescription>
-        Nightingale — Karaoke from your music library. Before you get started,
+        Before you get started,
         we need to install a few dependencies: <code>ffmpeg</code>,{' '}
         <code>uv</code>, <code>python 3.10</code>, Python packages, and{' '}
         <code>CUDA</code> wheels (NVIDIA GPUs only).
@@ -170,6 +171,7 @@ export const Setup = () => {
   return (
     <AlertDialog open={shouldRunSetup}>
       <AlertDialogContent onEscapeKeyDown={(e) => e.preventDefault()}>
+        <img src={logoSrc} width={80} height={80} />
         <Step />
       </AlertDialogContent>
     </AlertDialog>

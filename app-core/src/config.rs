@@ -61,7 +61,7 @@ impl AppConfig {
     }
 
     pub fn separator(&self) -> &str {
-        self.separator.as_deref().unwrap_or("demucs")
+        self.separator.as_deref().unwrap_or("karaoke")
     }
 
     pub fn language_override(&self, file_hash: &str) -> Option<&str> {
