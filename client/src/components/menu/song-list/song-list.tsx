@@ -28,6 +28,10 @@ export const SongList = () => {
     overscan: 5,
   });
 
+  useEffect(() => {
+    virtualizer.measure();
+  }, [data, virtualizer]);
+
   const virtualItems = virtualizer.getVirtualItems();
   const lastItem = virtualItems[virtualItems.length - 1];
 
