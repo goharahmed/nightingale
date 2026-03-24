@@ -132,12 +132,8 @@ function updateWordSpans(
 ) {
   for (let i = 0; i < words.length; i++) {
     const span = spans[i];
-
     if (!span) continue;
-
-    const c = computeWordColor(words[i], time, isActive);
-    span.style.color = c;
-    span.style.setProperty('-webkit-text-fill-color', c);
+    span.style.setProperty('--wc', computeWordColor(words[i], time, isActive));
   }
 }
 
@@ -266,13 +262,11 @@ function LyricsDisplayImpl({
             {seg.words.map((word, wi) => (
               <span
                 key={`${segIdx}-${wi}`}
+                className="lyric-word"
                 ref={(el) => {
                   wordRefs.current[wi] = el;
                 }}
-                style={{
-                  color: COLORS.unsung,
-                  WebkitTextFillColor: COLORS.unsung,
-                }}
+                style={{ '--wc': COLORS.unsung } as React.CSSProperties}
               >
                 {word.word}
                 {wi < seg.words.length - 1 ? ' ' : ''}
@@ -289,18 +283,16 @@ function LyricsDisplayImpl({
           style={{ display: 'none' }}
         >
           <p className="text-center text-[1.5rem] leading-tight">
-            {nextSeg.words.map((word, wi) => {
-              const c = nextLineColor(word);
-              return (
-                <span
-                  key={wi}
-                  style={{ color: c, WebkitTextFillColor: c }}
-                >
-                  {word.word}
-                  {wi < nextSeg.words.length - 1 ? ' ' : ''}
-                </span>
-              );
-            })}
+            {nextSeg.words.map((word, wi) => (
+              <span
+                key={wi}
+                className="lyric-word"
+                style={{ '--wc': nextLineColor(word) } as React.CSSProperties}
+              >
+                {word.word}
+                {wi < nextSeg.words.length - 1 ? ' ' : ''}
+              </span>
+            ))}
           </p>
         </div>
       )}

@@ -153,6 +153,11 @@
     font-size: clamp(20px, 1vw, 64px);
   }
 
+  .lyric-word {
+    color: var(--wc);
+    -webkit-text-fill-color: var(--wc);
+  }
+
   button:not(:disabled),
   [role='button']:not([aria-disabled='true']),
   [role='menuitem'],
