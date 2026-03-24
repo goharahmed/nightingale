@@ -11,6 +11,10 @@ export const getAudioPaths = async (fileHash: string): Promise<AudioPaths> => {
   return await invoke<AudioPaths>('get_audio_paths', { fileHash });
 };
 
+export const ensureMp3Stems = async (fileHash: string): Promise<void> => {
+  await invoke<void>('ensure_mp3_stems', { fileHash });
+};
+
 export const fetchPixabayVideos = async (flavor: string): Promise<string[]> => {
   return await invoke<string[]>('fetch_pixabay_videos', { flavor });
 };

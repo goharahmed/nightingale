@@ -15,31 +15,32 @@ def ffmpeg_bin():
     return os.environ.get("FFMPEG_PATH", "ffmpeg")
 
 
-def convert_to_ogg(src_wav, dest_ogg):
+def convert_to_mp3(src, dest_mp3):
     subprocess.run(
-        [ffmpeg_bin(), "-y", "-i", src_wav, "-c:a", "libvorbis", "-q:a", "6", "-v", "error", dest_ogg],
+        [ffmpeg_bin(), "-y", "-i", src, "-c:a", "libmp3lame", "-q:a", "2", "-v", "error", dest_mp3],
         check=True,
     )
-    if os.path.isfile(dest_ogg):
-        os.remove(src_wav)
+    if os.path.isfile(dest_mp3):
+        os.remove(src)
 
 
 def separate_and_cache(audio_path, output_dir, file_hash, separator, device, free_gpu_fn=None):
     """Run stem separation or reuse cached stems. Returns the vocals path."""
-    final_vocals_ogg = os.path.join(output_dir, f"{file_hash}_vocals.ogg")
-    final_instrumental_ogg = os.path.join(output_dir, f"{file_hash}_instrumental.ogg")
-    final_vocals_wav = os.path.join(output_dir, f"{file_hash}_vocals.wav")
-    final_instrumental_wav = os.path.join(output_dir, f"{file_hash}_instrumental.wav")
+    final_vocals = os.path.join(output_dir, f"{file_hash}_vocals.mp3")
+    final_instrumental = os.path.join(output_dir, f"{file_hash}_instrumental.mp3")
 
-    if os.path.isfile(final_vocals_ogg) and os.path.isfile(final_instrumental_ogg):
+    if os.path.isfile(final_vocals) and os.path.isfile(final_instrumental):
         progress(50, "Stems already cached, skipping separation")
-        return final_vocals_ogg
+        return final_vocals
 
-    if os.path.isfile(final_vocals_wav) and os.path.isfile(final_instrumental_wav):
-        progress(50, "Converting legacy WAV stems to OGG...")
-        convert_to_ogg(final_vocals_wav, final_vocals_ogg)
-        convert_to_ogg(final_instrumental_wav, final_instrumental_ogg)
-        return final_vocals_ogg
+    for ext in (".ogg", ".wav"):
+        legacy_v = os.path.join(output_dir, f"{file_hash}_vocals{ext}")
+        legacy_i = os.path.join(output_dir, f"{file_hash}_instrumental{ext}")
+        if os.path.isfile(legacy_v) and os.path.isfile(legacy_i):
+            progress(50, f"Converting legacy {ext} stems to MP3...")
+            convert_to_mp3(legacy_v, final_vocals)
+            convert_to_mp3(legacy_i, final_instrumental)
+            return final_vocals
 
     with tempfile.TemporaryDirectory(prefix="nightingale_") as work_dir:
         if separator == "karaoke":
@@ -51,13 +52,13 @@ def separate_and_cache(audio_path, output_dir, file_hash, separator, device, fre
         else:
             vp, ip = separate_stems(audio_path, work_dir, device)
         progress(51, "Saving stems to cache...")
-        convert_to_ogg(vp, final_vocals_ogg)
-        convert_to_ogg(ip, final_instrumental_ogg)
+        convert_to_mp3(vp, final_vocals)
+        convert_to_mp3(ip, final_instrumental)
 
     if free_gpu_fn:
         free_gpu_fn()
 
-    return final_vocals_ogg
+    return final_vocals
 
 
 def transcribe_or_align(

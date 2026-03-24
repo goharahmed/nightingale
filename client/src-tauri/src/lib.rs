@@ -14,7 +14,7 @@ use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use cache::{calculate_cache_stats, clear_all, clear_models_command, clear_videos_command};
 use config::{load_config, save_config};
 use microphones::{list_microphones, start_mic_capture, stop_mic_capture};
-use playback::{fetch_pixabay_videos, get_audio_paths, load_transcript};
+use playback::{ensure_mp3_stems, fetch_pixabay_videos, get_audio_paths, load_transcript};
 use profile::{add_score, create_profile, delete_profile, load_profiles, switch_profile};
 use scanner::{load_analysis_queue, load_songs, load_songs_meta, trigger_scan};
 use tauri::{RunEvent, WebviewWindowBuilder};
@@ -62,6 +62,7 @@ pub fn run() {
             // Playback
             load_transcript,
             get_audio_paths,
+            ensure_mp3_stems,
             fetch_pixabay_videos,
             get_media_port,
             list_microphones,

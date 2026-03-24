@@ -7,8 +7,8 @@ Usage:
     python analyze.py <audio_path> <output_dir> [--hash <file_hash>]
 
 Outputs (in output_dir):
-    {hash}_instrumental.ogg
-    {hash}_vocals.ogg
+    {hash}_instrumental.mp3
+    {hash}_vocals.mp3
     {hash}_transcript.json
 
 Progress protocol (parsed by Rust app):

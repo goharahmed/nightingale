@@ -178,7 +178,11 @@ export function useAudioPlayer(
 
     const isCancelled = () => cancelled || cancelledRef.current;
 
-    Promise.all([adapter.getMediaBaseUrl(), adapter.getAudioPaths(fileHash)])
+    adapter
+      .ensureMp3Stems(fileHash)
+      .then(() =>
+        Promise.all([adapter.getMediaBaseUrl(), adapter.getAudioPaths(fileHash)]),
+      )
       .then(async ([baseUrl, paths]) => {
         if (isCancelled()) {
           return;

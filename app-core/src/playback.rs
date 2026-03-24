@@ -6,6 +6,7 @@ use tracing::{info, warn};
 
 use crate::cache::{CacheDir, videos_dir};
 use crate::error::NightingaleError;
+use crate::vendor::{ffmpeg_path, silent_command};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AudioPaths {
@@ -33,6 +34,49 @@ pub fn get_audio_paths(file_hash: &str) -> AudioPaths {
             .to_string_lossy()
             .into_owned(),
     }
+}
+
+fn convert_ogg_to_mp3(ogg: &PathBuf, mp3: &PathBuf) -> Result<(), NightingaleError> {
+    let status = silent_command(ffmpeg_path())
+        .args(["-y", "-i"])
+        .arg(ogg)
+        .args(["-c:a", "libmp3lame", "-q:a", "2", "-v", "error"])
+        .arg(mp3)
+        .status()?;
+
+    if !status.success() {
+        return Err(NightingaleError::Other(format!(
+            "ffmpeg exited with status {}",
+            status
+        )));
+    }
+
+    std::fs::remove_file(ogg).ok();
+    Ok(())
+}
+
+pub fn ensure_mp3_stems(file_hash: &str) -> Result<(), NightingaleError> {
+    let cache = CacheDir::new();
+
+    let mp3_inst = cache.instrumental_path(file_hash);
+    let mp3_voc = cache.vocals_path(file_hash);
+
+    if mp3_inst.is_file() && mp3_voc.is_file() {
+        return Ok(());
+    }
+
+    let ogg_inst = cache.legacy_instrumental_path(file_hash);
+    let ogg_voc = cache.legacy_vocals_path(file_hash);
+
+    if !ogg_inst.is_file() || !ogg_voc.is_file() {
+        return Err("No stems found (neither mp3 nor ogg)".into());
+    }
+
+    info!("Converting legacy OGG stems to MP3 for {file_hash}");
+    convert_ogg_to_mp3(&ogg_inst, &mp3_inst)?;
+    convert_ogg_to_mp3(&ogg_voc, &mp3_voc)?;
+
+    Ok(())
 }
 
 const PIXABAY_PER_PAGE: u32 = 200;

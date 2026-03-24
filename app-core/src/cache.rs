@@ -21,11 +21,25 @@ impl CacheDir {
     }
 
     pub fn instrumental_path(&self, hash: &str) -> PathBuf {
-        self.path.join(format!("{hash}_instrumental.ogg"))
+        self.path.join(format!("{hash}_instrumental.mp3"))
     }
 
     pub fn vocals_path(&self, hash: &str) -> PathBuf {
+        self.path.join(format!("{hash}_vocals.mp3"))
+    }
+
+    pub fn legacy_instrumental_path(&self, hash: &str) -> PathBuf {
+        self.path.join(format!("{hash}_instrumental.ogg"))
+    }
+
+    pub fn legacy_vocals_path(&self, hash: &str) -> PathBuf {
         self.path.join(format!("{hash}_vocals.ogg"))
+    }
+
+    fn stems_exist(&self, hash: &str) -> bool {
+        (self.instrumental_path(hash).is_file() && self.vocals_path(hash).is_file())
+            || (self.legacy_instrumental_path(hash).is_file()
+                && self.legacy_vocals_path(hash).is_file())
     }
 
     pub fn lyrics_path(&self, hash: &str) -> PathBuf {
@@ -37,9 +51,7 @@ impl CacheDir {
     }
 
     pub fn transcript_exists(&self, hash: &str) -> bool {
-        self.transcript_path(hash).is_file()
-            && self.instrumental_path(hash).is_file()
-            && self.vocals_path(hash).is_file()
+        self.transcript_path(hash).is_file() && self.stems_exist(hash)
     }
 
     pub fn delete_song_cache(&self, hash: &str) {
@@ -47,6 +59,8 @@ impl CacheDir {
             self.transcript_path(hash),
             self.instrumental_path(hash),
             self.vocals_path(hash),
+            self.legacy_instrumental_path(hash),
+            self.legacy_vocals_path(hash),
             self.lyrics_path(hash),
         ] {
             if path.is_file() {
