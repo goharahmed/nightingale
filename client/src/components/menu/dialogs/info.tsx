@@ -9,7 +9,10 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { useDialog } from '@/hooks/use-dialog';
+import { useDialogNav } from '@/hooks/navigation/use-dialog-nav';
 import { openUrl } from '@/tauri-bridge/opener';
+import { useRef } from 'react';
+import { cn } from '@/lib/utils';
 
 const GithubIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
@@ -36,58 +39,87 @@ const attributions = [
 export const InfoDialog = () => {
   const { mode, close } = useDialog();
 
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const open = mode === 'about';
+
+  const { focusedIndex } = useDialogNav({
+    open,
+    itemCount: 3,
+    onBack: close,
+    containerRef,
+  });
+
   return (
-    <Dialog open={mode === 'about'} onOpenChange={close}>
+    <Dialog open={open} onOpenChange={close}>
       <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="text-2xl">Nightingale</DialogTitle>
-          <p className="text-sm text-muted-foreground">
-            Karaoke from your music library.
-          </p>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => openUrl('https://github.com/rzru/nightingale')}
-            >
-              <GithubIcon className="size-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => openUrl('https://discord.gg/2s2XGSQQ')}
-            >
-              <DiscordIcon className="size-4" />
-            </Button>
+        <div ref={containerRef} className="contents">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Nightingale</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Karaoke from your music library.
+            </p>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => openUrl('https://github.com/rzru/nightingale')}
+                className={cn(
+                  'focus-visible:ring-0 focus-visible:border-transparent',
+                  focusedIndex === 0 &&
+                    'outline-2 outline-primary outline-offset-2',
+                )}
+              >
+                <GithubIcon className="size-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => openUrl('https://discord.gg/2s2XGSQQ')}
+                className={cn(
+                  'focus-visible:ring-0 focus-visible:border-transparent',
+                  focusedIndex === 1 && 'ring-2 ring-primary',
+                )}
+              >
+                <DiscordIcon className="size-4" />
+              </Button>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              <p>Version 0.1.0</p>
+              <p>License: GPL-3.0-or-later</p>
+            </div>
+          </DialogHeader>
+          <Separator />
+          <div className="space-y-2">
+            <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Attributions
+            </h4>
+            <Table>
+              <TableBody>
+                {attributions.map((attr) => (
+                  <TableRow key={attr.name}>
+                    <TableCell className="text-muted-foreground">
+                      {attr.name}
+                    </TableCell>
+                    <TableCell className="font-medium">{attr.value}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
-          <div className="text-sm text-muted-foreground">
-            <p>Version 0.1.0</p>
-            <p>License: GPL-3.0-or-later</p>
-          </div>
-        </DialogHeader>
-        <Separator />
-        <div className="space-y-2">
-          <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Attributions
-          </h4>
-          <Table>
-            <TableBody>
-              {attributions.map((attr) => (
-                <TableRow key={attr.name}>
-                  <TableCell className="text-muted-foreground">
-                    {attr.name}
-                  </TableCell>
-                  <TableCell className="font-medium">{attr.value}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={close}
+              className={cn(
+                'focus-visible:ring-0 focus-visible:border-transparent',
+                focusedIndex === 2 && 'ring-2 ring-primary',
+              )}
+            >
+              Close
+            </Button>
+          </DialogFooter>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={close}>
-            Close
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

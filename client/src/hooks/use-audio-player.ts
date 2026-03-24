@@ -275,7 +275,14 @@ export function useAudioPlayer(
       ctx.close();
       ctxRef.current = null;
     };
-  }, [adapter, enabled, fileHash, initialGuideVolume, startSources, stopSources]);
+  }, [
+    adapter,
+    enabled,
+    fileHash,
+    initialGuideVolume,
+    startSources,
+    stopSources,
+  ]);
 
   const play = useCallback(() => {
     startSources(startOffsetRef.current);

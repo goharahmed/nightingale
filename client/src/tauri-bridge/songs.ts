@@ -3,6 +3,13 @@ import type { SongsMeta } from '@/types/SongsMeta';
 import type { SongsStore } from '@/types/SongsStore';
 import { invoke } from '@tauri-apps/api/core';
 
+export function getPreloadedSongsMeta(): SongsMeta | undefined {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+  return window.__NIGHTINGALE_SONGS_META__;
+}
+
 export const loadSongs = async (
   search?: string,
   skip = 0,

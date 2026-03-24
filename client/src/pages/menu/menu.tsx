@@ -7,37 +7,45 @@ import { Sidebar } from '@/components/menu/sidebar/sidebar';
 import { EmptySongList } from '@/components/menu/song-list/empty-song-list';
 import { SongList } from '@/components/menu/song-list/song-list';
 import { SidebarInset } from '@/components/ui/sidebar';
+import { MenuFocusProvider } from '@/contexts/menu-focus-context';
+import { useMenuNav } from '@/hooks/navigation/use-menu-nav';
 import { useDialog } from '@/hooks/use-dialog';
+import { useShouldRunSetup } from '@/hooks/use-should-run-setup';
 import { useSongsMeta } from '@/queries/use-songs';
-import { useEffect } from 'react';
+import { ReactElement, useCallback } from 'react';
 
-export const Menu = () => {
-  const { data: meta } = useSongsMeta();
-  const { setMode } = useDialog();
+const MenuInner = () => {
+  const { data: meta, isLoading: isLoadingMeta } = useSongsMeta();
+  const { mode, setMode } = useDialog();
+  const { shouldRunSetup } = useShouldRunSetup();
 
-  useEffect(() => {
-    const openExitModal = ({ key }: KeyboardEvent) => {
-      if (key === 'Escape') {
-        setMode((mode) => {
-          if (mode === null) {
-            return 'exit';
-          }
+  const overlayOpen = mode !== null || shouldRunSetup;
 
-          if (mode === 'exit') {
-            return null;
-          }
-
-          return mode;
-        });
+  const onBack = useCallback(() => {
+    setMode((prev) => {
+      if (prev === null) {
+        return 'exit';
       }
-    };
 
-    document.addEventListener('keydown', openExitModal);
+      if (prev === 'exit') {
+        return null;
+      }
 
-    return () => {
-      document.removeEventListener('keydown', openExitModal);
-    };
+      return prev;
+    });
   }, [setMode]);
+
+  useMenuNav({ overlayOpen, onBack });
+
+  let content: ReactElement | null = <EmptySongList />;
+
+  if (meta?.folder) {
+    content = <SongList />;
+  }
+
+  if (isLoadingMeta) {
+    content = null;
+  }
 
   return (
     <Sidebar>
@@ -46,9 +54,13 @@ export const Menu = () => {
       <CreateProfileDialog />
       <SelectProfileDialog />
       <InfoDialog />
-      <SidebarInset>
-        {meta?.folder ? <SongList /> : <EmptySongList />}
-      </SidebarInset>
+      <SidebarInset>{content}</SidebarInset>
     </Sidebar>
   );
 };
+
+export const Menu = () => (
+  <MenuFocusProvider>
+    <MenuInner />
+  </MenuFocusProvider>
+);

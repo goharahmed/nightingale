@@ -1,6 +1,6 @@
-import { isAppReady } from "@/tauri-bridge/setup";
-import { atom, useAtom } from "jotai"
-import { useEffect } from "react";
+import { isAppReady } from '@/tauri-bridge/setup';
+import { atom, useAtom } from 'jotai';
+import { useEffect } from 'react';
 
 const shouldRunSetupAtom = atom(false);
 
@@ -17,4 +17,4 @@ export const useShouldRunSetup = () => {
   }, []);
 
   return { shouldRunSetup, setShouldRunSetup };
-}
+};

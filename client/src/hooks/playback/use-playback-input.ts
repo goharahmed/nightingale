@@ -1,19 +1,20 @@
-/**
- * Global keyboard shortcuts during playback (themes, guide volume, skip, pause).
- * Registers `window` listeners; cleans up on unmount or when dependencies change.
- */
-
 import {
   SOURCE_VIDEO_INDEX,
   nextFlavorIndex,
   nextThemeIndex,
 } from '@/components/playback/background';
+import { useNavInput } from '@/hooks/navigation/use-nav-input';
 import type { AppConfig } from '@/types/AppConfig';
 import type { Song } from '@/types/Song';
-import type { Dispatch, SetStateAction } from 'react';
-import { useEffect } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 
-export interface UsePlaybackKeyboardParams {
+export interface UsePlaybackInputParams {
   paused: boolean;
   song: Song;
   firstSegmentStart: number;
@@ -34,7 +35,7 @@ export interface UsePlaybackKeyboardParams {
   onCycleMic: () => void;
 }
 
-export function usePlaybackKeyboard({
+export function usePlaybackInput({
   paused,
   song,
   firstSegmentStart,
@@ -53,10 +54,53 @@ export function usePlaybackKeyboard({
   handleContinue,
   onToggleMic,
   onCycleMic,
-}: UsePlaybackKeyboardParams) {
+}: UsePlaybackInputParams) {
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
+
+  // Gamepad: nav.back = pause/resume, nav.confirm = skip intro/outro
+  useNavInput(
+    useCallback(
+      (action) => {
+        if (action.back) {
+          if (pausedRef.current) {
+            handleContinue();
+          } else {
+            handlePause();
+          }
+          return;
+        }
+
+        if (pausedRef.current) return;
+
+        if (action.confirm) {
+          if (!isReady) return;
+          const t = getCurrentTime();
+          if (t < firstSegmentStart - introSkipLeadSec) {
+            onSkipIntro();
+          } else if (t > lastSegmentEnd + 1) {
+            onSkipOutro();
+          }
+        }
+      },
+      [
+        handlePause,
+        handleContinue,
+        isReady,
+        getCurrentTime,
+        firstSegmentStart,
+        lastSegmentEnd,
+        introSkipLeadSec,
+        onSkipIntro,
+        onSkipOutro,
+      ],
+    ),
+  );
+
+  // Keyboard-only shortcuts (G, T, F, M, N, +/-, Space)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === ' ') {
         e.preventDefault();
         if (paused) {
           handleContinue();
@@ -121,17 +165,6 @@ export function usePlaybackKeyboard({
         case 'N':
           onCycleMic();
           break;
-
-        case 'Enter': {
-          if (!isReady) break;
-          const t = getCurrentTime();
-          if (t < firstSegmentStart - introSkipLeadSec) {
-            onSkipIntro();
-          } else if (t > lastSegmentEnd + 1) {
-            onSkipOutro();
-          }
-          break;
-        }
       }
     };
 
@@ -140,18 +173,11 @@ export function usePlaybackKeyboard({
   }, [
     paused,
     song.is_video,
-    firstSegmentStart,
-    lastSegmentEnd,
-    introSkipLeadSec,
     guideVolume,
-    isReady,
-    getCurrentTime,
     setGuideVolume,
     setThemeIndex,
     setFlavorIndex,
     persistConfig,
-    onSkipIntro,
-    onSkipOutro,
     handlePause,
     handleContinue,
     onToggleMic,

@@ -166,7 +166,9 @@ function PlaybackHudImpl({
         </div>
 
         <div className="flex flex-col items-end">
-          <div className={`text-lg text-white${pitchScore ? '' : '/50'}`}>Score: {pitchScore ?? '--'}</div>
+          <div className={`text-lg text-white${pitchScore ? '' : '/50'}`}>
+            Score: {pitchScore ?? '--'}
+          </div>
           <HintText>{formatGuideText(guideVolume)}</HintText>
           <HintText>Mic: {micOn ? micName : 'OFF'} [M/N]</HintText>
           <HintText>{formatThemeText(themeIndex, videoFlavor)}</HintText>

@@ -27,11 +27,11 @@ export const SOURCE_VIDEO_INDEX = SHADER_COUNT + 1;
 export function themeMode(index: number): ThemeMode {
   if (index === PIXABAY_INDEX) {
     return 'pixabay';
-  };
+  }
 
   if (index === SOURCE_VIDEO_INDEX) {
-    return 'source'
-  };
+    return 'source';
+  }
 
   return 'shader';
 }
@@ -41,7 +41,7 @@ export function themeName(index: number, videoFlavor: VideoFlavor): string {
 
   if (mode === 'source') {
     return 'Source Video';
-  };
+  }
 
   if (mode === 'pixabay') {
     const name = videoFlavor.charAt(0).toUpperCase() + videoFlavor.slice(1);
@@ -82,8 +82,14 @@ function backgroundContent(
     getCurrentTime: BackgroundProps['getCurrentTime'];
   },
 ) {
-  const { themeIndex, videoFlavor, sourceVideoPath, isPlaying, subscribe, getCurrentTime } =
-    props;
+  const {
+    themeIndex,
+    videoFlavor,
+    sourceVideoPath,
+    isPlaying,
+    subscribe,
+    getCurrentTime,
+  } = props;
 
   switch (mode) {
     case 'shader':
@@ -124,9 +130,13 @@ export const Background = ({
   if (!isReady) {
     return (
       <div className="fixed inset-0">
-        <ShaderVisualizer shaderIndex={0} isPlaying={true} customFragment={loadingFragment} />
+        <ShaderVisualizer
+          shaderIndex={0}
+          isPlaying={true}
+          customFragment={loadingFragment}
+        />
       </div>
-    )
+    );
   }
 
   return (

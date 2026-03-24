@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import './App.css';
 import { Toaster } from './components/ui/sonner';
+import { NavInputProvider } from './contexts/nav-input-context';
 import { Menu } from './pages/menu/menu';
 import { Playback } from './pages/playback/playback';
 import { ThemeProvider } from './providers/theme/ThemeProvider';
@@ -37,9 +38,11 @@ const ThemeWrapper = () => {
 };
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeWrapper />
-  </QueryClientProvider>
+  <NavInputProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeWrapper />
+    </QueryClientProvider>
+  </NavInputProvider>
 );
 
 export default App;

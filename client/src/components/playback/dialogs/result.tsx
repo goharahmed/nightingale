@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useDialogNav } from '@/hooks/navigation/use-dialog-nav';
 import type { ScoreRecord } from '@/types/ScoreRecord';
 import type { Song } from '@/types/Song';
 import { cn } from '@/lib/utils';
@@ -42,6 +43,13 @@ export const ResultDialog = ({
 }: Props) => {
   const board = topScoresForSong(scores, song.file_hash, TOP_LIMIT);
 
+  useDialogNav({
+    open,
+    itemCount: 1,
+    onConfirm: () => onFinish(),
+    onBack: onFinish,
+  });
+
   return (
     <Dialog open={open} modal>
       <DialogContent
@@ -52,8 +60,12 @@ export const ResultDialog = ({
       >
         <div className="flex flex-col gap-4 p-7">
           <DialogHeader className="gap-1 text-center sm:text-center">
-            <DialogTitle className="text-xl font-semibold">{song.title}</DialogTitle>
-            <DialogDescription className="text-sm">{song.artist}</DialogDescription>
+            <DialogTitle className="text-xl font-semibold">
+              {song.title}
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              {song.artist}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-col items-center gap-1">
@@ -77,7 +89,9 @@ export const ResultDialog = ({
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="h-8 text-xs">#</TableHead>
                     <TableHead className="h-8 text-xs">Profile</TableHead>
-                    <TableHead className="h-8 text-right text-xs">Score</TableHead>
+                    <TableHead className="h-8 text-right text-xs">
+                      Score
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -88,9 +102,7 @@ export const ResultDialog = ({
                     return (
                       <TableRow
                         key={profile}
-                        className={cn(
-                          isCurrent && 'bg-primary/10',
-                        )}
+                        className={cn(isCurrent && 'bg-primary/10')}
                       >
                         <TableCell className="py-2 text-xs tabular-nums">
                           {i + 1}
@@ -120,7 +132,11 @@ export const ResultDialog = ({
           ) : null}
 
           <DialogFooter className="mt-2 sm:justify-center">
-            <Button type="button" className="w-full sm:w-auto" onClick={onFinish}>
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              onClick={onFinish}
+            >
               Back to Menu
             </Button>
           </DialogFooter>

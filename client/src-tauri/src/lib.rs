@@ -9,7 +9,7 @@ mod scanner;
 mod vendor;
 
 use analyzer::{delete_song_cache, enqueue_all, enqueue_one, reanalyze_full, reanalyze_transcript};
-use app_core::AppConfig;
+use app_core::{AppConfig, SongsStore};
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use cache::{calculate_cache_stats, clear_all, clear_models_command, clear_videos_command};
 use config::{load_config, save_config};
@@ -80,8 +80,15 @@ pub fn run() {
             let config = AppConfig::load();
             let json = serde_json::to_string(&config).map_err(|e| e.to_string())?;
             let b64 = B64.encode(json.as_bytes());
-            let init_script =
-                format!("window.__NIGHTINGALE_APP_CONFIG__ = JSON.parse(atob('{b64}'));",);
+
+            let songs_meta = SongsStore::load_meta();
+            let meta_json = serde_json::to_string(&songs_meta).map_err(|e| e.to_string())?;
+            let meta_b64 = B64.encode(meta_json.as_bytes());
+
+            let init_script = format!(
+                "window.__NIGHTINGALE_APP_CONFIG__ = JSON.parse(atob('{b64}')); \
+                 window.__NIGHTINGALE_SONGS_META__ = JSON.parse(atob('{meta_b64}'));",
+            );
 
             let window_config = app
                 .config()

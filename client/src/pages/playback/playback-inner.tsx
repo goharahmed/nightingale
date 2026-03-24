@@ -17,7 +17,7 @@ import {
 } from '@/components/playback/video-background';
 import {
   usePlaybackConfigPersist,
-  usePlaybackKeyboard,
+  usePlaybackInput,
   usePlaybackTranscript,
 } from '@/hooks/playback';
 import { useAudioPlayer } from '@/hooks/use-audio-player';
@@ -77,11 +77,15 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
       } else {
         setStemsReady(true);
       }
-    }).then((fn) => { unlisten = fn; });
+    }).then((fn) => {
+      unlisten = fn;
+    });
 
     ensureMp3Stems(fileHash);
 
-    return () => { unlisten?.(); };
+    return () => {
+      unlisten?.();
+    };
   }, [fileHash, navigate]);
 
   const audio = useAudioPlayer(fileHash, initialGuideVolume, stemsReady);
@@ -94,7 +98,8 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
   );
   const micDevices = useMicDevices();
 
-  const micEnabled = audio.isReady && audio.isPlaying && !paused && micUserEnabled;
+  const micEnabled =
+    audio.isReady && audio.isPlaying && !paused && micUserEnabled;
   const {
     latestPitch,
     active: micActive,
@@ -152,8 +157,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
 
     const finalScore = scoreRef.current;
     const active = profileData?.active ?? null;
-    const shouldShowResult =
-      active != null && micUserEnabled && finalScore > 0;
+    const shouldShowResult = active != null && micUserEnabled && finalScore > 0;
 
     if (!shouldShowResult) {
       navigate('/', { replace: true });
@@ -191,7 +195,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
     }
 
     const audioEl = new Audio(successSoundUrl);
-    void audioEl.play().catch(() => { });
+    void audioEl.play().catch(() => {});
 
     return () => {
       audioEl.pause();
@@ -244,7 +248,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
     navigate('/', { replace: true });
   }, [audio.cleanup, navigate]);
 
-  usePlaybackKeyboard({
+  usePlaybackInput({
     paused,
     song,
     firstSegmentStart,

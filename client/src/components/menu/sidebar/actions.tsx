@@ -13,6 +13,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { useMenuFocus } from '@/contexts/menu-focus-context';
 import { useClearCache } from '@/hooks/use-clear-cache';
 import { useCurrentProfile } from '@/hooks/use-current-profile';
 import { useDialog } from '@/hooks/use-dialog';
@@ -32,16 +33,87 @@ import {
   UserIcon,
   VideoIcon,
 } from 'lucide-react';
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavInput } from '@/hooks/navigation/use-nav-input';
+import type { SidebarCallbacks } from './sidebar';
 
-export const Actions = () => {
+interface ActionsProps {
+  sidebarCallbacks: SidebarCallbacks;
+}
+
+export const Actions = ({ sidebarCallbacks }: ActionsProps) => {
   const { setMode } = useDialog();
+  const clearCache = useClearCache();
+  const profile = useCurrentProfile();
   const { toggle, theme } = useTheme();
+  const { mutate } = useConfigMutation();
+  const { focus, actionsRef } = useMenuFocus();
   const { setShouldRunSetup } = useShouldRunSetup();
 
-  const clearCache = useClearCache();
-  const { mutate } = useConfigMutation();
-  const profile = useCurrentProfile();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownOpenRef = useRef(false);
+
+  dropdownOpenRef.current = dropdownOpen;
+
+  useEffect(() => {
+    sidebarCallbacks.current[2] = () => {
+      setDropdownOpen(true);
+
+      setTimeout(() => {
+        const firstItem = document.querySelector(
+          '[role="menu"] [role="menuitem"]',
+        );
+
+        if (firstItem instanceof HTMLElement) {
+          firstItem.focus();
+        }
+      }, 50);
+    };
+
+    actionsRef.current.onSidebarBack = () => {
+      if (dropdownOpenRef.current) {
+        setDropdownOpen(false);
+
+        return true;
+      }
+      return false;
+    };
+
+    actionsRef.current.isSidebarBusy = () => dropdownOpenRef.current;
+
+    return () => {
+      sidebarCallbacks.current[2] = null;
+
+      actionsRef.current.onSidebarBack = null;
+      actionsRef.current.isSidebarBusy = null;
+    };
+  }, [sidebarCallbacks, actionsRef]);
+
+  useNavInput(
+    useCallback((action) => {
+      if (!dropdownOpenRef.current) {
+        return;
+      }
+
+      const focused = document.activeElement;
+
+      if (action.up || action.down) {
+        const key = action.up ? 'ArrowUp' : 'ArrowDown';
+
+        if (focused) {
+          focused.dispatchEvent(
+            new KeyboardEvent('keydown', { key, bubbles: true }),
+          );
+        }
+      }
+
+      if (action.confirm) {
+        if (focused instanceof HTMLElement) {
+          focused.click();
+        }
+      }
+    }, []),
+  );
 
   const { ThemeIcon, themeLabel } = useMemo(() => {
     return theme === 'dark'
@@ -49,14 +121,21 @@ export const Actions = () => {
       : { ThemeIcon: MoonIcon, themeLabel: 'Dark mode' };
   }, [theme]);
 
+  const isSidebarActive = focus.active && focus.panel === 'sidebar';
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <DropdownMenu>
+        <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
+              tabIndex={-1}
               size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              className={`data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground ${
+                isSidebarActive && focus.sidebarIndex === 2
+                  ? 'ring-2 ring-primary bg-sidebar-accent'
+                  : ''
+              }`}
             >
               <Avatar>
                 <AvatarFallback>

@@ -15,11 +15,7 @@ interface Props {
   className?: string;
 }
 
-export const Stars = ({
-  score,
-  size = 'lg',
-  className,
-}: Props) => {
+export const Stars = ({ score, size = 'lg', className }: Props) => {
   const hs = halfStarUnits(score);
   const filled = Math.floor(hs / 2);
   const hasHalf = hs % 2 === 1;
@@ -48,4 +44,4 @@ export const Stars = ({
       ))}
     </div>
   );
-}
+};

@@ -5,6 +5,7 @@ import {
 } from '@tanstack/react-query';
 import { ANALYSIS_QUEUE, SONGS, SONGS_META } from './keys';
 import {
+  getPreloadedSongsMeta,
   loadAnalysisQueue,
   loadSongs,
   loadSongsMeta,
@@ -20,11 +21,13 @@ const DEFAULT_REFETCH_INTERVAL = 2500;
 export const useSongsMeta = () => {
   const queryClient = useQueryClient();
   const [prevMatched, setPrevMatched] = useState(true);
+  const preloaded = getPreloadedSongsMeta();
 
   return useQuery({
     queryKey: SONGS_META,
     queryFn: loadSongsMeta,
     refetchInterval: DEFAULT_REFETCH_INTERVAL,
+    ...(preloaded !== undefined ? { initialData: preloaded } : {}),
     onSuccess: ({ count, processed_count }: SongsMeta) => {
       if (count !== processed_count) {
         setPrevMatched(false);

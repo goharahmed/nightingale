@@ -3,7 +3,8 @@ import {
   onSetupProgress,
   triggerSetup,
 } from '@/tauri-bridge/setup';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavInput } from '@/hooks/navigation/use-nav-input';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,7 +19,7 @@ import { exit } from '@/tauri-bridge/exit';
 import { Progress } from '@/components/ui/progress';
 import type { SetupProgress } from '@/types/SetupProgress';
 import type { SetupStep } from '@/types/SetupStep';
-import logoSrc from '@/assets/images/logo_square.png'
+import logoSrc from '@/assets/images/logo_square.png';
 import { useShouldRunSetup } from '@/hooks/use-should-run-setup';
 
 interface ExtendedSetupProgress extends Omit<SetupProgress, 'step'> {
@@ -34,10 +35,9 @@ const InitialStep = ({ onStart }: InitialStepProps) => (
     <AlertDialogHeader>
       <AlertDialogTitle>Welcome to Nightingale!</AlertDialogTitle>
       <AlertDialogDescription>
-        Before you get started,
-        we need to install a few dependencies: <code>ffmpeg</code>,{' '}
-        <code>uv</code>, <code>python 3.10</code>, Python packages, and{' '}
-        <code>CUDA</code> wheels (NVIDIA GPUs only).
+        Before you get started, we need to install a few dependencies:{' '}
+        <code>ffmpeg</code>, <code>uv</code>, <code>python 3.10</code>, Python
+        packages, and <code>CUDA</code> wheels (NVIDIA GPUs only).
       </AlertDialogDescription>
       <AlertDialogDescription>
         This may take a few minutes. You can exit at any time if you'd prefer
@@ -120,7 +120,6 @@ export const Setup = () => {
     action: '',
   });
 
-
   useEffect(() => {
     let unlistenProgress: (() => void) | undefined;
     let unlistenError: (() => void) | undefined;
@@ -145,6 +144,37 @@ export const Setup = () => {
 
   const { step, percent, action } = setupProgress;
 
+  useNavInput(
+    useCallback(
+      (navAction) => {
+        if (!shouldRunSetup) {
+          return;
+        }
+
+        if (navAction.back) {
+          if (step === 'finish') {
+            setShouldRunSetup(false);
+          } else {
+            exit();
+          }
+
+          return;
+        }
+
+        if (navAction.confirm) {
+          if (step === 'init') {
+            triggerSetup();
+          } else if (step === 'finish') {
+            setShouldRunSetup(false);
+          } else if (step === 'error') {
+            exit();
+          }
+        }
+      },
+      [shouldRunSetup, step, setShouldRunSetup],
+    ),
+  );
+
   const Step = useMemo(() => {
     switch (step) {
       case 'init':
@@ -166,7 +196,10 @@ export const Setup = () => {
 
   return (
     <AlertDialog open={shouldRunSetup}>
-      <AlertDialogContent onEscapeKeyDown={(e) => e.preventDefault()}>
+      <AlertDialogContent
+        data-nav-passthrough
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <img src={logoSrc} width={80} height={80} />
         <Step />
       </AlertDialogContent>

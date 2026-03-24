@@ -35,7 +35,11 @@ function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
 }
 
-function interpolateStyle(from: WordStyle, to: WordStyle, t: number): WordStyle {
+function interpolateStyle(
+  from: WordStyle,
+  to: WordStyle,
+  t: number,
+): WordStyle {
   const p = Math.max(0, Math.min(1, t));
   if (from.rgb === to.rgb) {
     return { rgb: to.rgb, opacity: lerp(from.opacity, to.opacity, p) };
@@ -45,7 +49,10 @@ function interpolateStyle(from: WordStyle, to: WordStyle, t: number): WordStyle 
   const r = Math.round(lerp(+fm[0], +tm[0], p));
   const g = Math.round(lerp(+fm[1], +tm[1], p));
   const b = Math.round(lerp(+fm[2], +tm[2], p));
-  return { rgb: `rgb(${r},${g},${b})`, opacity: lerp(from.opacity, to.opacity, p) };
+  return {
+    rgb: `rgb(${r},${g},${b})`,
+    opacity: lerp(from.opacity, to.opacity, p),
+  };
 }
 
 // --- Segment search ---
@@ -84,7 +91,11 @@ function findCurrentSegment(
 
 // --- Per-frame DOM updates (called via rAF subscriber, no React re-renders) ---
 
-function computeWordStyle(word: Word, time: number, isActive: boolean): WordStyle {
+function computeWordStyle(
+  word: Word,
+  time: number,
+  isActive: boolean,
+): WordStyle {
   const base = unsungStyle(word);
   if (!isActive) return base;
 
@@ -93,7 +104,11 @@ function computeWordStyle(word: Word, time: number, isActive: boolean): WordStyl
 
   if (time >= wEnd) return STYLES.sung;
   if (time >= wStart) {
-    return interpolateStyle(base, STYLES.sung, (time - wStart) / (wEnd - wStart));
+    return interpolateStyle(
+      base,
+      STYLES.sung,
+      (time - wStart) / (wEnd - wStart),
+    );
   }
   return base;
 }
@@ -264,10 +279,7 @@ function LyricsDisplayImpl({
             {nextSeg.words.map((word, wi) => {
               const ns = nextLineStyle(word);
               return (
-                <span
-                  key={wi}
-                  style={{ color: ns.rgb, opacity: ns.opacity }}
-                >
+                <span key={wi} style={{ color: ns.rgb, opacity: ns.opacity }}>
                   {word.word}
                   {wi < nextSeg.words.length - 1 ? ' ' : ''}
                 </span>

@@ -16,6 +16,7 @@ function similarityToRgb(sim: number): { r: number; g: number; b: number } {
   const good = { r: 0.2, g: 0.9, b: 0.3 };
   const ok = { r: 0.95, g: 0.8, b: 0.1 };
   const bad = { r: 0.9, g: 0.2, b: 0.2 };
+
   if (sim >= 0.7) {
     const t = (sim - 0.7) / 0.3;
     return {
@@ -24,7 +25,9 @@ function similarityToRgb(sim: number): { r: number; g: number; b: number } {
       b: ok.b + (good.b - ok.b) * t,
     };
   }
+
   const t = Math.max(0, sim / 0.7);
+
   return {
     r: bad.r + (ok.r - bad.r) * t,
     g: bad.g + (ok.g - bad.g) * t,
@@ -218,7 +221,7 @@ export function PitchGraph({ series, visible }: PitchGraphProps) {
   }
 
   return (
-    <div className="pointer-events-none top-3 absolute left-1/2 z-20 -translate-x-1/2 rounded-sm border-white/15 bg-black/40 p-1 shadow-lg">
+    <div className="pointer-events-none top-3 absolute left-1/2 z-20 -translate-x-1/2 rounded-sm border-white/15 bg-black/40 p-1">
       <canvas ref={canvasRef} className="block" />
     </div>
   );
