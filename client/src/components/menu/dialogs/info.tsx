@@ -13,6 +13,7 @@ import { useDialogNav } from '@/hooks/navigation/use-dialog-nav';
 import { openUrl } from '@/tauri-bridge/opener';
 import { useRef } from 'react';
 import { cn } from '@/lib/utils';
+import { version } from '../../../../package.json';
 
 const GithubIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
@@ -67,7 +68,7 @@ export const InfoDialog = () => {
                 className={cn(
                   'focus-visible:ring-0 focus-visible:border-transparent',
                   focusedIndex === 0 &&
-                    'outline-2 outline-primary outline-offset-2',
+                  'outline-2 outline-primary outline-offset-2',
                 )}
               >
                 <GithubIcon className="size-4" />
@@ -85,7 +86,7 @@ export const InfoDialog = () => {
               </Button>
             </div>
             <div className="text-sm text-muted-foreground">
-              <p>Version 0.1.0</p>
+              <p>Version {version}</p>
               <p>License: GPL-3.0-or-later</p>
             </div>
           </DialogHeader>

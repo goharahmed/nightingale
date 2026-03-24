@@ -1,7 +1,7 @@
 {
-  "name": "client",
+  "name": "Nightingale",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.4.0",
   "description": "Nightingale — Karaoke from your music library.",
   "type": "module",
   "scripts": {
