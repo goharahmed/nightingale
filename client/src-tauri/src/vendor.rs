@@ -11,6 +11,7 @@ use ts_rs::TS;
 #[ts(export)]
 #[serde(rename_all = "lowercase")]
 enum SetupStep {
+    ClearVendor,
     Ffmpeg,
     Uv,
     Python,
@@ -29,7 +30,12 @@ struct SetupProgress {
     action: String,
 }
 
-fn emit_setup_progress(app: &AppHandle, step: SetupStep, percent: usize, action: impl Into<String>) {
+fn emit_setup_progress(
+    app: &AppHandle,
+    step: SetupStep,
+    percent: usize,
+    action: impl Into<String>,
+) {
     let _ = app.emit(
         "setup-progress",
         SetupProgress {
@@ -44,6 +50,7 @@ fn emit_setup_progress(app: &AppHandle, step: SetupStep, percent: usize, action:
 pub fn trigger_setup(app: AppHandle) {
     std::thread::spawn(move || {
         let run = || -> Result<(), String> {
+            emit_setup_progress(&app, SetupStep::ClearVendor, 6, "Clearing vendor folder...");
             clear_vendor_dir()?;
 
             emit_setup_progress(&app, SetupStep::Ffmpeg, 12, "Downloading ffmpeg...");
@@ -52,7 +59,12 @@ pub fn trigger_setup(app: AppHandle) {
             emit_setup_progress(&app, SetupStep::Uv, 24, "Downloading uv...");
             step_download_uv()?;
 
-            emit_setup_progress(&app, SetupStep::Python, 36, "Installing python3.10 via uv...");
+            emit_setup_progress(
+                &app,
+                SetupStep::Python,
+                36,
+                "Installing python3.10 via uv...",
+            );
             step_install_python()?;
 
             emit_setup_progress(&app, SetupStep::Venv, 48, "Setting up .venv...");

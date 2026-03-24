@@ -50,7 +50,7 @@ export function useMicPitch(
   useEffect(() => {
     if (!enabled) {
       if (startedRef.current) {
-        adapter.stopCapture().catch(() => { });
+        adapter.stopCapture().catch(() => {});
         startedRef.current = false;
       }
       setLatestPitch(null);
@@ -104,7 +104,7 @@ export function useMicPitch(
       cancelled = true;
       stopListening?.();
       if (startedRef.current) {
-        adapter.stopCapture().catch(() => { });
+        adapter.stopCapture().catch(() => {});
         startedRef.current = false;
       }
       setLatestPitch(null);

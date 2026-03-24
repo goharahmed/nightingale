@@ -220,7 +220,7 @@ export const SongCard = memo(
                   onClick={async (e) => {
                     e.stopPropagation();
 
-                    setMode({ mode: 'language', song })
+                    setMode({ mode: 'language', song });
                   }}
                 >
                   <LanguagesIcon />

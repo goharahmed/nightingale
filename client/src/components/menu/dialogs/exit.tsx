@@ -52,20 +52,14 @@ export const ExitDialog = () => {
         <AlertDialogFooter>
           <AlertDialogCancel
             onClick={close}
-            className={cn(
-              NO_FOCUS_RING,
-              open && focusedIndex === 0 && RING,
-            )}
+            className={cn(NO_FOCUS_RING, open && focusedIndex === 0 && RING)}
           >
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
             onClick={() => exit()}
-            className={cn(
-              NO_FOCUS_RING,
-              open && focusedIndex === 1 && RING,
-            )}
+            className={cn(NO_FOCUS_RING, open && focusedIndex === 1 && RING)}
           >
             Exit
           </AlertDialogAction>

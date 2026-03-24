@@ -68,7 +68,7 @@ export const InfoDialog = () => {
                 className={cn(
                   'focus-visible:ring-0 focus-visible:border-transparent',
                   focusedIndex === 0 &&
-                  'outline-2 outline-primary outline-offset-2',
+                    'outline-2 outline-primary outline-offset-2',
                 )}
               >
                 <GithubIcon className="size-4" />

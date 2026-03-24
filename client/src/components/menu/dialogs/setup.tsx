@@ -111,14 +111,17 @@ const FinalStep = ({ onFinish }: FinalStepProps) => (
   </>
 );
 
+const defaultProgress = {
+  step: 'init' as const,
+  percent: 0,
+  action: '',
+};
+
 export const Setup = () => {
   const { shouldRunSetup, setShouldRunSetup } = useShouldRunSetup();
 
-  const [setupProgress, setSetupProgress] = useState<ExtendedSetupProgress>({
-    step: 'init',
-    percent: 0,
-    action: '',
-  });
+  const [setupProgress, setSetupProgress] =
+    useState<ExtendedSetupProgress>(defaultProgress);
 
   useEffect(() => {
     let unlistenProgress: (() => void) | undefined;
@@ -179,6 +182,7 @@ export const Setup = () => {
     switch (step) {
       case 'init':
         return () => <InitialStep onStart={triggerSetup} />;
+      case 'clearvendor':
       case 'ffmpeg':
       case 'uv':
       case 'python':
@@ -188,7 +192,14 @@ export const Setup = () => {
       case 'videos':
         return () => <LoadStep action={action} percent={percent} />;
       case 'finish':
-        return () => <FinalStep onFinish={() => setShouldRunSetup(false)} />;
+        return () => (
+          <FinalStep
+            onFinish={() => {
+              setSetupProgress(defaultProgress);
+              setShouldRunSetup(false);
+            }}
+          />
+        );
       case 'error':
         return () => <ErrorStep error={action} />;
     }

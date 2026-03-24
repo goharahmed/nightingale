@@ -139,7 +139,9 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
       if (paths.length > 0) {
         urlsPerFlavor.current.set(
           flav,
-          paths.map((p) => joinMediaUrl(`http://127.0.0.1:${portRef.current}`, p)),
+          paths.map((p) =>
+            joinMediaUrl(`http://127.0.0.1:${portRef.current}`, p),
+          ),
         );
         indexPerFlavor.current.set(flav, 0);
       }
@@ -363,7 +365,9 @@ export const SourceVideo = ({
   useEffect(() => {
     initializedRef.current = false;
     setVisible(false);
-    getMediaPort().then((port) => setSrc(joinMediaUrl(`http://127.0.0.1:${port}`, filePath)));
+    getMediaPort().then((port) =>
+      setSrc(joinMediaUrl(`http://127.0.0.1:${port}`, filePath)),
+    );
   }, [filePath]);
 
   useEffect(() => {

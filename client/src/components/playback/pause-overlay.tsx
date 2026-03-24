@@ -56,20 +56,14 @@ export const PauseOverlay = ({
         <AlertDialogFooter>
           <AlertDialogCancel
             onClick={onContinue}
-            className={cn(
-              NO_FOCUS_RING,
-              open && focusedIndex === 0 && RING,
-            )}
+            className={cn(NO_FOCUS_RING, open && focusedIndex === 0 && RING)}
           >
             Continue
           </AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
             onClick={onExit}
-            className={cn(
-              NO_FOCUS_RING,
-              open && focusedIndex === 1 && RING,
-            )}
+            className={cn(NO_FOCUS_RING, open && focusedIndex === 1 && RING)}
           >
             Exit to Menu
           </AlertDialogAction>
