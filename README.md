@@ -38,10 +38,10 @@ Download the latest release for your platform from the [Releases](../../releases
 
 ### macOS
 
-macOS quarantines files downloaded from the internet. Since Nightingale isn't signed with an Apple Developer ID, Gatekeeper will block it with a message like *"app is damaged and can't be opened"*. To fix this, remove the quarantine attribute after extracting:
+macOS quarantines files downloaded from the internet. Since Nightingale isn't signed with an Apple Developer ID, Gatekeeper will block it with a message like _"app is damaged and can't be opened"_. To fix this, remove the quarantine attribute after moving the Nightingale.app to Applications:
 
 ```bash
-xattr -cr Nightingale.app
+xattr -cr /Applications/Nightingale.app
 ```
 
 ### Supported formats
@@ -52,27 +52,27 @@ Audio: `.mp3`, `.flac`, `.ogg`, `.wav`, `.m4a`, `.aac`, `.wma`. Video: `.mp4`, `
 
 ### Navigation
 
-| Action | Keyboard | Gamepad |
-|---|---|---|
-| Move | Arrow keys | D-pad / Left stick |
-| Confirm / Select | Enter | A (South) |
-| Back / Cancel | Escape | B (East) / Start |
-| Switch panel | Tab | — |
-| Search songs | Type to filter | — |
+| Action           | Keyboard       | Gamepad            |
+| ---------------- | -------------- | ------------------ |
+| Move             | Arrow keys     | D-pad / Left stick |
+| Confirm / Select | Enter          | A (South)          |
+| Back / Cancel    | Escape         | B (East) / Start   |
+| Switch panel     | Tab            | —                  |
+| Search songs     | Type to filter | —                  |
 
 ### Playback
 
-| Action | Keyboard | Gamepad |
-|---|---|---|
-| Pause / Resume | Space | Start |
-| Exit to menu | Escape | B (East) |
-| Toggle guide vocals | G | — |
-| Guide volume up/down | + / - | — |
-| Cycle background theme | T | — |
-| Cycle video flavor | F | — |
-| Toggle microphone | M | — |
-| Next microphone | N | — |
-| Toggle fullscreen | F11 | — |
+| Action                  | Keyboard          | Gamepad   |
+| ----------------------- | ----------------- | --------- |
+| Pause / Resume          | Space             | Start     |
+| Exit to menu            | Escape            | B (East)  |
+| Toggle guide vocals     | G                 | —         |
+| Guide volume up/down    | + / -             | —         |
+| Cycle background theme  | T                 | —         |
+| Cycle video flavor      | F                 | —         |
+| Toggle microphone       | M                 | —         |
+| Next microphone         | N                 | —         |
+| Toggle fullscreen       | F11               | —         |
 | Skip Intro / Skip Outro | On-screen buttons | A (South) |
 
 ## How it works
@@ -110,11 +110,11 @@ Analysis results are cached at `~/.nightingale/cache/` using blake3 file hashes.
 
 The Python analyzer uses PyTorch and auto-detects the best backend:
 
-| Backend | Device | Notes |
-|---|---|---|
-| CUDA | NVIDIA GPU | Fastest |
-| MPS | Apple Silicon | macOS; WhisperX alignment falls back to CPU |
-| CPU | Any | Slowest but always works |
+| Backend | Device        | Notes                                       |
+| ------- | ------------- | ------------------------------------------- |
+| CUDA    | NVIDIA GPU    | Fastest                                     |
+| MPS     | Apple Silicon | macOS; WhisperX alignment falls back to CPU |
+| CPU     | Any           | Slowest but always works                    |
 
 The UVR Karaoke model uses ONNX Runtime and enables CUDA acceleration automatically on NVIDIA GPUs, or CoreML on Apple Silicon.
 
@@ -158,11 +158,11 @@ PIXABAY_API_KEY=your_key_here
 
 ### Prerequisites
 
-| Tool | Version |
-|---|---|
-| Rust | 1.85+ (edition 2024) |
-| Node.js | 20+ |
-| pnpm | latest |
+| Tool       | Version                                                                                                               |
+| ---------- | --------------------------------------------------------------------------------------------------------------------- |
+| Rust       | 1.85+ (edition 2024)                                                                                                  |
+| Node.js    | 20+                                                                                                                   |
+| pnpm       | latest                                                                                                                |
 | Linux only | `libwebkit2gtk-4.1-dev`, `libssl-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev`, `libxdo-dev`, `libasound2-dev` |
 
 ### Development
@@ -181,13 +181,13 @@ cargo desktop build
 
 ## Supported platforms
 
-| Platform | Target |
-|---|---|
-| Linux x86_64 | `x86_64-unknown-linux-gnu` |
-| Linux aarch64 | `aarch64-unknown-linux-gnu` |
-| macOS ARM | `aarch64-apple-darwin` |
-| macOS Intel | `x86_64-apple-darwin` |
-| Windows x86_64 | `x86_64-pc-windows-msvc` |
+| Platform       | Target                      |
+| -------------- | --------------------------- |
+| Linux x86_64   | `x86_64-unknown-linux-gnu`  |
+| Linux aarch64  | `aarch64-unknown-linux-gnu` |
+| macOS ARM      | `aarch64-apple-darwin`      |
+| macOS Intel    | `x86_64-apple-darwin`       |
+| Windows x86_64 | `x86_64-pc-windows-msvc`    |
 
 ## License
 

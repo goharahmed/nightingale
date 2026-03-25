@@ -2,13 +2,13 @@
 
 ## Download
 
-| Platform | Architecture | Link |
-|---|---|---|
-| Linux | x86_64 | [nightingale-x86_64-unknown-linux-gnu.tar.gz](https://github.com/rzru/nightingale/releases/latest/download/nightingale-x86_64-unknown-linux-gnu.tar.gz) |
-| Linux | ARM (aarch64) | [nightingale-aarch64-unknown-linux-gnu.tar.gz](https://github.com/rzru/nightingale/releases/latest/download/nightingale-aarch64-unknown-linux-gnu.tar.gz) |
-| macOS | Apple Silicon | [nightingale-aarch64-apple-darwin.tar.gz](https://github.com/rzru/nightingale/releases/latest/download/nightingale-aarch64-apple-darwin.tar.gz) |
-| macOS | Intel | [nightingale-x86_64-apple-darwin.tar.gz](https://github.com/rzru/nightingale/releases/latest/download/nightingale-x86_64-apple-darwin.tar.gz) |
-| Windows | x86_64 | [nightingale-x86_64-pc-windows-msvc.zip](https://github.com/rzru/nightingale/releases/latest/download/nightingale-x86_64-pc-windows-msvc.zip) |
+| Platform | Architecture  | Link                                                                                                                                                      |
+| -------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Linux    | x86_64        | [nightingale-x86_64-unknown-linux-gnu.tar.gz](https://github.com/rzru/nightingale/releases/latest/download/nightingale-x86_64-unknown-linux-gnu.tar.gz)   |
+| Linux    | ARM (aarch64) | [nightingale-aarch64-unknown-linux-gnu.tar.gz](https://github.com/rzru/nightingale/releases/latest/download/nightingale-aarch64-unknown-linux-gnu.tar.gz) |
+| macOS    | Apple Silicon | [nightingale-aarch64-apple-darwin.tar.gz](https://github.com/rzru/nightingale/releases/latest/download/nightingale-aarch64-apple-darwin.tar.gz)           |
+| macOS    | Intel         | [nightingale-x86_64-apple-darwin.tar.gz](https://github.com/rzru/nightingale/releases/latest/download/nightingale-x86_64-apple-darwin.tar.gz)             |
+| Windows  | x86_64        | [nightingale-x86_64-pc-windows-msvc.zip](https://github.com/rzru/nightingale/releases/latest/download/nightingale-x86_64-pc-windows-msvc.zip)             |
 
 All releases are also available on the [Releases](https://github.com/rzru/nightingale/releases) page.
 
@@ -18,12 +18,12 @@ Supported video formats: `.mp4`, `.mkv`, `.avi`, `.webm`, `.mov`, `.m4v`.
 
 ## macOS: Removing the Quarantine Flag
 
-macOS automatically adds a quarantine attribute to files downloaded from the internet. Since Nightingale is not signed with an Apple Developer ID, Gatekeeper will block it with a message like *"app is damaged and can't be opened"* or *"Apple cannot check it for malicious software"*.
+macOS automatically adds a quarantine attribute to files downloaded from the internet. Since Nightingale is not signed with an Apple Developer ID, Gatekeeper will block it with a message like _"app is damaged and can't be opened"_ or _"Apple cannot check it for malicious software"_.
 
-To fix this, remove the quarantine attribute after extracting the archive:
+To fix this, remove the quarantine attribute after moving the Nightingale.app to Applications:
 
 ```bash
-xattr -cr Nightingale.app
+xattr -cr /Applications/Nightingale.app
 ```
 
 This tells macOS to clear (`-c`) all extended attributes recursively (`-r`) from the app bundle, which removes the `com.apple.quarantine` flag that triggers Gatekeeper. The app itself is safe — it's just not code-signed.
@@ -42,6 +42,7 @@ On first launch, Nightingale will set up its environment automatically:
 This process takes a few minutes and shows a progress screen. After setup completes, Nightingale is ready to use.
 
 <!-- TODO: screenshot of the setup/bootstrap progress screen -->
+
 ![Setup progress](images/setup.png)
 
 ## Adding Music
@@ -59,6 +60,7 @@ Before a song can be played as karaoke, it needs to be analyzed:
 You can also queue multiple songs for batch analysis.
 
 <!-- TODO: screenshot of the song library with a mix of analyzed/queued/not-analyzed songs -->
+
 ![Song library](images/library.png)
 
 ## Force Re-setup
