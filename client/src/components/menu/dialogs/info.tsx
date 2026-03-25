@@ -68,7 +68,7 @@ export const InfoDialog = () => {
                 className={cn(
                   'focus-visible:ring-0 focus-visible:border-transparent',
                   focusedIndex === 0 &&
-                    'outline-2 outline-primary outline-offset-2',
+                  'outline-2 outline-primary outline-offset-2',
                 )}
               >
                 <GithubIcon className="size-4" />
@@ -76,7 +76,7 @@ export const InfoDialog = () => {
               <Button
                 variant="ghost"
                 size="icon-sm"
-                onClick={() => openUrl('https://discord.gg/2s2XGSQQ')}
+                onClick={() => openUrl('https://discord.gg/342GdJDk')}
                 className={cn(
                   'focus-visible:ring-0 focus-visible:border-transparent',
                   focusedIndex === 1 && 'ring-2 ring-primary',
