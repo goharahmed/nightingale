@@ -27,6 +27,8 @@ The Python analyzer uses PyTorch and auto-detects the best backend:
 | MPS | Apple Silicon | macOS; WhisperX alignment falls back to CPU |
 | CPU | Any | Slowest but always works |
 
+<br />
+
 The UVR Karaoke model uses ONNX Runtime and enables CUDA acceleration automatically on NVIDIA GPUs, or CoreML on Apple Silicon.
 
 A song typically takes 2–5 minutes on GPU, 10–20 minutes on CPU.

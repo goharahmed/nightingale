@@ -2,15 +2,15 @@
 
 ## Download
 
-| Platform | Architecture  | Link                                                                                                                                                      |
-| -------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Linux    | x86_64        | [nightingale-x86_64-unknown-linux-gnu.tar.gz](https://github.com/rzru/nightingale/releases/latest/download/nightingale-x86_64-unknown-linux-gnu.tar.gz)   |
-| Linux    | ARM (aarch64) | [nightingale-aarch64-unknown-linux-gnu.tar.gz](https://github.com/rzru/nightingale/releases/latest/download/nightingale-aarch64-unknown-linux-gnu.tar.gz) |
-| macOS    | Apple Silicon | [nightingale-aarch64-apple-darwin.tar.gz](https://github.com/rzru/nightingale/releases/latest/download/nightingale-aarch64-apple-darwin.tar.gz)           |
-| macOS    | Intel         | [nightingale-x86_64-apple-darwin.tar.gz](https://github.com/rzru/nightingale/releases/latest/download/nightingale-x86_64-apple-darwin.tar.gz)             |
-| Windows  | x86_64        | [nightingale-x86_64-pc-windows-msvc.zip](https://github.com/rzru/nightingale/releases/latest/download/nightingale-x86_64-pc-windows-msvc.zip)             |
+| Platform | Format                    | Architectures      |
+| -------- | ------------------------- | ------------------- |
+| Linux    | `.deb`, `.rpm`, `.tar.xz` | x86_64, ARM (arm64) |
+| macOS    | `.dmg`                    | Apple Silicon, Intel |
+| Windows  | Installer `.exe`, Portable `.exe`, `.msi` | x86_64 |
 
-All releases are also available on the [Releases](https://github.com/rzru/nightingale/releases) page.
+<br />
+
+Download the latest version from the [Releases](https://github.com/rzru/nightingale/releases) page.
 
 Supported audio formats: `.mp3`, `.flac`, `.ogg`, `.wav`, `.m4a`, `.aac`, `.wma`.
 
