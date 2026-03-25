@@ -76,7 +76,7 @@ export const InfoDialog = () => {
               <Button
                 variant="ghost"
                 size="icon-sm"
-                onClick={() => openUrl('https://discord.gg/342GdJDk')}
+                onClick={() => openUrl('https://discord.gg/68Vgng9vYp')}
                 className={cn(
                   'focus-visible:ring-0 focus-visible:border-transparent',
                   focusedIndex === 1 && 'ring-2 ring-primary',
