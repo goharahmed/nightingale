@@ -157,7 +157,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
 
     const finalScore = scoreRef.current;
     const active = profileData?.active ?? null;
-    const shouldShowResult = active != null && micUserEnabled && finalScore > 0;
+    const shouldShowResult = finalScore > 0;
 
     if (!shouldShowResult) {
       navigate('/', { replace: true });
@@ -167,8 +167,10 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
 
     void (async () => {
       try {
-        await addScore(fileHash, finalScore);
-        await queryClient.invalidateQueries({ queryKey: PROFILES });
+        if (active != null) {
+          await addScore(fileHash, finalScore);
+          await queryClient.invalidateQueries({ queryKey: PROFILES });
+        }
         setResultScore(finalScore);
         setShowResult(true);
       } catch (e) {
@@ -182,7 +184,6 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
     audio.isFinished,
     skipOutroPending,
     fileHash,
-    micUserEnabled,
     navigate,
     profileData,
     profilesLoading,

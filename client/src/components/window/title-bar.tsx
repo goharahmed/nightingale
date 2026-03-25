@@ -3,6 +3,11 @@ import {
   triggerFrontendReady,
   windowImmersive,
 } from '@/tauri-bridge/window';
+import {
+  isFullScreen as tauriIsFullScreen,
+  setFullScreen,
+} from '@/tauri-bridge/fullScreen';
+import { loadConfig, saveConfig } from '@/tauri-bridge/config';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { MinusIcon, SquareIcon, XIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -14,6 +19,30 @@ export function TauriAppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     triggerFrontendReady();
   }, []);
+
+  useEffect(() => {
+    if (!isTauri) return;
+
+    const onKeyDown = async (e: KeyboardEvent) => {
+      if (e.key !== 'F11') return;
+      e.preventDefault();
+
+      const [current, config] = await Promise.all([
+        tauriIsFullScreen(),
+        loadConfig(),
+      ]);
+
+      const next = !current;
+
+      await Promise.all([
+        setFullScreen(next),
+        saveConfig({ ...config, fullscreen: next }),
+      ]);
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isTauri]);
 
   if (!isTauri) {
     return children;

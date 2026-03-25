@@ -10,7 +10,7 @@ If song analysis fails:
 
 1. Check the error message in the UI for details
 2. Ensure you have enough disk space (~5 GB for models and cache)
-3. Try re-running with `--setup` to reset the vendor environment
+3. Try selecting **Re-run Setup** from the sidebar actions menu to reset the vendor environment
 4. GPU memory errors may occur with very long songs — CPU fallback will be used automatically
 
 ## No Sound

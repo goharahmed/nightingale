@@ -50,7 +50,7 @@ const DEFAULT_SEPARATOR = 'karaoke';
 
 const DEFAULT_BEAM_BATCH_SIZE = 8;
 
-const SETTINGS_STOPS = [2, 1, 1, 1, 16, 16, 1];
+const SETTINGS_STOPS = [2, 1, 1, 1, 16, 16, 2];
 
 const RING = 'ring-2 ring-primary';
 const NO_FOCUS_RING = 'focus-visible:ring-0 focus-visible:border-transparent';
@@ -70,7 +70,7 @@ export const SettingsDialog = () => {
 
   const { isFocused } = useDialogNav({
     open,
-    itemCount: 38,
+    itemCount: 39,
     stops: SETTINGS_STOPS,
     onBack: close,
     containerRef,
@@ -139,7 +139,7 @@ export const SettingsDialog = () => {
                     preferred_mic: value === '__default__' ? null : value,
                   })
                 }
-                defaultValue={config?.preferred_mic ?? '__default__'}
+                value={config?.preferred_mic ?? '__default__'}
               >
                 <SelectTrigger
                   className={cn(NO_FOCUS_RING, isFocused(1) && RING)}
@@ -167,7 +167,7 @@ export const SettingsDialog = () => {
               </FieldDescription>
               <Select
                 onValueChange={(value) => mutate({ separator: value })}
-                defaultValue={config?.separator ?? DEFAULT_SEPARATOR}
+                value={config?.separator ?? DEFAULT_SEPARATOR}
               >
                 <SelectTrigger
                   id="separator-1"
@@ -192,7 +192,7 @@ export const SettingsDialog = () => {
               </FieldDescription>
               <Select
                 onValueChange={(value) => mutate({ whisper_model: value })}
-                defaultValue={config?.whisper_model ?? DEFAULT_MODEL}
+                value={config?.whisper_model ?? DEFAULT_MODEL}
               >
                 <SelectTrigger
                   id="model-1"
@@ -259,9 +259,23 @@ export const SettingsDialog = () => {
           </FieldGroup>
           <DialogFooter>
             <Button
+              variant="ghost"
+              onClick={() =>
+                mutate({
+                  separator: DEFAULT_SEPARATOR,
+                  whisper_model: DEFAULT_MODEL,
+                  beam_size: DEFAULT_BEAM_BATCH_SIZE,
+                  batch_size: DEFAULT_BEAM_BATCH_SIZE,
+                })
+              }
+              className={cn(NO_FOCUS_RING, isFocused(6, 0) && RING)}
+            >
+              Restore Defaults
+            </Button>
+            <Button
               variant="outline"
               onClick={close}
-              className={cn(NO_FOCUS_RING, isFocused(6) && RING)}
+              className={cn(NO_FOCUS_RING, isFocused(6, 1) && RING)}
             >
               Close
             </Button>

@@ -281,8 +281,12 @@ pub fn enqueue_all() {
 pub fn shutdown_server() {
     let pid = SERVER_PID.swap(0, Ordering::SeqCst);
     if pid != 0 {
-        info!("[analyzer] Killing server process (pid={pid}) on app exit");
-        let _ = Command::new("kill").args(["-9", &pid.to_string()]).status();
+        info!("[analyzer] Graceful shutdown of server (pid={pid})");
+        std::thread::spawn(move || {
+            let _ = Command::new("kill").args([&pid.to_string()]).status();
+            std::thread::sleep(std::time::Duration::from_secs(3));
+            let _ = Command::new("kill").args(["-9", &pid.to_string()]).status();
+        });
     }
 }
 

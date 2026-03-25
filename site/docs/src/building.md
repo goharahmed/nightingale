@@ -5,36 +5,28 @@
 | Tool | Version |
 |---|---|
 | Rust | 1.85+ (edition 2024) |
-| Linux only | `libasound2-dev`, `libudev-dev`, `libwayland-dev`, `libxkbcommon-dev` |
+| Node.js | 20+ |
+| pnpm | latest |
+| Linux only | `libwebkit2gtk-4.1-dev`, `libssl-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev`, `libxdo-dev`, `libasound2-dev` |
 
-## Development Build
+## Development
 
 ```bash
 git clone <repo-url> nightingale
 cd nightingale
-cargo build --release
+cargo desktop dev
 ```
 
-## Local Release
+This starts the Tauri development server with hot-reload for the React frontend.
 
-### Linux / macOS
+## Release Build
 
 ```bash
-scripts/make-release.sh
+cargo desktop build
 ```
 
-Builds the release binary and packages it into `nightingale-<target>.tar.gz`.
+Builds the production app bundle for your current platform using Tauri's bundler.
 
-### Windows (PowerShell)
+## Re-running Setup
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/make-release.ps1
-```
-
-Builds the release binary and packages it into `nightingale-x86_64-pc-windows-msvc.zip`.
-
-## CLI Flags
-
-| Flag | Description |
-|---|---|
-| `--setup` | Force re-run of the first-launch bootstrap |
+If something goes wrong with the vendor environment, you can force a fresh setup from the sidebar actions menu inside the app by selecting **Re-run Setup**.

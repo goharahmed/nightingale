@@ -10,6 +10,8 @@ Everything lives under `~/.nightingale/`:
 ~/.nightingale/
 ├── cache/              # Stems, transcripts, lyrics per song
 ├── config.json         # App settings
+├── songs.json          # Persisted song library
+├── analysis_queue.json # Analysis queue state
 ├── profiles.json       # Player profiles and scores
 ├── videos/             # Cached Pixabay video backgrounds
 ├── sounds/             # Sound effects

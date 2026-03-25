@@ -7,9 +7,9 @@ Nightingale's pipeline transforms any audio or video file into a karaoke experie
 <pre class="mermaid">
 flowchart TD
     A["🎵 Audio or video file"] --> B["UVR Karaoke / Demucs"]
-    B --> |"vocals.ogg + instrumental.ogg"| C["LRCLIB"]
+    B --> |"vocals.mp3 + instrumental.mp3"| C["LRCLIB"]
     C --> |"Fetches synced lyrics if available"| D["WhisperX (large-v3)"]
-    D --> |"Transcription + word-level alignment"| E["Bevy App (Rust)"]
+    D --> |"Transcription + word-level alignment"| E["Tauri App (Rust + React)"]
     E --> F["🎤 Plays instrumental + synced lyrics\nwith pitch scoring & backgrounds"]
 </pre>
 

@@ -4,7 +4,7 @@ Nightingale offers 7 background themes during playback, cycled with the `T` key.
 
 ## GPU Shader Backgrounds
 
-Five backgrounds are rendered in real-time using GPU shaders (WGSL):
+Five backgrounds are rendered in real-time using GPU shaders (GLSL):
 
 1. **Plasma** — flowing colorful plasma effect
 2. **Aurora** — northern lights animation

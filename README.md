@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/images/logo.png" alt="Nightingale" width="400">
+  <img src="client/src/assets/images/logo.png" alt="Nightingale" width="400">
 </p>
 
 <p align="center">
@@ -82,25 +82,25 @@ Audio or video file
         │
         ▼
   ┌─────────────────┐
-  │  UVR Karaoke /   │  ──▶  vocals.ogg + instrumental.ogg
-  │  Demucs          │       (extracts audio track from videos)
+  │  UVR Karaoke /  │  ──▶  vocals.mp3 + instrumental.mp3
+  │  Demucs         │       (extracts audio track from videos)
   └─────────────────┘
         │
         ▼
   ┌─────────────────┐
-  │  LRCLIB          │  ──▶  Fetches synced lyrics if available
+  │  LRCLIB         │  ──▶  Fetches synced lyrics if available
   └─────────────────┘
         │
         ▼
   ┌─────────────────┐
-  │  WhisperX        │  ──▶  Transcription + word-level alignment
-  │  (large-v3)      │
+  │  WhisperX       │  ──▶  Transcription + word-level alignment
+  │  (large-v3)     │
   └─────────────────┘
         │
         ▼
   ┌─────────────────┐
-  │  Bevy App        │  ──▶  Plays instrumental + synced lyrics
-  │  (Rust)          │       with pitch scoring & backgrounds
+  │  Tauri App      │  ──▶  Plays instrumental + synced lyrics
+  │  (Rust + React) │       with pitch scoring & backgrounds
   └─────────────────┘       (video files use source video as background)
 ```
 
@@ -128,6 +128,8 @@ Everything lives under `~/.nightingale/`:
 ~/.nightingale/
 ├── cache/              # Stems, transcripts, lyrics per song
 ├── config.json         # App settings
+├── songs.json          # Persisted song library
+├── analysis_queue.json # Analysis queue state
 ├── profiles.json       # Player profiles and scores
 ├── videos/             # Cached Pixabay video backgrounds
 ├── sounds/             # Sound effects (celebration)
@@ -152,8 +154,6 @@ Pixabay video backgrounds use the [Pixabay API](https://pixabay.com/api/docs/). 
 PIXABAY_API_KEY=your_key_here
 ```
 
-The release script (`make-release.sh`) sources `.env` automatically.
-
 ## Building from source
 
 ### Prerequisites
@@ -161,39 +161,23 @@ The release script (`make-release.sh`) sources `.env` automatically.
 | Tool | Version |
 |---|---|
 | Rust | 1.85+ (edition 2024) |
-| Linux only | `libasound2-dev`, `libudev-dev`, `libwayland-dev`, `libxkbcommon-dev` |
+| Node.js | 20+ |
+| pnpm | latest |
+| Linux only | `libwebkit2gtk-4.1-dev`, `libssl-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev`, `libxdo-dev`, `libasound2-dev` |
 
-### Development build
+### Development
 
 ```bash
 git clone <repo-url> nightingale
 cd nightingale
-cargo build --release
+cargo desktop dev
 ```
 
-### Local release
-
-**Linux / macOS:**
+### Release build
 
 ```bash
-scripts/make-release.sh
+cargo desktop build
 ```
-
-Builds the release binary and packages it into `nightingale-<target>.tar.gz`.
-
-**Windows (PowerShell):**
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/make-release.ps1
-```
-
-Builds the release binary and packages it into `nightingale-x86_64-pc-windows-msvc.zip`.
-
-### CLI flags
-
-| Flag | Description |
-|---|---|
-| `--setup` | Force re-run of the first-launch bootstrap |
 
 ## Supported platforms
 

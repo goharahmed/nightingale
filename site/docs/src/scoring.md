@@ -16,10 +16,15 @@ At the end of each song, you receive a star rating based on your overall pitch a
 <!-- TODO: screenshot of the end-of-song results screen with star rating -->
 ![Star rating](images/stars.png)
 
+## Results
+
+The results screen appears at the end of a song whenever your score is above 0. If an active profile is set, the score is saved to the leaderboard.
+
 ## Microphone Selection
 
 - Press `M` to toggle the microphone on/off
 - Press `N` to cycle through available microphones
+- You can also select a preferred microphone in **Settings**
 - The active microphone is shown in the HUD during playback
 
 ## Per-Song Scoreboards

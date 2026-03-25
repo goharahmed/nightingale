@@ -63,8 +63,4 @@ You can also queue multiple songs for batch analysis.
 
 ## Force Re-setup
 
-If something goes wrong with the vendor environment, you can force a fresh setup:
-
-```bash
-nightingale --setup
-```
+If something goes wrong with the vendor environment, you can force a fresh setup from within the app: open the sidebar actions menu and select **Re-run Setup**.
