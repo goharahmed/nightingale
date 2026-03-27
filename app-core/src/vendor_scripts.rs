@@ -10,7 +10,6 @@ const AUDIO_PY: &str = include_str!("../analyzer/audio.py");
 const HALLUCINATION_PY: &str = include_str!("../analyzer/hallucination.py");
 const LANGUAGE_PY: &str = include_str!("../analyzer/language.py");
 const WHISPER_COMPAT_PY: &str = include_str!("../analyzer/whisper_compat.py");
-const REQUIREMENTS_TXT: &str = include_str!("../analyzer/requirements.txt");
 
 const FILES: &[(&str, &str)] = &[
     ("analyze.py", ANALYZE_PY),
@@ -23,13 +22,14 @@ const FILES: &[(&str, &str)] = &[
     ("hallucination.py", HALLUCINATION_PY),
     ("language.py", LANGUAGE_PY),
     ("whisper_compat.py", WHISPER_COMPAT_PY),
-    ("requirements.txt", REQUIREMENTS_TXT),
 ];
 
 pub fn write_scripts(dir: &Path) -> std::io::Result<()> {
     std::fs::create_dir_all(dir)?;
+
     for (name, content) in FILES {
         std::fs::write(dir.join(name), content)?;
     }
+
     Ok(())
 }
