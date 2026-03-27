@@ -428,7 +428,7 @@ fn query_cuda_index(nvidia_smi: &str) -> &'static str {
 
     match major {
         Some(v) if v >= 10 => "https://download.pytorch.org/whl/cu128",
-        Some(_) => "https://download.pytorch.org/whl/cu121",
+        Some(_) => "https://download.pytorch.org/whl/cu126",
         None => {
             info!("[vendor] Could not query compute capability, falling back to cu126");
             "https://download.pytorch.org/whl/cu126"
