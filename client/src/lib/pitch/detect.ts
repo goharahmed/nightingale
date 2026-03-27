@@ -1,4 +1,4 @@
-import { PitchDetector } from 'pitchy';
+import { PitchDetector } from "pitchy";
 
 import {
   MAX_PITCH_HZ,
@@ -8,7 +8,7 @@ import {
   PITCH_CLARITY_THRESHOLD,
   PITCH_WINDOW_SAMPLES,
   REF_RMS_GATE,
-} from './constants';
+} from "./constants";
 
 function rms(samples: ArrayLike<number>): number {
   if (samples.length === 0) return 0;

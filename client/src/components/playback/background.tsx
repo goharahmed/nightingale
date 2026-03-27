@@ -1,14 +1,9 @@
-import type { TimeSubscriber } from '@/hooks/use-audio-player';
-import { loadingFragment, shaders } from './shaders';
-import { ShaderVisualizer } from './shader-visualizer';
-import {
-  FLAVORS,
-  PixabayVideo,
-  SourceVideo,
-  type VideoFlavor,
-} from './video-background';
+import type { TimeSubscriber } from "@/hooks/use-audio-player";
+import { loadingFragment, shaders } from "./shaders";
+import { ShaderVisualizer } from "./shader-visualizer";
+import { FLAVORS, PixabayVideo, SourceVideo, type VideoFlavor } from "./video-background";
 
-export type ThemeMode = 'shader' | 'pixabay' | 'source';
+export type ThemeMode = "shader" | "pixabay" | "source";
 
 export interface BackgroundProps {
   themeIndex: number;
@@ -26,24 +21,24 @@ export const SOURCE_VIDEO_INDEX = SHADER_COUNT + 1;
 
 export function themeMode(index: number): ThemeMode {
   if (index === PIXABAY_INDEX) {
-    return 'pixabay';
+    return "pixabay";
   }
 
   if (index === SOURCE_VIDEO_INDEX) {
-    return 'source';
+    return "source";
   }
 
-  return 'shader';
+  return "shader";
 }
 
 export function themeName(index: number, videoFlavor: VideoFlavor): string {
   const mode = themeMode(index);
 
-  if (mode === 'source') {
-    return 'Source Video';
+  if (mode === "source") {
+    return "Source Video";
   }
 
-  if (mode === 'pixabay') {
+  if (mode === "pixabay") {
     const name = videoFlavor.charAt(0).toUpperCase() + videoFlavor.slice(1);
 
     return `Video — ${name}`;
@@ -56,10 +51,7 @@ export function themeCount(hasSourceVideo: boolean): number {
   return SHADER_COUNT + 1 + (hasSourceVideo ? 1 : 0);
 }
 
-export function nextThemeIndex(
-  current: number,
-  hasSourceVideo: boolean,
-): number {
+export function nextThemeIndex(current: number, hasSourceVideo: boolean): number {
   return (current + 1) % themeCount(hasSourceVideo);
 }
 
@@ -78,30 +70,18 @@ function backgroundContent(
     videoFlavor: VideoFlavor;
     sourceVideoPath?: string;
     isPlaying: boolean;
-    subscribe: BackgroundProps['subscribe'];
-    getCurrentTime: BackgroundProps['getCurrentTime'];
+    subscribe: BackgroundProps["subscribe"];
+    getCurrentTime: BackgroundProps["getCurrentTime"];
   },
 ) {
-  const {
-    themeIndex,
-    videoFlavor,
-    sourceVideoPath,
-    isPlaying,
-    subscribe,
-    getCurrentTime,
-  } = props;
+  const { themeIndex, videoFlavor, sourceVideoPath, isPlaying, subscribe, getCurrentTime } = props;
 
   switch (mode) {
-    case 'shader':
-      return (
-        <ShaderVisualizer
-          shaderIndex={themeIndex % SHADER_COUNT}
-          isPlaying={isPlaying}
-        />
-      );
-    case 'pixabay':
+    case "shader":
+      return <ShaderVisualizer shaderIndex={themeIndex % SHADER_COUNT} isPlaying={isPlaying} />;
+    case "pixabay":
       return <PixabayVideo flavor={videoFlavor} isPlaying={isPlaying} />;
-    case 'source':
+    case "source":
       if (!sourceVideoPath) {
         return null;
       }
@@ -130,11 +110,7 @@ export const Background = ({
   if (!isReady) {
     return (
       <div className="fixed inset-0">
-        <ShaderVisualizer
-          shaderIndex={0}
-          isPlaying={true}
-          customFragment={loadingFragment}
-        />
+        <ShaderVisualizer shaderIndex={0} isPlaying={true} customFragment={loadingFragment} />
       </div>
     );
   }

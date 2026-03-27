@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from "react";
 
 const STICK_DEADZONE = 0.5;
 const STICK_INITIAL_DELAY = 0.4;
 const STICK_REPEAT_RATE = 0.08;
 
-type StickAxis = 'up' | 'down' | 'left' | 'right';
+type StickAxis = "up" | "down" | "left" | "right";
 
 interface RepeatState {
   axis: StickAxis | null;
@@ -120,9 +120,9 @@ export function useGamepad(onSnapshot: (snap: GamepadSnapshot) => void) {
         if (Math.abs(y) > STICK_DEADZONE || Math.abs(x) > STICK_DEADZONE) {
           // Vertical priority when both exceed deadzone
           if (Math.abs(y) >= Math.abs(x)) {
-            stickDir = y < 0 ? 'up' : 'down';
+            stickDir = y < 0 ? "up" : "down";
           } else {
-            stickDir = x < 0 ? 'left' : 'right';
+            stickDir = x < 0 ? "left" : "right";
           }
         }
       }
@@ -131,16 +131,16 @@ export function useGamepad(onSnapshot: (snap: GamepadSnapshot) => void) {
     }
 
     let dpadDir: StickAxis | null = null;
-    if (gpUpHeld) dpadDir = 'up';
-    else if (gpDownHeld) dpadDir = 'down';
-    else if (gpLeftHeld) dpadDir = 'left';
-    else if (gpRightHeld) dpadDir = 'right';
+    if (gpUpHeld) dpadDir = "up";
+    else if (gpDownHeld) dpadDir = "down";
+    else if (gpLeftHeld) dpadDir = "left";
+    else if (gpRightHeld) dpadDir = "right";
 
     const dpad = tickRepeat(dpadRepeat.current, dpadDir, dt);
     const stick = tickRepeat(stickRepeat.current, stickDir, dt);
 
-    const stickUpHeld = stickDir === 'up';
-    const stickDownHeld = stickDir === 'down';
+    const stickUpHeld = stickDir === "up";
+    const stickDownHeld = stickDir === "down";
 
     const snap: GamepadSnapshot = {
       up: dpad.up || stick.up,

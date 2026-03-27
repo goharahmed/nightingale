@@ -1,10 +1,10 @@
-import type { MicrophoneInfo } from '@/types/MicrophoneInfo';
+import type { MicrophoneInfo } from "@/types/MicrophoneInfo";
 import {
   listMicrophones as tauriListMicrophones,
   onMicPitch as tauriOnMicPitch,
   startMicCapture as tauriStartMicCapture,
   stopMicCapture as tauriStopMicCapture,
-} from '@/tauri-bridge/microphone';
+} from "@/tauri-bridge/microphone";
 
 export type StopListening = () => void;
 

@@ -1,5 +1,6 @@
 use std::{path::PathBuf, process::Command};
 
+#[allow(unused_imports)]
 use tracing::info;
 
 use crate::{cache::nightingale_dir, vendor_scripts};
@@ -13,7 +14,8 @@ pub fn vendor_dir() -> PathBuf {
 pub fn clear_vendor_dir() -> Result<(), String> {
     let dir = vendor_dir();
     if dir.is_dir() {
-        std::fs::remove_dir_all(&dir).map_err(|e| format!("Failed to clear vendor directory: {e}"))?;
+        std::fs::remove_dir_all(&dir)
+            .map_err(|e| format!("Failed to clear vendor directory: {e}"))?;
     }
     Ok(())
 }

@@ -1,19 +1,19 @@
-import { ExitDialog } from '@/components/menu/dialogs/exit';
-import { InfoDialog } from '@/components/menu/dialogs/info';
-import { SelectLanguageDialog } from '@/components/menu/dialogs/language';
-import { CreateProfileDialog } from '@/components/menu/dialogs/profile/create';
-import { SelectProfileDialog } from '@/components/menu/dialogs/profile/select';
-import { SettingsDialog } from '@/components/menu/dialogs/settings';
-import { Sidebar } from '@/components/menu/sidebar/sidebar';
-import { EmptySongList } from '@/components/menu/song-list/empty-song-list';
-import { SongList } from '@/components/menu/song-list/song-list';
-import { SidebarInset } from '@/components/ui/sidebar';
-import { MenuFocusProvider } from '@/contexts/menu-focus-context';
-import { useMenuNav } from '@/hooks/navigation/use-menu-nav';
-import { useDialog } from '@/hooks/use-dialog';
-import { useShouldRunSetup } from '@/hooks/use-should-run-setup';
-import { useSongsMeta } from '@/queries/use-songs';
-import { ReactElement, useCallback } from 'react';
+import { ExitDialog } from "@/components/menu/dialogs/exit";
+import { InfoDialog } from "@/components/menu/dialogs/info";
+import { SelectLanguageDialog } from "@/components/menu/dialogs/language";
+import { CreateProfileDialog } from "@/components/menu/dialogs/profile/create";
+import { SelectProfileDialog } from "@/components/menu/dialogs/profile/select";
+import { SettingsDialog } from "@/components/menu/dialogs/settings";
+import { Sidebar } from "@/components/menu/sidebar/sidebar";
+import { EmptySongList } from "@/components/menu/song-list/empty-song-list";
+import { SongList } from "@/components/menu/song-list/song-list";
+import { SidebarInset } from "@/components/ui/sidebar";
+import { MenuFocusProvider } from "@/contexts/menu-focus-context";
+import { useMenuNav } from "@/hooks/navigation/use-menu-nav";
+import { useDialog } from "@/hooks/use-dialog";
+import { useShouldRunSetup } from "@/hooks/use-should-run-setup";
+import { useSongsMeta } from "@/queries/use-songs";
+import { ReactElement, useCallback } from "react";
 
 const MenuInner = () => {
   const { data: meta, isLoading: isLoadingMeta } = useSongsMeta();
@@ -25,10 +25,10 @@ const MenuInner = () => {
   const onBack = useCallback(() => {
     setMode((prev) => {
       if (prev === null) {
-        return 'exit';
+        return "exit";
       }
 
-      if (prev === 'exit') {
+      if (prev === "exit") {
         return null;
       }
 

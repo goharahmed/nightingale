@@ -1,19 +1,15 @@
-import {
-  useInfiniteQuery,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
-import { ANALYSIS_QUEUE, SONGS, SONGS_META } from './keys';
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ANALYSIS_QUEUE, SONGS, SONGS_META } from "./keys";
 import {
   getPreloadedSongsMeta,
   loadAnalysisQueue,
   loadSongs,
   loadSongsMeta,
-} from '@/tauri-bridge/songs';
-import { useSearch } from '@/hooks/use-search';
-import { useRef, useState } from 'react';
-import type { AnalysisQueue } from '@/types/AnalysisQueue';
-import { SongsMeta } from '@/types/SongsMeta';
+} from "@/tauri-bridge/songs";
+import { useSearch } from "@/hooks/use-search";
+import { useRef, useState } from "react";
+import type { AnalysisQueue } from "@/types/AnalysisQueue";
+import { SongsMeta } from "@/types/SongsMeta";
 
 const PAGE_SIZE = 25;
 const DEFAULT_REFETCH_INTERVAL = 2500;
@@ -47,13 +43,9 @@ export const useSongs = () => {
 
   return useInfiniteQuery({
     queryKey: [...SONGS, search],
-    queryFn: ({ pageParam = 0 }) =>
-      loadSongs(search || undefined, pageParam, PAGE_SIZE),
+    queryFn: ({ pageParam = 0 }) => loadSongs(search || undefined, pageParam, PAGE_SIZE),
     getNextPageParam: (lastPage, allPages) => {
-      const loaded = allPages.reduce(
-        (sum, page) => sum + page.processed.length,
-        0,
-      );
+      const loaded = allPages.reduce((sum, page) => sum + page.processed.length, 0);
       return loaded < lastPage.processed_count ? loaded : undefined;
     },
   });

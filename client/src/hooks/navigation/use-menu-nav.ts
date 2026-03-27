@@ -1,6 +1,6 @@
-import { useMenuFocus } from '@/contexts/menu-focus-context';
-import { useNavInput } from './use-nav-input';
-import { useCallback, useEffect, useRef } from 'react';
+import { useMenuFocus } from "@/contexts/menu-focus-context";
+import { useNavInput } from "./use-nav-input";
+import { useCallback, useEffect, useRef } from "react";
 
 const NAV_LOCK_MS = 120;
 const BORDER_PADDING = 3;
@@ -11,8 +11,7 @@ interface UseMenuNavOptions {
 }
 
 export function useMenuNav({ overlayOpen, onBack }: UseMenuNavOptions) {
-  const { setFocus, activate, deactivate, actionsRef, scrollRef } =
-    useMenuFocus();
+  const { setFocus, activate, deactivate, actionsRef, scrollRef } = useMenuFocus();
 
   const onBackRef = useRef(onBack);
   onBackRef.current = onBack;
@@ -32,14 +31,14 @@ export function useMenuNav({ overlayOpen, onBack }: UseMenuNavOptions) {
       deactivate();
     };
 
-    window.addEventListener('mousemove', onMouseMove);
-    return () => window.removeEventListener('mousemove', onMouseMove);
+    window.addEventListener("mousemove", onMouseMove);
+    return () => window.removeEventListener("mousemove", onMouseMove);
   }, [deactivate]);
 
   // Tab key for panel switching (not routed through NavInput)
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Tab' || overlayOpenRef.current) return;
+      if (event.key !== "Tab" || overlayOpenRef.current) return;
       event.preventDefault();
 
       activate();
@@ -54,12 +53,12 @@ export function useMenuNav({ overlayOpen, onBack }: UseMenuNavOptions) {
         ...prev,
         active: true,
         analyzeAllFocused: false,
-        panel: prev.panel === 'songList' ? 'sidebar' : 'songList',
+        panel: prev.panel === "songList" ? "sidebar" : "songList",
       }));
     };
 
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, [activate, setFocus]);
 
   const scrollToSong = useCallback(
@@ -69,8 +68,7 @@ export function useMenuNav({ overlayOpen, onBack }: UseMenuNavOptions) {
         return;
       }
 
-      const cards =
-        container.querySelectorAll<HTMLElement>('[data-song-index]');
+      const cards = container.querySelectorAll<HTMLElement>("[data-song-index]");
 
       for (const card of cards) {
         const cardIndex = Number(card.dataset.songIndex);
@@ -86,8 +84,7 @@ export function useMenuNav({ overlayOpen, onBack }: UseMenuNavOptions) {
         if (cardTop < container.scrollTop) {
           container.scrollTop = cardTop - BORDER_PADDING;
         } else if (cardBottom > container.scrollTop + containerRect.height) {
-          container.scrollTop =
-            cardBottom - containerRect.height + BORDER_PADDING;
+          container.scrollTop = cardBottom - containerRect.height + BORDER_PADDING;
         }
         break;
       }
@@ -100,8 +97,7 @@ export function useMenuNav({ overlayOpen, onBack }: UseMenuNavOptions) {
       (action) => {
         if (overlayOpenRef.current) return;
 
-        const hasDirection =
-          action.up || action.down || action.left || action.right;
+        const hasDirection = action.up || action.down || action.left || action.right;
         const hasAny = hasDirection || action.confirm || action.back;
 
         if (!hasAny) return;
@@ -134,13 +130,13 @@ export function useMenuNav({ overlayOpen, onBack }: UseMenuNavOptions) {
               confirmHandledRef.current = false;
             });
 
-            if (prev.panel === 'songList') {
+            if (prev.panel === "songList") {
               if (prev.analyzeAllFocused) {
                 actionsRef.current.onConfirmAnalyzeAll?.();
               } else {
                 actionsRef.current.onConfirmSong?.(prev.songIndex);
               }
-            } else if (prev.panel === 'sidebar') {
+            } else if (prev.panel === "sidebar") {
               actionsRef.current.onConfirmSidebar?.(prev.sidebarIndex);
             }
 
@@ -153,7 +149,7 @@ export function useMenuNav({ overlayOpen, onBack }: UseMenuNavOptions) {
         if (action.left) {
           setFocus((prev) => ({
             ...prev,
-            panel: 'sidebar',
+            panel: "sidebar",
             analyzeAllFocused: false,
             active: true,
           }));
@@ -161,7 +157,7 @@ export function useMenuNav({ overlayOpen, onBack }: UseMenuNavOptions) {
         }
 
         if (action.right) {
-          setFocus((prev) => ({ ...prev, panel: 'songList', active: true }));
+          setFocus((prev) => ({ ...prev, panel: "songList", active: true }));
           return;
         }
 
@@ -170,7 +166,7 @@ export function useMenuNav({ overlayOpen, onBack }: UseMenuNavOptions) {
           setFocus((prev) => {
             const next = { ...prev, active: true };
 
-            if (prev.panel === 'songList') {
+            if (prev.panel === "songList") {
               const songCount = actionsRef.current.songCount;
 
               if (prev.analyzeAllFocused) {
@@ -192,16 +188,13 @@ export function useMenuNav({ overlayOpen, onBack }: UseMenuNavOptions) {
                   scrollToSong(prev.songIndex + 1);
                 }
               }
-            } else if (prev.panel === 'sidebar') {
+            } else if (prev.panel === "sidebar") {
               const sidebarCount = actionsRef.current.sidebarCount;
 
               if (action.up) {
                 next.sidebarIndex = Math.max(0, prev.sidebarIndex - 1);
               } else if (action.down) {
-                next.sidebarIndex = Math.min(
-                  sidebarCount - 1,
-                  prev.sidebarIndex + 1,
-                );
+                next.sidebarIndex = Math.min(sidebarCount - 1, prev.sidebarIndex + 1);
               }
             }
 

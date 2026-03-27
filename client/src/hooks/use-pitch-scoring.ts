@@ -1,9 +1,6 @@
-import type { AudioPlayer } from '@/hooks/use-audio-player';
-import { PITCH_WINDOW_SAMPLES } from '@/lib/pitch/constants';
-import {
-  createPitchDetector,
-  detectPitchFromSamplesRef,
-} from '@/lib/pitch/detect';
+import type { AudioPlayer } from "@/hooks/use-audio-player";
+import { PITCH_WINDOW_SAMPLES } from "@/lib/pitch/constants";
+import { createPitchDetector, detectPitchFromSamplesRef } from "@/lib/pitch/detect";
 import {
   computeSingableTime,
   PitchScoring,
@@ -11,8 +8,8 @@ import {
   PitchStateBuffer,
   pitchSimilarity,
   sampleVocalsWindow,
-} from '@/lib/pitch/state';
-import { useEffect, useRef, useState } from 'react';
+} from "@/lib/pitch/state";
+import { useEffect, useRef, useState } from "react";
 
 export function usePitchScoring(audio: AudioPlayer, micPitch: number | null) {
   const refDetector = useRef(createPitchDetector());
@@ -66,8 +63,7 @@ export function usePitchScoring(audio: AudioPlayer, micPitch: number | null) {
           scratchRef.current,
           vocals.sampleRate,
         );
-        const sim =
-          refHz != null && mp != null ? pitchSimilarity(refHz, mp) : 0;
+        const sim = refHz != null && mp != null ? pitchSimilarity(refHz, mp) : 0;
         bufferRef.current.tryPush(refHz, mp, sim, t);
         scoringRef.current.accumulate(t, refHz, mp, sim);
       }

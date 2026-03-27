@@ -1,8 +1,8 @@
-import { AppConfig } from '@/types/AppConfig';
-import { invoke } from '@tauri-apps/api/core';
+import { AppConfig } from "@/types/AppConfig";
+import { invoke } from "@tauri-apps/api/core";
 
 export function getPreloadedConfig(): AppConfig | undefined {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     return undefined;
   }
 
@@ -10,9 +10,9 @@ export function getPreloadedConfig(): AppConfig | undefined {
 }
 
 export const loadConfig = async (): Promise<AppConfig> => {
-  return await invoke<AppConfig>('load_config');
+  return await invoke<AppConfig>("load_config");
 };
 
 export const saveConfig = async (config: AppConfig): Promise<void> => {
-  return await invoke<void>('save_config', { config });
+  return await invoke<void>("save_config", { config });
 };

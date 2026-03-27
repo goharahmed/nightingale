@@ -1,14 +1,14 @@
-import { ANALYSIS_QUEUE, SONGS, SONGS_META } from '@/queries/keys';
+import { ANALYSIS_QUEUE, SONGS, SONGS_META } from "@/queries/keys";
 import {
   deleteSongCache,
   enqueueAll,
   enqueueOne,
   reanalyzeFull,
   reanalyzeTranscript,
-} from '@/tauri-bridge/analysis';
-import { useQueryClient } from '@tanstack/react-query';
-import { useMemo } from 'react';
-import { toast } from 'sonner';
+} from "@/tauri-bridge/analysis";
+import { useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { toast } from "sonner";
 
 export const useAnalysis = () => {
   const queryClient = useQueryClient();
@@ -25,17 +25,14 @@ export const useAnalysis = () => {
     };
 
     const wrap =
-      <A extends unknown[]>(
-        handler: (...args: A) => Promise<void>,
-        invalidate: () => void,
-      ) =>
+      <A extends unknown[]>(handler: (...args: A) => Promise<void>, invalidate: () => void) =>
       async (...args: A) => {
         try {
           await handler(...args);
           invalidate();
         } catch (error: unknown) {
           toast.error(
-            `Error while running an analysis action: ${error instanceof Error ? error.message : 'unknown error'}`,
+            `Error while running an analysis action: ${error instanceof Error ? error.message : "unknown error"}`,
           );
         }
       };

@@ -1,6 +1,6 @@
-import { getPreloadedConfig, loadConfig } from '@/tauri-bridge/config';
-import { useQuery } from '@tanstack/react-query';
-import { CONFIG } from './keys';
+import { getPreloadedConfig, loadConfig } from "@/tauri-bridge/config";
+import { useQuery } from "@tanstack/react-query";
+import { CONFIG } from "./keys";
 
 export const useConfig = () => {
   const preloaded = getPreloadedConfig();

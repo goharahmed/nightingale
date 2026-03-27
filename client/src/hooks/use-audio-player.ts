@@ -8,9 +8,9 @@
  * pair because BufferSourceNode is one-shot: pause/seek recreate sources rather than mutating time.
  */
 
-import type { PlaybackAdapter } from '@/adapters/playback';
-import { joinMediaUrl, tauriPlaybackAdapter } from '@/adapters/playback';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { PlaybackAdapter } from "@/adapters/playback";
+import { joinMediaUrl, tauriPlaybackAdapter } from "@/adapters/playback";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type TimeSubscriber = (time: number) => void;
 
@@ -73,9 +73,7 @@ export function useAudioPlayer(
       return currentTimeRef.current;
     }
 
-    return (
-      startOffsetRef.current + (ctx.currentTime - startContextTimeRef.current)
-    );
+    return startOffsetRef.current + (ctx.currentTime - startContextTimeRef.current);
   }, []);
 
   const subscribe = useCallback((fn: TimeSubscriber) => {
@@ -134,11 +132,7 @@ export function useAudioPlayer(
       vocSrc.connect(gainNode);
 
       instSrc.onended = () => {
-        if (
-          !cancelledRef.current &&
-          playingRef.current &&
-          instrumentalSrcRef.current === instSrc
-        ) {
+        if (!cancelledRef.current && playingRef.current && instrumentalSrcRef.current === instSrc) {
           playingRef.current = false;
 
           setIsFinished(true);
@@ -211,7 +205,7 @@ export function useAudioPlayer(
           return;
         }
 
-        if (ctx.state === 'suspended') {
+        if (ctx.state === "suspended") {
           await ctx.resume();
         }
 
@@ -250,8 +244,7 @@ export function useAudioPlayer(
       if (playingRef.current && ctxRef.current) {
         const now = performance.now();
         const t =
-          startOffsetRef.current +
-          (ctxRef.current.currentTime - startContextTimeRef.current);
+          startOffsetRef.current + (ctxRef.current.currentTime - startContextTimeRef.current);
         currentTimeRef.current = t;
 
         if (now - lastNotify >= NOTIFY_INTERVAL) {
@@ -275,14 +268,7 @@ export function useAudioPlayer(
       ctx.close();
       ctxRef.current = null;
     };
-  }, [
-    adapter,
-    enabled,
-    fileHash,
-    initialGuideVolume,
-    startSources,
-    stopSources,
-  ]);
+  }, [adapter, enabled, fileHash, initialGuideVolume, startSources, stopSources]);
 
   const play = useCallback(() => {
     startSources(startOffsetRef.current);

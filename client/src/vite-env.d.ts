@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
-import type { AppConfig } from './types/AppConfig';
-import type { SongsMeta } from './types/SongsMeta';
+import type { AppConfig } from "./types/AppConfig";
+import type { SongsMeta } from "./types/SongsMeta";
 
 declare global {
   interface Window {

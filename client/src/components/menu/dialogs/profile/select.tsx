@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogClose,
@@ -6,14 +6,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Field, FieldGroup } from '@/components/ui/field';
-import { Label } from '@/components/ui/label';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+} from "@/components/ui/dialog";
+import { Field, FieldGroup } from "@/components/ui/field";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -22,20 +18,20 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { useCurrentProfile } from '@/hooks/use-current-profile';
-import { useDialog } from '@/hooks/use-dialog';
-import { useDialogNav } from '@/hooks/navigation/use-dialog-nav';
-import { useProfileMutations } from '@/mutations/use-profile-mutations';
-import { useProfiles } from '@/queries/use-profiles';
-import { useRef, useState } from 'react';
-import { cn } from '@/lib/utils';
+} from "@/components/ui/select";
+import { useCurrentProfile } from "@/hooks/use-current-profile";
+import { useDialog } from "@/hooks/use-dialog";
+import { useDialogNav } from "@/hooks/navigation/use-dialog-nav";
+import { useProfileMutations } from "@/mutations/use-profile-mutations";
+import { useProfiles } from "@/queries/use-profiles";
+import { useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 
 export const SelectProfileDialog = () => {
   const { data } = useProfiles();
   const currentProfile = useCurrentProfile();
   const { mode, close, setMode } = useDialog();
-  const open = mode === 'select-profile';
+  const open = mode === "select-profile";
   const { mutateAsync } = useProfileMutations();
 
   const [newProfile, setNewProfile] = useState(currentProfile);
@@ -68,8 +64,8 @@ export const SelectProfileDialog = () => {
                 <SelectTrigger
                   id="model-1"
                   className={cn(
-                    'focus-visible:ring-0 focus-visible:border-transparent',
-                    focusedIndex === 0 && 'ring-2 ring-primary',
+                    "focus-visible:ring-0 focus-visible:border-transparent",
+                    focusedIndex === 0 && "ring-2 ring-primary",
                   )}
                 >
                   <SelectValue placeholder="Select a profile" />
@@ -91,8 +87,8 @@ export const SelectProfileDialog = () => {
                 variant="outline"
                 onClick={close}
                 className={cn(
-                  'focus-visible:ring-0 focus-visible:border-transparent',
-                  focusedIndex === 1 && 'ring-2 ring-primary',
+                  "focus-visible:ring-0 focus-visible:border-transparent",
+                  focusedIndex === 1 && "ring-2 ring-primary",
                 )}
               >
                 Cancel
@@ -100,27 +96,22 @@ export const SelectProfileDialog = () => {
             </DialogClose>
             <Button
               variant="outline"
-              onClick={() => setMode('create-profile')}
+              onClick={() => setMode("create-profile")}
               className={cn(
-                'focus-visible:ring-0 focus-visible:border-transparent',
-                focusedIndex === 2 && 'ring-2 ring-primary',
+                "focus-visible:ring-0 focus-visible:border-transparent",
+                focusedIndex === 2 && "ring-2 ring-primary",
               )}
             >
               Create New
             </Button>
-            <Popover
-              open={deleteConfirmationOpen}
-              onOpenChange={setDeleteConfirmationOpen}
-            >
+            <Popover open={deleteConfirmationOpen} onOpenChange={setDeleteConfirmationOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="destructive"
-                  onClick={() =>
-                    setDeleteConfirmationOpen(!deleteConfirmationOpen)
-                  }
+                  onClick={() => setDeleteConfirmationOpen(!deleteConfirmationOpen)}
                   className={cn(
-                    'focus-visible:ring-0 focus-visible:border-transparent',
-                    focusedIndex === 3 && 'ring-2 ring-primary',
+                    "focus-visible:ring-0 focus-visible:border-transparent",
+                    focusedIndex === 3 && "ring-2 ring-primary",
                   )}
                 >
                   Delete
@@ -146,7 +137,7 @@ export const SelectProfileDialog = () => {
                         return setDeleteConfirmationOpen(false);
                       }
 
-                      await mutateAsync({ name: newProfile, type: 'delete' });
+                      await mutateAsync({ name: newProfile, type: "delete" });
                       setDeleteConfirmationOpen(false);
                       close();
                     }}
@@ -163,12 +154,12 @@ export const SelectProfileDialog = () => {
                   return close();
                 }
 
-                await mutateAsync({ name: newProfile, type: 'switch' });
+                await mutateAsync({ name: newProfile, type: "switch" });
                 close();
               }}
               className={cn(
-                'focus-visible:ring-0 focus-visible:border-transparent',
-                focusedIndex === 4 && 'ring-2 ring-primary',
+                "focus-visible:ring-0 focus-visible:border-transparent",
+                focusedIndex === 4 && "ring-2 ring-primary",
               )}
             >
               Select

@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogClose,
@@ -7,15 +7,15 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Field, FieldGroup } from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useDialog } from '@/hooks/use-dialog';
-import { useDialogNav } from '@/hooks/navigation/use-dialog-nav';
-import { useProfileMutations } from '@/mutations/use-profile-mutations';
-import { useRef, useState } from 'react';
-import { cn } from '@/lib/utils';
+} from "@/components/ui/dialog";
+import { Field, FieldGroup } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useDialog } from "@/hooks/use-dialog";
+import { useDialogNav } from "@/hooks/navigation/use-dialog-nav";
+import { useProfileMutations } from "@/mutations/use-profile-mutations";
+import { useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 
 export const CreateProfileDialog = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -25,7 +25,7 @@ export const CreateProfileDialog = () => {
   const { mode, close } = useDialog();
   const { mutateAsync } = useProfileMutations();
 
-  const open = mode === 'create-profile';
+  const open = mode === "create-profile";
 
   const { focusedIndex } = useDialogNav({
     open,
@@ -52,7 +52,7 @@ export const CreateProfileDialog = () => {
                 name="name"
                 onChange={({ target: { value } }) => setName(value)}
                 className={cn(
-                  'focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-transparent',
+                  "focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-transparent",
                 )}
               />
             </Field>
@@ -67,8 +67,8 @@ export const CreateProfileDialog = () => {
                   variant="outline"
                   onClick={close}
                   className={cn(
-                    'focus-visible:ring-0 focus-visible:border-transparent',
-                    focusedIndex === 0 && 'ring-2 ring-primary',
+                    "focus-visible:ring-0 focus-visible:border-transparent",
+                    focusedIndex === 0 && "ring-2 ring-primary",
                   )}
                 >
                   Cancel
@@ -82,12 +82,12 @@ export const CreateProfileDialog = () => {
                     return close();
                   }
 
-                  await mutateAsync({ name, type: 'create' });
+                  await mutateAsync({ name, type: "create" });
                   close();
                 }}
                 className={cn(
-                  'focus-visible:ring-0 focus-visible:border-transparent',
-                  focusedIndex === 1 && 'ring-2 ring-primary',
+                  "focus-visible:ring-0 focus-visible:border-transparent",
+                  focusedIndex === 1 && "ring-2 ring-primary",
                 )}
               >
                 Create

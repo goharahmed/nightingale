@@ -1,5 +1,5 @@
-import { Button } from '@/components/ui/button';
-import { ButtonGroup } from '@/components/ui/button-group';
+import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import {
   Dialog,
   DialogContent,
@@ -7,9 +7,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Field, FieldDescription, FieldGroup } from '@/components/ui/field';
-import { Label } from '@/components/ui/label';
+} from "@/components/ui/dialog";
+import { Field, FieldDescription, FieldGroup } from "@/components/ui/field";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -18,42 +18,32 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { useEffect, useRef, useState } from 'react';
-import { useDialogNav } from '@/hooks/navigation/use-dialog-nav';
-import {
-  setFullScreen,
-  isFullScreen as tauriIsFullScreen,
-} from '@/tauri-bridge/fullScreen';
-import { useDialog } from '@/hooks/use-dialog';
-import { useConfig } from '@/queries/use-config';
-import { useConfigMutation } from '@/mutations/use-config-mutation';
-import { useMicDevices } from '@/hooks/use-mic-pitch';
-import { cn } from '@/lib/utils';
+} from "@/components/ui/select";
+import { useEffect, useRef, useState } from "react";
+import { useDialogNav } from "@/hooks/navigation/use-dialog-nav";
+import { setFullScreen, isFullScreen as tauriIsFullScreen } from "@/tauri-bridge/fullScreen";
+import { useDialog } from "@/hooks/use-dialog";
+import { useConfig } from "@/queries/use-config";
+import { useConfigMutation } from "@/mutations/use-config-mutation";
+import { useMicDevices } from "@/hooks/use-mic-pitch";
+import { cn } from "@/lib/utils";
 
 const SEPARATORS = [
-  { value: 'karaoke', label: 'UVR Karaoke' },
-  { value: 'demucs', label: 'Demucs' },
+  { value: "karaoke", label: "UVR Karaoke" },
+  { value: "demucs", label: "Demucs" },
 ];
 
-const MODELS = [
-  'large-v3',
-  'large-v3-turbo',
-  'medium',
-  'small',
-  'base',
-  'tiny',
-];
+const MODELS = ["large-v3", "large-v3-turbo", "medium", "small", "base", "tiny"];
 
-const DEFAULT_MODEL: (typeof MODELS)[number] = 'large-v3';
-const DEFAULT_SEPARATOR = 'karaoke';
+const DEFAULT_MODEL: (typeof MODELS)[number] = "large-v3";
+const DEFAULT_SEPARATOR = "karaoke";
 
 const DEFAULT_BEAM_BATCH_SIZE = 8;
 
 const SETTINGS_STOPS = [2, 1, 1, 1, 16, 16, 2];
 
-const RING = 'ring-2 ring-primary';
-const NO_FOCUS_RING = 'focus-visible:ring-0 focus-visible:border-transparent';
+const RING = "ring-2 ring-primary";
+const NO_FOCUS_RING = "focus-visible:ring-0 focus-visible:border-transparent";
 
 export const SettingsDialog = () => {
   const micDevices = useMicDevices();
@@ -62,11 +52,9 @@ export const SettingsDialog = () => {
   const { mutate } = useConfigMutation();
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isFullScreen, setIsFullScreen] = useState<boolean | null | undefined>(
-    config?.fullscreen,
-  );
+  const [isFullScreen, setIsFullScreen] = useState<boolean | null | undefined>(config?.fullscreen);
 
-  const open = mode === 'settings';
+  const open = mode === "settings";
 
   const { isFocused } = useDialogNav({
     open,
@@ -84,18 +72,46 @@ export const SettingsDialog = () => {
     updateIsFullScreen();
   }, []);
 
+  const toggleWindowMode = (fullscreen: boolean) => {
+    setIsFullScreen(fullscreen);
+    setFullScreen(fullscreen);
+    mutate({ fullscreen });
+  };
+
+  const generateRingClassName = (segment: number, slot?: number) => {
+    return cn(NO_FOCUS_RING, isFocused(segment, slot) && RING);
+  };
+
+  const generateNumberSelect = (settingName: "beam_size" | "batch_size", value: number) => {
+    return Array.from({ length: 16 })
+      .fill(null)
+      .map((_, idx) => {
+        const idxToRender = idx + 1;
+
+        return (
+          <Button
+            onClick={() => mutate({ [settingName]: idxToRender })}
+            variant={value === idxToRender ? "default" : "outline"}
+            className={generateRingClassName(settingName === "beam_size" ? 4 : 5, idx)}
+          >
+            {idx + 1}
+          </Button>
+        );
+      });
+  };
+
   const batchSize = config?.batch_size ?? DEFAULT_BEAM_BATCH_SIZE;
   const beamSize = config?.beam_size ?? DEFAULT_BEAM_BATCH_SIZE;
 
   return (
     <Dialog open={open} onOpenChange={close}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto scrollbar-hide">
         <div ref={containerRef} className="contents">
           <DialogHeader>
             <DialogTitle>Settings</DialogTitle>
             <DialogDescription>
-              You can modify the preferred model to use for the stem separation
-              and transcript and tweak model parameters
+              You can modify the preferred model to use for the stem separation and transcript and
+              tweak model parameters
             </DialogDescription>
           </DialogHeader>
           <FieldGroup>
@@ -103,24 +119,16 @@ export const SettingsDialog = () => {
               <Label>Window</Label>
               <ButtonGroup>
                 <Button
-                  variant={isFullScreen === true ? 'outline' : 'default'}
-                  onClick={() => {
-                    setIsFullScreen(false);
-                    setFullScreen(false);
-                    mutate({ fullscreen: false });
-                  }}
-                  className={cn(NO_FOCUS_RING, isFocused(0, 0) && RING)}
+                  variant={isFullScreen === true ? "outline" : "default"}
+                  onClick={() => toggleWindowMode(false)}
+                  className={generateRingClassName(0, 0)}
                 >
                   Windowed
                 </Button>
                 <Button
-                  variant={isFullScreen === false ? 'outline' : 'default'}
-                  onClick={() => {
-                    setIsFullScreen(true);
-                    setFullScreen(true);
-                    mutate({ fullscreen: true });
-                  }}
-                  className={cn(NO_FOCUS_RING, isFocused(0, 1) && RING)}
+                  variant={isFullScreen === false ? "outline" : "default"}
+                  onClick={() => toggleWindowMode(true)}
+                  className={generateRingClassName(0, 1)}
                 >
                   Fullscreen
                 </Button>
@@ -130,29 +138,25 @@ export const SettingsDialog = () => {
           <FieldGroup>
             <Field>
               <Label>Microphone</Label>
-              <FieldDescription>
-                Select which microphone to use for pitch scoring
-              </FieldDescription>
+              <FieldDescription>Select which microphone to use for pitch scoring</FieldDescription>
               <Select
                 onValueChange={(value) =>
                   mutate({
-                    preferred_mic: value === '__default__' ? null : value,
+                    preferred_mic: value === "__default__" ? null : value,
                   })
                 }
-                value={config?.preferred_mic ?? '__default__'}
+                value={config?.preferred_mic ?? "__default__"}
               >
-                <SelectTrigger
-                  className={cn(NO_FOCUS_RING, isFocused(1) && RING)}
-                >
+                <SelectTrigger className={generateRingClassName(1)}>
                   <SelectValue placeholder="Default microphone" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
                     <SelectLabel>Microphone</SelectLabel>
                     <SelectItem value="__default__">Default</SelectItem>
-                    {micDevices.map((d) => (
-                      <SelectItem key={d.deviceId} value={d.deviceId}>
-                        {d.label}
+                    {micDevices.map(({ deviceId, label }) => (
+                      <SelectItem key={deviceId} value={deviceId}>
+                        {label}
                       </SelectItem>
                     ))}
                   </SelectGroup>
@@ -162,17 +166,13 @@ export const SettingsDialog = () => {
             <Field>
               <Label htmlFor="model-1">Separator</Label>
               <FieldDescription>
-                Karaoke removes backing vocals for cleaner lyrics; Demucs is
-                faster
+                Karaoke removes backing vocals for cleaner lyrics; Demucs is faster
               </FieldDescription>
               <Select
                 onValueChange={(value) => mutate({ separator: value })}
                 value={config?.separator ?? DEFAULT_SEPARATOR}
               >
-                <SelectTrigger
-                  id="separator-1"
-                  className={cn(NO_FOCUS_RING, isFocused(2) && RING)}
-                >
+                <SelectTrigger id="separator-1" className={generateRingClassName(2)}>
                   <SelectValue placeholder="Select a separator" />
                 </SelectTrigger>
                 <SelectContent>
@@ -194,10 +194,7 @@ export const SettingsDialog = () => {
                 onValueChange={(value) => mutate({ whisper_model: value })}
                 value={config?.whisper_model ?? DEFAULT_MODEL}
               >
-                <SelectTrigger
-                  id="model-1"
-                  className={cn(NO_FOCUS_RING, isFocused(3) && RING)}
-                >
+                <SelectTrigger id="model-1" className={generateRingClassName(3)}>
                   <SelectValue placeholder="Select a model" />
                 </SelectTrigger>
                 <SelectContent>
@@ -215,46 +212,12 @@ export const SettingsDialog = () => {
               <FieldDescription>
                 Higher values improve accuracy at the cost of speed
               </FieldDescription>
-              <ButtonGroup>
-                {new Array(16).fill(null).map((_, idx) => {
-                  const beamSizeToRender = idx + 1;
-
-                  return (
-                    <Button
-                      onClick={() => mutate({ beam_size: beamSizeToRender })}
-                      variant={
-                        beamSize === beamSizeToRender ? 'default' : 'outline'
-                      }
-                      className={cn(NO_FOCUS_RING, isFocused(4, idx) && RING)}
-                    >
-                      {idx + 1}
-                    </Button>
-                  );
-                })}
-              </ButtonGroup>
+              <ButtonGroup>{generateNumberSelect("beam_size", beamSize)}</ButtonGroup>
             </Field>
             <Field>
               <Label>Batch Size</Label>
-              <FieldDescription>
-                Higher values use more memory but process faster
-              </FieldDescription>
-              <ButtonGroup>
-                {new Array(16).fill(null).map((_, idx) => {
-                  const batchSizeToRender = idx + 1;
-
-                  return (
-                    <Button
-                      onClick={() => mutate({ batch_size: batchSizeToRender })}
-                      variant={
-                        batchSize === batchSizeToRender ? 'default' : 'outline'
-                      }
-                      className={cn(NO_FOCUS_RING, isFocused(5, idx) && RING)}
-                    >
-                      {idx + 1}
-                    </Button>
-                  );
-                })}
-              </ButtonGroup>
+              <FieldDescription>Higher values use more memory but process faster</FieldDescription>
+              <ButtonGroup>{generateNumberSelect("batch_size", batchSize)}</ButtonGroup>
             </Field>
           </FieldGroup>
           <DialogFooter>
@@ -268,15 +231,11 @@ export const SettingsDialog = () => {
                   batch_size: DEFAULT_BEAM_BATCH_SIZE,
                 })
               }
-              className={cn(NO_FOCUS_RING, isFocused(6, 0) && RING)}
+              className={generateRingClassName(6, 0)}
             >
               Restore Defaults
             </Button>
-            <Button
-              variant="outline"
-              onClick={close}
-              className={cn(NO_FOCUS_RING, isFocused(6, 1) && RING)}
-            >
+            <Button variant="outline" onClick={close} className={generateRingClassName(6, 1)}>
               Close
             </Button>
           </DialogFooter>

@@ -1,19 +1,19 @@
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Separator } from '@/components/ui/separator';
-import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
-import { useDialog } from '@/hooks/use-dialog';
-import { useDialogNav } from '@/hooks/navigation/use-dialog-nav';
-import { openUrl } from '@/tauri-bridge/opener';
-import { useRef } from 'react';
-import { cn } from '@/lib/utils';
-import { version } from '../../../../package.json';
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
+import { useDialog } from "@/hooks/use-dialog";
+import { useDialogNav } from "@/hooks/navigation/use-dialog-nav";
+import { openUrl } from "@/tauri-bridge/opener";
+import { useRef } from "react";
+import { cn } from "@/lib/utils";
+import { version } from "../../../../package.json";
 
 const GithubIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
@@ -28,13 +28,13 @@ const DiscordIcon = (props: React.SVGProps<SVGSVGElement>) => (
 );
 
 const attributions = [
-  { name: 'Video backgrounds', value: 'Pixabay (pixabay.com)' },
-  { name: 'Lyrics data', value: 'LRCLIB (lrclib.net)' },
+  { name: "Video backgrounds", value: "Pixabay (pixabay.com)" },
+  { name: "Lyrics data", value: "LRCLIB (lrclib.net)" },
   {
-    name: 'Stem separation',
-    value: 'UVR — MIT / Demucs by Meta Research — MIT',
+    name: "Stem separation",
+    value: "UVR — MIT / Demucs by Meta Research — MIT",
   },
-  { name: 'Speech recognition', value: 'WhisperX / OpenAI Whisper — MIT' },
+  { name: "Speech recognition", value: "WhisperX / OpenAI Whisper — MIT" },
 ];
 
 export const InfoDialog = () => {
@@ -42,7 +42,7 @@ export const InfoDialog = () => {
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const open = mode === 'about';
+  const open = mode === "about";
 
   const { focusedIndex } = useDialogNav({
     open,
@@ -57,18 +57,15 @@ export const InfoDialog = () => {
         <div ref={containerRef} className="contents">
           <DialogHeader>
             <DialogTitle className="text-2xl">Nightingale</DialogTitle>
-            <p className="text-sm text-muted-foreground">
-              Karaoke from your music library.
-            </p>
+            <p className="text-sm text-muted-foreground">Karaoke from your music library.</p>
             <div className="flex items-center gap-1">
               <Button
                 variant="ghost"
                 size="icon-sm"
-                onClick={() => openUrl('https://github.com/rzru/nightingale')}
+                onClick={() => openUrl("https://github.com/rzru/nightingale")}
                 className={cn(
-                  'focus-visible:ring-0 focus-visible:border-transparent',
-                  focusedIndex === 0 &&
-                  'outline-2 outline-primary outline-offset-2',
+                  "focus-visible:ring-0 focus-visible:border-transparent",
+                  focusedIndex === 0 && "outline-2 outline-primary outline-offset-2",
                 )}
               >
                 <GithubIcon className="size-4" />
@@ -76,10 +73,10 @@ export const InfoDialog = () => {
               <Button
                 variant="ghost"
                 size="icon-sm"
-                onClick={() => openUrl('https://discord.gg/68Vgng9vYp')}
+                onClick={() => openUrl("https://discord.gg/68Vgng9vYp")}
                 className={cn(
-                  'focus-visible:ring-0 focus-visible:border-transparent',
-                  focusedIndex === 1 && 'ring-2 ring-primary',
+                  "focus-visible:ring-0 focus-visible:border-transparent",
+                  focusedIndex === 1 && "ring-2 ring-primary",
                 )}
               >
                 <DiscordIcon className="size-4" />
@@ -99,9 +96,7 @@ export const InfoDialog = () => {
               <TableBody>
                 {attributions.map((attr) => (
                   <TableRow key={attr.name}>
-                    <TableCell className="text-muted-foreground">
-                      {attr.name}
-                    </TableCell>
+                    <TableCell className="text-muted-foreground">{attr.name}</TableCell>
                     <TableCell className="font-medium">{attr.value}</TableCell>
                   </TableRow>
                 ))}
@@ -113,8 +108,8 @@ export const InfoDialog = () => {
               variant="outline"
               onClick={close}
               className={cn(
-                'focus-visible:ring-0 focus-visible:border-transparent',
-                focusedIndex === 2 && 'ring-2 ring-primary',
+                "focus-visible:ring-0 focus-visible:border-transparent",
+                focusedIndex === 2 && "ring-2 ring-primary",
               )}
             >
               Close

@@ -1,14 +1,14 @@
-import { BrowserRouter, Routes, Route } from 'react-router';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import './App.css';
-import { Toaster } from './components/ui/sonner';
-import { TauriAppShell } from './components/window/title-bar';
-import { NavInputProvider } from './contexts/nav-input-context';
-import { Menu } from './pages/menu/menu';
-import { Playback } from './pages/playback/playback';
-import { ThemeProvider } from './providers/theme/ThemeProvider';
-import { useConfig } from './queries/use-config';
-import { Setup } from './components/menu/dialogs/setup';
+import { BrowserRouter, Routes, Route } from "react-router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import "./App.css";
+import { Toaster } from "./components/ui/sonner";
+import { TauriAppShell } from "./components/window/title-bar";
+import { NavInputProvider } from "./contexts/nav-input-context";
+import { Menu } from "./pages/menu/menu";
+import { Playback } from "./pages/playback/playback";
+import { ThemeProvider } from "./providers/theme/ThemeProvider";
+import { useConfig } from "./queries/use-config";
+import { Setup } from "./components/menu/dialogs/setup";
 
 const queryClient = new QueryClient();
 
@@ -29,9 +29,7 @@ const ThemeWrapper = () => {
   const { data: config } = useConfig();
 
   return (
-    <ThemeProvider
-      defaultTheme={config?.dark_mode === false ? 'light' : 'dark'}
-    >
+    <ThemeProvider defaultTheme={config?.dark_mode === false ? "light" : "dark"}>
       <TauriAppShell>
         <InnerWrapper />
       </TauriAppShell>

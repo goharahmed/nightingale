@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
 import {
   Empty,
   EmptyContent,
@@ -6,9 +6,9 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from '@/components/ui/empty';
-import { useFolderActions } from '@/hooks/use-folder-actions';
-import { MusicIcon } from 'lucide-react';
+} from "@/components/ui/empty";
+import { useFolderActions } from "@/hooks/use-folder-actions";
+import { MusicIcon } from "lucide-react";
 
 export const EmptySongList = () => {
   const { selectFolder } = useFolderActions();

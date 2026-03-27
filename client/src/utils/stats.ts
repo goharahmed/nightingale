@@ -1,5 +1,5 @@
-import type { CacheStats } from '@/types/CacheStats';
-import prettyBytes from 'pretty-bytes';
+import type { CacheStats } from "@/types/CacheStats";
+import prettyBytes from "pretty-bytes";
 
 export function formatBytes(n: bigint | number) {
   return prettyBytes(n, { binary: true });

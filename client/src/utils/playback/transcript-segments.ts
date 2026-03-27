@@ -3,7 +3,7 @@
  * Splits segments that exceed a word limit so lines wrap predictably on screen.
  */
 
-import type { Segment } from '@/types/Transcript';
+import type { Segment } from "@/types/Transcript";
 
 /** Seconds before the first lyric that "Skip intro" still applies (keyboard + HUD). */
 export const INTRO_SKIP_LEAD_SEC = 3;
@@ -27,7 +27,7 @@ export function splitLongSegments(
     for (let i = 0; i < seg.words.length; i += maxWords) {
       const chunk = seg.words.slice(i, i + maxWords);
       result.push({
-        text: chunk.map((w) => w.word).join(' '),
+        text: chunk.map((w) => w.word).join(" "),
         start: chunk[0].start,
         end: chunk[chunk.length - 1].end,
         words: chunk,

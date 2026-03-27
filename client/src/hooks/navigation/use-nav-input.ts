@@ -1,5 +1,5 @@
-import { NavInputContext, type NavAction } from '@/contexts/nav-input-context';
-import { useContext, useEffect, useRef } from 'react';
+import { NavInputContext, type NavAction } from "@/contexts/nav-input-context";
+import { useContext, useEffect, useRef } from "react";
 
 export type { NavAction };
 
