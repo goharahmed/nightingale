@@ -1,10 +1,10 @@
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { useMenuFocus } from '@/contexts/menu-focus-context';
-import { useAnalysis } from '@/hooks/use-analysis';
-import { useSearch } from '@/hooks/use-search';
-import { useEffect, useRef } from 'react';
-import { cn } from '@/lib/utils';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useMenuFocus } from "@/contexts/menu-focus-context";
+import { useAnalysis } from "@/hooks/use-analysis";
+import { useSearch } from "@/hooks/use-search";
+import { useEffect, useRef } from "react";
+import { cn } from "@/lib/utils";
 
 const DEBOUNCE_MS = 500;
 
@@ -31,8 +31,7 @@ export const Filters = () => {
     timerRef.current = setTimeout(() => setSearch(value), DEBOUNCE_MS);
   };
 
-  const isAnalyzeAllFocused =
-    focus.active && focus.panel === 'songList' && focus.analyzeAllFocused;
+  const isAnalyzeAllFocused = focus.active && focus.panel === "songList" && focus.analyzeAllFocused;
 
   return (
     <div className="flex w-full items-center gap-4">
@@ -46,8 +45,8 @@ export const Filters = () => {
         variant="outline"
         onClick={enqueueAll}
         className={cn(
-          'focus-visible:ring-0 focus-visible:border-transparent',
-          isAnalyzeAllFocused && 'ring-2 ring-primary',
+          "focus-visible:ring-0 focus-visible:border-transparent",
+          isAnalyzeAllFocused && "ring-2 ring-primary",
         )}
       >
         Analyze All

@@ -2,17 +2,11 @@ import {
   SOURCE_VIDEO_INDEX,
   nextFlavorIndex,
   nextThemeIndex,
-} from '@/components/playback/background';
-import { useNavInput } from '@/hooks/navigation/use-nav-input';
-import type { AppConfig } from '@/types/AppConfig';
-import type { Song } from '@/types/Song';
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  type Dispatch,
-  type SetStateAction,
-} from 'react';
+} from "@/components/playback/background";
+import { useNavInput } from "@/hooks/navigation/use-nav-input";
+import type { AppConfig } from "@/types/AppConfig";
+import type { Song } from "@/types/Song";
+import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 
 export interface UsePlaybackInputParams {
   paused: boolean;
@@ -100,7 +94,7 @@ export function usePlaybackInput({
   // Keyboard-only shortcuts (G, T, F, M, N, +/-, Space)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === ' ') {
+      if (e.key === " ") {
         e.preventDefault();
         if (paused) {
           handleContinue();
@@ -113,8 +107,8 @@ export function usePlaybackInput({
       if (paused) return;
 
       switch (e.key) {
-        case 't':
-        case 'T':
+        case "t":
+        case "T":
           setThemeIndex((prev) => {
             const next = nextThemeIndex(prev, song.is_video);
             if (next !== SOURCE_VIDEO_INDEX) {
@@ -124,8 +118,8 @@ export function usePlaybackInput({
           });
           break;
 
-        case 'f':
-        case 'F':
+        case "f":
+        case "F":
           setFlavorIndex((prev) => {
             const next = nextFlavorIndex(prev);
             persistConfig({ last_video_flavor: next });
@@ -133,43 +127,43 @@ export function usePlaybackInput({
           });
           break;
 
-        case 'g':
-        case 'G': {
+        case "g":
+        case "G": {
           const nextVol = guideVolume > 0 ? 0 : 0.3;
           setGuideVolume(nextVol);
           persistConfig({ guide_volume: nextVol });
           break;
         }
 
-        case '=':
-        case '+': {
+        case "=":
+        case "+": {
           const next = Math.min(1, guideVolume + 0.1);
           setGuideVolume(next);
           persistConfig({ guide_volume: next });
           break;
         }
 
-        case '-': {
+        case "-": {
           const next = Math.max(0, guideVolume - 0.1);
           setGuideVolume(next);
           persistConfig({ guide_volume: next });
           break;
         }
 
-        case 'm':
-        case 'M':
+        case "m":
+        case "M":
           onToggleMic();
           break;
 
-        case 'n':
-        case 'N':
+        case "n":
+        case "N":
           onCycleMic();
           break;
       }
     };
 
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, [
     paused,
     song.is_video,

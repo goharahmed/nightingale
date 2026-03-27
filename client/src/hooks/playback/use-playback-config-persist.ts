@@ -3,9 +3,9 @@
  * without listing `config` in callback dependency arrays.
  */
 
-import { saveConfig } from '@/tauri-bridge/config';
-import type { AppConfig } from '@/types/AppConfig';
-import { useCallback, useRef } from 'react';
+import { saveConfig } from "@/tauri-bridge/config";
+import type { AppConfig } from "@/types/AppConfig";
+import { useCallback, useRef } from "react";
 
 export function usePlaybackConfigPersist(config: AppConfig | null) {
   const configRef = useRef(config);

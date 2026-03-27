@@ -1,4 +1,4 @@
-import type { ScoreRecord } from '@/types/ScoreRecord';
+import type { ScoreRecord } from "@/types/ScoreRecord";
 
 export function halfStarUnits(score: number): number {
   return Math.min(10, Math.round(score / 100));

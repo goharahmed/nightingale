@@ -1,6 +1,6 @@
-import { atom, useAtom } from 'jotai';
+import { atom, useAtom } from "jotai";
 
-const searchAtom = atom('');
+const searchAtom = atom("");
 
 export const useSearch = () => {
   const [search, setSearch] = useAtom(searchAtom);

@@ -2,10 +2,10 @@
  * Playback route: requires `song` in location state; otherwise redirects home.
  */
 
-import { useConfig } from '@/queries/use-config';
-import type { Song } from '@/types/Song';
-import { Navigate, useLocation } from 'react-router';
-import { PlaybackInner } from './playback-inner';
+import { useConfig } from "@/queries/use-config";
+import type { Song } from "@/types/Song";
+import { Navigate, useLocation } from "react-router";
+import { PlaybackInner } from "./playback-inner";
 
 export const Playback = () => {
   const { state } = useLocation();
@@ -18,7 +18,5 @@ export const Playback = () => {
     return <Navigate to="/" replace />;
   }
 
-  return (
-    <PlaybackInner key={song.file_hash} song={song} config={config ?? null} />
-  );
+  return <PlaybackInner key={song.file_hash} song={song} config={config ?? null} />;
 };

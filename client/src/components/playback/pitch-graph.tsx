@@ -3,10 +3,10 @@ import {
   BASE_DISPLAY_WIDTH,
   PITCH_BUFFER_SIZE,
   REFERENCE_HEIGHT,
-} from '@/lib/pitch/constants';
-import type { PitchSeries } from '@/lib/pitch/state';
-import { freqToSemitone, snapToRefOctave } from '@/lib/pitch/state';
-import { useEffect, useRef, useState } from 'react';
+} from "@/lib/pitch/constants";
+import type { PitchSeries } from "@/lib/pitch/state";
+import { freqToSemitone, snapToRefOctave } from "@/lib/pitch/state";
+import { useEffect, useRef, useState } from "react";
 
 function displayScale(windowHeight: number): number {
   return Math.max(0.85, windowHeight / REFERENCE_HEIGHT);
@@ -58,8 +58,8 @@ export function PitchGraph({ series, visible }: PitchGraphProps) {
 
   useEffect(() => {
     const onResize = () => setInnerHeight(window.innerHeight);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
   useEffect(() => {
@@ -68,7 +68,7 @@ export function PitchGraph({ series, visible }: PitchGraphProps) {
       return;
     }
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) {
       return;
     }
@@ -124,8 +124,8 @@ export function PitchGraph({ series, visible }: PitchGraphProps) {
       }
       ctx.strokeStyle = `rgba(${Math.round(refColor.r * 255)},${Math.round(refColor.g * 255)},${Math.round(refColor.b * 255)},${run[0].a})`;
       ctx.lineWidth = lineWidth;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
       ctx.stroke();
       run.length = 0;
     };
@@ -166,12 +166,7 @@ export function PitchGraph({ series, visible }: PitchGraphProps) {
       for (let k = 1; k < userRun.length; k++) {
         ctx.lineTo(userRun[k].x, userRun[k].y);
       }
-      const g = ctx.createLinearGradient(
-        userRun[0].x,
-        0,
-        userRun[userRun.length - 1].x,
-        0,
-      );
+      const g = ctx.createLinearGradient(userRun[0].x, 0, userRun[userRun.length - 1].x, 0);
       for (let k = 0; k < userRun.length; k++) {
         g.addColorStop(
           k / (userRun.length - 1),
@@ -180,8 +175,8 @@ export function PitchGraph({ series, visible }: PitchGraphProps) {
       }
       ctx.strokeStyle = g;
       ctx.lineWidth = lineWidth;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
       ctx.stroke();
       userRun.length = 0;
     };
@@ -192,9 +187,7 @@ export function PitchGraph({ series, visible }: PitchGraphProps) {
         const userSemi = freqToSemitone(userHz);
         const refHz = series.refPitches[i];
         const displaySemi =
-          refHz != null
-            ? snapToRefOctave(freqToSemitone(refHz), userSemi)
-            : userSemi;
+          refHz != null ? snapToRefOctave(freqToSemitone(refHz), userSemi) : userSemi;
         const sim = series.similarities[i] ?? 0;
         const hasRef = refHz != null;
         const age = ageAlpha(i);

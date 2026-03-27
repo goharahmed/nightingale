@@ -1,29 +1,19 @@
-import { PROFILES } from '@/queries/keys';
-import {
-  createProfile,
-  deleteProfile,
-  switchProfile,
-} from '@/tauri-bridge/profile';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { PROFILES } from "@/queries/keys";
+import { createProfile, deleteProfile, switchProfile } from "@/tauri-bridge/profile";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export const useProfileMutations = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      name,
-      type,
-    }: {
-      name: string;
-      type: 'create' | 'switch' | 'delete';
-    }) => {
+    mutationFn: ({ name, type }: { name: string; type: "create" | "switch" | "delete" }) => {
       switch (type) {
-        case 'create':
+        case "create":
           return createProfile(name);
-        case 'switch':
+        case "switch":
           return switchProfile(name);
-        case 'delete':
+        case "delete":
           return deleteProfile(name);
       }
     },

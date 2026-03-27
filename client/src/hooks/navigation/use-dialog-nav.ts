@@ -1,34 +1,27 @@
-import { useNavInput } from './use-nav-input';
-import type { NavAction } from '@/contexts/nav-input-context';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type RefObject,
-} from 'react';
+import { useNavInput } from "./use-nav-input";
+import type { NavAction } from "@/contexts/nav-input-context";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 /**
  * Focusables that confirm/back can target. Must stay in sync with how dialogs
  * lay out controls; scope `containerRef` so order matches your `stops` / counts.
  */
 export const DIALOG_FOCUSABLE_SELECTOR = [
-  'button:not([disabled])',
-  'input:not([disabled])',
-  'select:not([disabled])',
-  'textarea:not([disabled])',
-  'a[href]',
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "a[href]",
   '[role="combobox"]:not([disabled])',
-].join(', ');
+].join(", ");
 
 /** Ignore confirm on the first frames after open (avoids acting on the same press that opened the dialog). */
 const CONFIRM_DEBOUNCE_MS = 150;
 
 function getVisibleFocusables(container: HTMLElement): HTMLElement[] {
-  return Array.from(
-    container.querySelectorAll<HTMLElement>(DIALOG_FOCUSABLE_SELECTOR),
-  ).filter((el) => el.offsetWidth > 0 || el.offsetHeight > 0);
+  return Array.from(container.querySelectorAll<HTMLElement>(DIALOG_FOCUSABLE_SELECTOR)).filter(
+    (el) => el.offsetWidth > 0 || el.offsetHeight > 0,
+  );
 }
 
 /**
@@ -57,12 +50,12 @@ function isInsideMenuOrListbox(el: Element | null): boolean {
  */
 function dispatchMenuKeyFromNav(focused: HTMLElement, action: NavAction): void {
   let key: string | null = null;
-  if (action.up) key = 'ArrowUp';
-  else if (action.down) key = 'ArrowDown';
-  else if (action.confirm) key = 'Enter';
-  else if (action.back) key = 'Escape';
+  if (action.up) key = "ArrowUp";
+  else if (action.down) key = "ArrowDown";
+  else if (action.confirm) key = "Enter";
+  else if (action.back) key = "Escape";
   if (key) {
-    focused.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+    focused.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
   }
 }
 
@@ -147,9 +140,7 @@ export function useDialogNav({
 
   const slotsThisSegment = segmentSizes[clampedSegmentIndex] ?? 1;
 
-  const clampedSlot = justOpened
-    ? 0
-    : Math.min(Math.max(0, slotInSegment), slotsThisSegment - 1);
+  const clampedSlot = justOpened ? 0 : Math.min(Math.max(0, slotInSegment), slotsThisSegment - 1);
 
   const flatFocusedIndex = flatIndexFromSegmentLayout(
     segmentSizes,
@@ -162,7 +153,7 @@ export function useDialogNav({
   useEffect(() => {
     if (!open || !containerRef?.current) return;
     const focusables = getVisibleFocusables(containerRef.current);
-    focusables[flatFocusedIndex]?.scrollIntoView({ block: 'nearest' });
+    focusables[flatFocusedIndex]?.scrollIntoView({ block: "nearest" });
   }, [open, flatFocusedIndex, containerRef]);
 
   const handleNav = useCallback(

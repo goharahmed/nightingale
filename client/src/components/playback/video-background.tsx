@@ -1,24 +1,17 @@
-import type { TimeSubscriber } from '@/hooks/use-audio-player';
-import { joinMediaUrl } from '@/adapters/playback';
+import type { TimeSubscriber } from "@/hooks/use-audio-player";
+import { joinMediaUrl } from "@/adapters/playback";
 import {
   fetchPixabayVideos,
   getMediaPort,
   onPixabayVideoDownloaded,
-} from '@/tauri-bridge/playback';
-import { useCallback, useEffect, useRef, useState } from 'react';
+} from "@/tauri-bridge/playback";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-export const FLAVORS = [
-  'nature',
-  'underwater',
-  'space',
-  'city',
-  'countryside',
-] as const;
+export const FLAVORS = ["nature", "underwater", "space", "city", "countryside"] as const;
 
 export type VideoFlavor = (typeof FLAVORS)[number];
 
-const VIDEO_CLASS =
-  'pointer-events-none absolute inset-0 size-full object-cover';
+const VIDEO_CLASS = "pointer-events-none absolute inset-0 size-full object-cover";
 
 const SOURCE_VIDEO_DRIFT_LARGE = 0.75;
 const SOURCE_VIDEO_DRIFT_CORRECT = 0.5;
@@ -47,9 +40,9 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
 
   const [activeIdx, setActiveIdx] = useState(0);
   const activeIdxRef = useRef(0);
-  const [srcs, setSrcs] = useState<Trio>(['', '', '']);
-  const srcsRef = useRef<Trio>(['', '', '']);
-  const slotFlavors = useRef<Trio>(['', '', '']);
+  const [srcs, setSrcs] = useState<Trio>(["", "", ""]);
+  const srcsRef = useRef<Trio>(["", "", ""]);
+  const slotFlavors = useRef<Trio>(["", "", ""]);
 
   const readyUrls = useRef(new Set<string>());
   const urlsPerFlavor = useRef(new Map<string, string[]>());
@@ -76,7 +69,7 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
 
   const pullUrl = useCallback((flav: string): string => {
     const urls = urlsPerFlavor.current.get(flav);
-    if (!urls || urls.length === 0) return '';
+    if (!urls || urls.length === 0) return "";
     const i = indexPerFlavor.current.get(flav) ?? 0;
     const url = urls[i % urls.length];
     indexPerFlavor.current.set(flav, i + 1);
@@ -93,7 +86,7 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
     const video = videoRefs[slot].current;
     if (video) {
       video.addEventListener(
-        'canplay',
+        "canplay",
         () => {
           readyUrls.current.add(url);
         },
@@ -139,9 +132,7 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
       if (paths.length > 0) {
         urlsPerFlavor.current.set(
           flav,
-          paths.map((p) =>
-            joinMediaUrl(`http://127.0.0.1:${portRef.current}`, p),
-          ),
+          paths.map((p) => joinMediaUrl(`http://127.0.0.1:${portRef.current}`, p)),
         );
         indexPerFlavor.current.set(flav, 0);
       }
@@ -214,7 +205,7 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
           doSwap();
         } else {
           video.addEventListener(
-            'canplay',
+            "canplay",
             () => {
               readyUrls.current.add(playUrl);
               doSwap();
@@ -248,7 +239,7 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
     const onTimeUpdate = () => {
       lastTimeRef.current = video.currentTime;
     };
-    video.addEventListener('timeupdate', onTimeUpdate);
+    video.addEventListener("timeupdate", onTimeUpdate);
 
     stallTimerRef.current = window.setInterval(() => {
       if (!video.paused && video.currentTime === lastTimeRef.current) {
@@ -257,7 +248,7 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
     }, STALL_TIMEOUT);
 
     return () => {
-      video.removeEventListener('timeupdate', onTimeUpdate);
+      video.removeEventListener("timeupdate", onTimeUpdate);
       clearInterval(stallTimerRef.current);
     };
   }, [activeIdx, handleEnded]);
@@ -282,7 +273,7 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
       const cur = activeIdxRef.current;
 
       const hasActiveSlot = slotFlavors.current.some(
-        (f, i) => f === dlFlavor && srcsRef.current[i] !== '',
+        (f, i) => f === dlFlavor && srcsRef.current[i] !== "",
       );
 
       if (!hasActiveSlot) {
@@ -300,7 +291,7 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
         if (vid.readyState >= 3) {
           startPlayback();
         } else {
-          vid.addEventListener('canplay', startPlayback, { once: true });
+          vid.addEventListener("canplay", startPlayback, { once: true });
         }
         return;
       }
@@ -328,7 +319,7 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
           key={i}
           ref={ref}
           className={VIDEO_CLASS}
-          style={{ visibility: i === activeIdx ? 'visible' : 'hidden' }}
+          style={{ visibility: i === activeIdx ? "visible" : "hidden" }}
           src={srcs[i] || undefined}
           preload="auto"
           muted
@@ -365,9 +356,7 @@ export const SourceVideo = ({
   useEffect(() => {
     initializedRef.current = false;
     setVisible(false);
-    getMediaPort().then((port) =>
-      setSrc(joinMediaUrl(`http://127.0.0.1:${port}`, filePath)),
-    );
+    getMediaPort().then((port) => setSrc(joinMediaUrl(`http://127.0.0.1:${port}`, filePath)));
   }, [filePath]);
 
   useEffect(() => {
@@ -381,7 +370,7 @@ export const SourceVideo = ({
       if (t > 0.1) {
         video.currentTime = t;
         video.addEventListener(
-          'seeked',
+          "seeked",
           () => {
             initializedRef.current = true;
             setVisible(true);
@@ -399,8 +388,8 @@ export const SourceVideo = ({
     if (video.readyState >= 1) {
       init();
     } else {
-      video.addEventListener('loadedmetadata', init, { once: true });
-      return () => video.removeEventListener('loadedmetadata', init);
+      video.addEventListener("loadedmetadata", init, { once: true });
+      return () => video.removeEventListener("loadedmetadata", init);
     }
   }, [src, getCurrentTime]);
 
@@ -441,7 +430,7 @@ export const SourceVideo = ({
     <video
       ref={videoRef}
       className={VIDEO_CLASS}
-      style={{ visibility: visible ? 'visible' : 'hidden' }}
+      style={{ visibility: visible ? "visible" : "hidden" }}
       src={src}
       muted
       playsInline

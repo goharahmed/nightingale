@@ -2,9 +2,9 @@ import {
   tauriMicrophoneAdapter,
   type MicrophoneAdapter,
   type StopListening,
-} from '@/adapters/microphone';
-import type { MicrophoneInfo } from '@/types/MicrophoneInfo';
-import { useCallback, useEffect, useRef, useState } from 'react';
+} from "@/adapters/microphone";
+import type { MicrophoneInfo } from "@/types/MicrophoneInfo";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface MicDevice {
   deviceId: string;

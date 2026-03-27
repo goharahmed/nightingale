@@ -3,40 +3,34 @@
  * Route shell (`Playback`) mounts this with a `key` of `file_hash` so state resets per track.
  */
 
-import {
-  Background,
-  SOURCE_VIDEO_INDEX,
-} from '@/components/playback/background';
-import { LyricsDisplay } from '@/components/playback/lyrics-display';
-import { PauseOverlay } from '@/components/playback/pause-overlay';
-import { PitchGraph } from '@/components/playback/pitch-graph';
-import { PlaybackHud } from '@/components/playback/playback-hud';
-import {
-  FLAVORS,
-  type VideoFlavor,
-} from '@/components/playback/video-background';
+import { Background, SOURCE_VIDEO_INDEX } from "@/components/playback/background";
+import { LyricsDisplay } from "@/components/playback/lyrics-display";
+import { PauseOverlay } from "@/components/playback/pause-overlay";
+import { PitchGraph } from "@/components/playback/pitch-graph";
+import { PlaybackHud } from "@/components/playback/playback-hud";
+import { FLAVORS, type VideoFlavor } from "@/components/playback/video-background";
 import {
   usePlaybackConfigPersist,
   usePlaybackInput,
   usePlaybackTranscript,
-} from '@/hooks/playback';
-import { useAudioPlayer } from '@/hooks/use-audio-player';
-import { useMicDevices, useMicPitch } from '@/hooks/use-mic-pitch';
-import { usePitchScoring } from '@/hooks/use-pitch-scoring';
-import { PROFILES } from '@/queries/keys';
-import { useProfiles } from '@/queries/use-profiles';
-import { addScore } from '@/tauri-bridge/profile';
-import type { Song } from '@/types/Song';
-import type { AppConfig } from '@/types/AppConfig';
-import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
-import { toast } from 'sonner';
-import { INTRO_SKIP_LEAD_SEC } from '@/utils/playback/transcript-segments';
+} from "@/hooks/playback";
+import { useAudioPlayer } from "@/hooks/use-audio-player";
+import { useMicDevices, useMicPitch } from "@/hooks/use-mic-pitch";
+import { usePitchScoring } from "@/hooks/use-pitch-scoring";
+import { PROFILES } from "@/queries/keys";
+import { useProfiles } from "@/queries/use-profiles";
+import { addScore } from "@/tauri-bridge/profile";
+import type { Song } from "@/types/Song";
+import type { AppConfig } from "@/types/AppConfig";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
+import { toast } from "sonner";
+import { INTRO_SKIP_LEAD_SEC } from "@/utils/playback/transcript-segments";
 
-import successSoundUrl from '@/assets/sounds/success.mp3';
-import { ResultDialog } from '@/components/playback/dialogs/result';
-import { ensureMp3Stems, onStemsReady } from '@/tauri-bridge/playback';
+import successSoundUrl from "@/assets/sounds/success.mp3";
+import { ResultDialog } from "@/components/playback/dialogs/result";
+import { ensureMp3Stems, onStemsReady } from "@/tauri-bridge/playback";
 
 export interface PlaybackInnerProps {
   song: Song;
@@ -57,9 +51,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
   const initialVideoFlavor = config?.last_video_flavor ?? 0;
 
   const [paused, setPaused] = useState(false);
-  const [themeIndex, setThemeIndex] = useState(
-    song.is_video ? SOURCE_VIDEO_INDEX : initialTheme,
-  );
+  const [themeIndex, setThemeIndex] = useState(song.is_video ? SOURCE_VIDEO_INDEX : initialTheme);
   const [flavorIndex, setFlavorIndex] = useState(initialVideoFlavor);
 
   const { segments, transcriptSource } = usePlaybackTranscript(fileHash);
@@ -73,7 +65,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
       if (event.file_hash !== fileHash) return;
       if (event.error) {
         toast.error(`Stem conversion failed: ${event.error}`);
-        navigate('/', { replace: true });
+        navigate("/", { replace: true });
       } else {
         setStemsReady(true);
       }
@@ -90,16 +82,11 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
 
   const audio = useAudioPlayer(fileHash, initialGuideVolume, stemsReady);
 
-  const [micUserEnabled, setMicUserEnabled] = useState(
-    config?.mic_active ?? true,
-  );
-  const [selectedMicId, setSelectedMicId] = useState<string | null>(
-    config?.preferred_mic ?? null,
-  );
+  const [micUserEnabled, setMicUserEnabled] = useState(config?.mic_active ?? true);
+  const [selectedMicId, setSelectedMicId] = useState<string | null>(config?.preferred_mic ?? null);
   const micDevices = useMicDevices();
 
-  const micEnabled =
-    audio.isReady && audio.isPlaying && !paused && micUserEnabled;
+  const micEnabled = audio.isReady && audio.isPlaying && !paused && micUserEnabled;
   const {
     latestPitch,
     active: micActive,
@@ -130,9 +117,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
 
   const handleCycleMic = useCallback(() => {
     if (micDevices.length <= 1) return;
-    const currentIdx = micDevices.findIndex(
-      (d) => d.deviceId === selectedMicId,
-    );
+    const currentIdx = micDevices.findIndex((d) => d.deviceId === selectedMicId);
     const nextIdx = (currentIdx + 1) % micDevices.length;
     const next = micDevices[nextIdx];
     setSelectedMicId(next.deviceId);
@@ -160,7 +145,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
     const shouldShowResult = finalScore > 0;
 
     if (!shouldShowResult) {
-      navigate('/', { replace: true });
+      navigate("/", { replace: true });
 
       return;
     }
@@ -174,10 +159,8 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
         setResultScore(finalScore);
         setShowResult(true);
       } catch (e) {
-        toast.error(
-          `Could not save score: ${e instanceof Error ? e.message : String(e)}`,
-        );
-        navigate('/', { replace: true });
+        toast.error(`Could not save score: ${e instanceof Error ? e.message : String(e)}`);
+        navigate("/", { replace: true });
       }
     })();
   }, [
@@ -200,26 +183,25 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
 
     return () => {
       audioEl.pause();
-      audioEl.src = '';
+      audioEl.src = "";
     };
   }, [showResult]);
 
   const handleResultFinish = useCallback(() => {
     audio.cleanup();
     setShowResult(false);
-    navigate('/', { replace: true });
+    navigate("/", { replace: true });
   }, [audio.cleanup, navigate]);
 
   useEffect(() => {
     if (audio.error) {
       toast.error(audio.error);
-      navigate('/', { replace: true });
+      navigate("/", { replace: true });
     }
   }, [audio.error, navigate]);
 
   const firstSegmentStart = segments.length > 0 ? segments[0].start : 0;
-  const lastSegmentEnd =
-    segments.length > 0 ? segments[segments.length - 1].end : 0;
+  const lastSegmentEnd = segments.length > 0 ? segments[segments.length - 1].end : 0;
 
   const handleSkipIntro = useCallback(() => {
     if (segments.length === 0) {
@@ -246,7 +228,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
 
   const handleExit = useCallback(() => {
     audio.cleanup();
-    navigate('/', { replace: true });
+    navigate("/", { replace: true });
   }, [audio.cleanup, navigate]);
 
   usePlaybackInput({
@@ -273,10 +255,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
   const videoFlavor: VideoFlavor = FLAVORS[flavorIndex % FLAVORS.length];
 
   return (
-    <div
-      className="fixed inset-0 overflow-hidden bg-black"
-      style={{ contain: 'strict' }}
-    >
+    <div className="fixed inset-0 overflow-hidden bg-black" style={{ contain: "strict" }}>
       <Background
         themeIndex={themeIndex}
         videoFlavor={videoFlavor}
@@ -306,7 +285,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
             transcriptSource={transcriptSource}
             pitchScore={micActive && micUserEnabled ? score : null}
             micOn={micUserEnabled}
-            micName={selectedMicId ?? 'Default'}
+            micName={selectedMicId ?? "Default"}
           />
           <PitchGraph series={series} visible={micActive && micUserEnabled} />
           <LyricsDisplay
@@ -318,11 +297,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
         </>
       )}
 
-      <PauseOverlay
-        open={paused && !showResult}
-        onContinue={handleContinue}
-        onExit={handleExit}
-      />
+      <PauseOverlay open={paused && !showResult} onContinue={handleContinue} onExit={handleExit} />
 
       <ResultDialog
         open={showResult}

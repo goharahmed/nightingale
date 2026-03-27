@@ -7,20 +7,20 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { useDialogNav } from '@/hooks/navigation/use-dialog-nav';
-import { useDialog } from '@/hooks/use-dialog';
-import { exit } from '@/tauri-bridge/exit';
-import { useCallback } from 'react';
-import { cn } from '@/lib/utils';
+} from "@/components/ui/alert-dialog";
+import { useDialogNav } from "@/hooks/navigation/use-dialog-nav";
+import { useDialog } from "@/hooks/use-dialog";
+import { exit } from "@/tauri-bridge/exit";
+import { useCallback } from "react";
+import { cn } from "@/lib/utils";
 
-const RING = 'ring-2 ring-primary';
-const NO_FOCUS_RING = 'focus-visible:ring-0 focus-visible:border-transparent';
+const RING = "ring-2 ring-primary";
+const NO_FOCUS_RING = "focus-visible:ring-0 focus-visible:border-transparent";
 
 export const ExitDialog = () => {
   const { close, mode } = useDialog();
 
-  const open = mode === 'exit';
+  const open = mode === "exit";
 
   const onConfirm = useCallback(
     (index: number) => {
@@ -45,9 +45,7 @@ export const ExitDialog = () => {
       <AlertDialogContent onEscapeKeyDown={(e) => e.preventDefault()}>
         <AlertDialogHeader>
           <AlertDialogTitle>Exit</AlertDialogTitle>
-          <AlertDialogDescription>
-            Are you sure you want to quit?
-          </AlertDialogDescription>
+          <AlertDialogDescription>Are you sure you want to quit?</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel

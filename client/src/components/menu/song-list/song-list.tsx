@@ -1,12 +1,12 @@
-import { useBestScoresBySongForActiveProfile } from '@/hooks/use-best-scores-by-song';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { SongCard } from './song-card';
-import { Filters } from './filters';
-import { Progress } from './progress';
-import { useAnalysisQueue, useSongs } from '@/queries/use-songs';
-import { useMenuFocus } from '@/contexts/menu-focus-context';
-import { useAnalysis } from '@/hooks/use-analysis';
-import { useNavigate } from 'react-router';
+import { useBestScoresBySongForActiveProfile } from "@/hooks/use-best-scores-by-song";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { SongCard } from "./song-card";
+import { Filters } from "./filters";
+import { Progress } from "./progress";
+import { useAnalysisQueue, useSongs } from "@/queries/use-songs";
+import { useMenuFocus } from "@/contexts/menu-focus-context";
+import { useAnalysis } from "@/hooks/use-analysis";
+import { useNavigate } from "react-router";
 
 export const SongList = () => {
   const navigate = useNavigate();
@@ -16,10 +16,7 @@ export const SongList = () => {
   const bestBySong = useBestScoresBySongForActiveProfile();
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useSongs();
 
-  const songs = useMemo(
-    () => data?.pages.flatMap((page) => page.processed) ?? [],
-    [data],
-  );
+  const songs = useMemo(() => data?.pages.flatMap((page) => page.processed) ?? [], [data]);
 
   // Register song activation callback and count with MenuFocus context
   const queueRef = useRef(queue);
@@ -41,12 +38,11 @@ export const SongList = () => {
       const queueStatus = queueRef.current?.entries[song.file_hash];
       const isReady =
         isAnalyzed &&
-        (!queueStatus ||
-          (typeof queueStatus === 'object' && 'Failed' in queueStatus));
+        (!queueStatus || (typeof queueStatus === "object" && "Failed" in queueStatus));
 
       if (isReady) {
-        navigate('/playback', { state: { song } });
-      } else if (!queueStatus || queueStatus === 'Queued') {
+        navigate("/playback", { state: { song } });
+      } else if (!queueStatus || queueStatus === "Queued") {
         enqueueOne(song.file_hash);
       }
     };
@@ -75,14 +71,14 @@ export const SongList = () => {
           fetchNextPage();
         }
       },
-      { rootMargin: '200px' },
+      { rootMargin: "200px" },
     );
 
     observer.observe(el);
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const isSongListActive = focus.active && focus.panel === 'songList';
+  const isSongListActive = focus.active && focus.panel === "songList";
 
   return (
     <div className="flex min-h-0 w-full flex-1 justify-center">
@@ -103,9 +99,7 @@ export const SongList = () => {
                 bestScore={bestBySong.get(song.file_hash)}
                 index={index}
                 isFocused={
-                  isSongListActive &&
-                  !focus.analyzeAllFocused &&
-                  focus.songIndex === index
+                  isSongListActive && !focus.analyzeAllFocused && focus.songIndex === index
                 }
               />
             ))}

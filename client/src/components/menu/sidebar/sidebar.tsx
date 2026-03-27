@@ -3,18 +3,13 @@ import {
   SidebarFooter,
   SidebarProvider,
   SidebarSeparator,
-} from '@/components/ui/sidebar';
-import { Stats } from './stats';
-import { Header } from './header';
-import { MainNavigation } from './main-navigation';
-import { Actions } from './actions';
-import { useMenuFocus } from '@/contexts/menu-focus-context';
-import {
-  useEffect,
-  useRef,
-  type RefObject,
-  type PropsWithChildren,
-} from 'react';
+} from "@/components/ui/sidebar";
+import { Stats } from "./stats";
+import { Header } from "./header";
+import { MainNavigation } from "./main-navigation";
+import { Actions } from "./actions";
+import { useMenuFocus } from "@/contexts/menu-focus-context";
+import { useEffect, useRef, type RefObject, type PropsWithChildren } from "react";
 
 export const SIDEBAR_ITEM_COUNT = 3;
 

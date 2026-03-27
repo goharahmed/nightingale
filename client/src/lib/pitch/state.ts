@@ -5,8 +5,8 @@ import {
   PUSH_INTERVAL_SEC,
   SEMITONE_TOLERANCE,
   SMOOTHING,
-} from './constants';
-import { createPitchDetector, detectPitchFromSamplesRef } from './detect';
+} from "./constants";
+import { createPitchDetector, detectPitchFromSamplesRef } from "./detect";
 
 export interface PitchSeries {
   refPitches: (number | null)[];
@@ -26,10 +26,7 @@ export function pitchSimilarity(refHz: number, userHz: number): number {
   return Math.max(0, 1 - diff / SEMITONE_TOLERANCE);
 }
 
-function ema(
-  prev: number | null | undefined,
-  current: number | null | undefined,
-): number | null {
+function ema(prev: number | null | undefined, current: number | null | undefined): number | null {
   if (current == null) {
     return null;
   }
@@ -118,9 +115,7 @@ export class PitchScoring {
   }
 
   score(): number {
-    return Math.round(
-      Math.min(1000, Math.max(0, (this.earned / this.totalSingable) * 1000)),
-    );
+    return Math.round(Math.min(1000, Math.max(0, (this.earned / this.totalSingable) * 1000)));
   }
 }
 
@@ -156,9 +151,7 @@ export function sampleVocalsWindow(
     return false;
   }
   const sr = vocals.sampleRate;
-  const start = Math.floor(
-    Math.max(0, timeSec - MIC_LATENCY_COMPENSATION_SEC) * sr,
-  );
+  const start = Math.floor(Math.max(0, timeSec - MIC_LATENCY_COMPENSATION_SEC) * sr);
   const ch = vocals.numberOfChannels > 0 ? vocals.getChannelData(0) : null;
   if (!ch || start + out.length > ch.length) {
     return false;

@@ -1,4 +1,4 @@
-import { useProfiles } from '@/queries/use-profiles';
+import { useProfiles } from "@/queries/use-profiles";
 
 export const useCurrentProfile = (): string | undefined => {
   const { data } = useProfiles();

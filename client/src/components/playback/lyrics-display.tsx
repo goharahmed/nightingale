@@ -1,5 +1,5 @@
-import type { Segment, Word } from '@/types/Transcript';
-import { memo, useEffect, useRef, useState } from 'react';
+import type { Segment, Word } from "@/types/Transcript";
+import { memo, useEffect, useRef, useState } from "react";
 
 // Timing offsets: lyrics/words appear slightly before their actual start
 // so the visual transition feels in sync with the audio.
@@ -18,11 +18,11 @@ interface WordStyle {
 }
 
 const STYLES = {
-  unsung: { rgb: 'rgb(255,255,255)', opacity: 0.5 },
-  unsungEstimated: { rgb: 'rgb(255,200,100)', opacity: 0.4 },
-  sung: { rgb: 'rgb(255,255,255)', opacity: 1.0 },
-  nextLine: { rgb: 'rgb(255,255,255)', opacity: 0.35 },
-  nextLineEstimated: { rgb: 'rgb(255,200,100)', opacity: 0.25 },
+  unsung: { rgb: "rgb(255,255,255)", opacity: 0.5 },
+  unsungEstimated: { rgb: "rgb(255,200,100)", opacity: 0.4 },
+  sung: { rgb: "rgb(255,255,255)", opacity: 1.0 },
+  nextLine: { rgb: "rgb(255,255,255)", opacity: 0.35 },
+  nextLineEstimated: { rgb: "rgb(255,200,100)", opacity: 0.25 },
 } as const;
 
 const unsungStyle = (word: Word): WordStyle =>
@@ -35,11 +35,7 @@ function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
 }
 
-function interpolateStyle(
-  from: WordStyle,
-  to: WordStyle,
-  t: number,
-): WordStyle {
+function interpolateStyle(from: WordStyle, to: WordStyle, t: number): WordStyle {
   const p = Math.max(0, Math.min(1, t));
   if (from.rgb === to.rgb) {
     return { rgb: to.rgb, opacity: lerp(from.opacity, to.opacity, p) };
@@ -62,15 +58,8 @@ function interpolateStyle(
  * Uses `hint` (the last known index) to skip already-passed segments.
  * Prefers the *next* segment when the current time falls in the lead-in window.
  */
-function findCurrentSegment(
-  segments: Segment[],
-  time: number,
-  hint: number,
-): number {
-  const start =
-    hint < segments.length && time >= segments[hint].start - LYRICS_LEAD
-      ? hint
-      : 0;
+function findCurrentSegment(segments: Segment[], time: number, hint: number): number {
+  const start = hint < segments.length && time >= segments[hint].start - LYRICS_LEAD ? hint : 0;
 
   for (let i = start; i < segments.length; i++) {
     if (time >= segments[i].end + SEGMENT_LINGER) {
@@ -91,11 +80,7 @@ function findCurrentSegment(
 
 // --- Per-frame DOM updates (called via rAF subscriber, no React re-renders) ---
 
-function computeWordStyle(
-  word: Word,
-  time: number,
-  isActive: boolean,
-): WordStyle {
+function computeWordStyle(word: Word, time: number, isActive: boolean): WordStyle {
   const base = unsungStyle(word);
   if (!isActive) return base;
 
@@ -104,11 +89,7 @@ function computeWordStyle(
 
   if (time >= wEnd) return STYLES.sung;
   if (time >= wStart) {
-    return interpolateStyle(
-      base,
-      STYLES.sung,
-      (time - wStart) / (wEnd - wStart),
-    );
+    return interpolateStyle(base, STYLES.sung, (time - wStart) / (wEnd - wStart));
   }
   return base;
 }
@@ -128,20 +109,16 @@ function updateWordSpans(
   }
 }
 
-function updateCountdown(
-  el: HTMLSpanElement | null,
-  showCountdown: boolean,
-  timeUntil: number,
-) {
+function updateCountdown(el: HTMLSpanElement | null, showCountdown: boolean, timeUntil: number) {
   if (!el) {
     return;
   }
 
   if (showCountdown) {
-    el.style.display = '';
+    el.style.display = "";
     el.textContent = String(Math.ceil(timeUntil));
   } else {
-    el.style.display = 'none';
+    el.style.display = "none";
   }
 }
 
@@ -154,16 +131,9 @@ interface LyricsDisplayProps {
   animate: boolean;
 }
 
-function LyricsDisplayImpl({
-  segments,
-  subscribe,
-  getCurrentTime,
-  animate,
-}: LyricsDisplayProps) {
+function LyricsDisplayImpl({ segments, subscribe, getCurrentTime, animate }: LyricsDisplayProps) {
   const [segIdx, setSegIdx] = useState(() =>
-    segments.length === 0
-      ? 0
-      : findCurrentSegment(segments, getCurrentTime(), 0),
+    segments.length === 0 ? 0 : findCurrentSegment(segments, getCurrentTime(), 0),
   );
 
   const hintRef = useRef(0);
@@ -186,25 +156,19 @@ function LyricsDisplayImpl({
       }
 
       const seg = segments[idx];
-      const isActive =
-        time >= seg.start - LYRICS_LEAD && time <= seg.end + SEGMENT_LINGER;
+      const isActive = time >= seg.start - LYRICS_LEAD && time <= seg.end + SEGMENT_LINGER;
 
-      const gapBefore =
-        idx === 0 ? seg.start : seg.start - segments[idx - 1].end;
+      const gapBefore = idx === 0 ? seg.start : seg.start - segments[idx - 1].end;
       const timeUntil = seg.start - time;
       const showCountdown =
-        gapBefore >= COUNTDOWN_GAP_THRESHOLD &&
-        timeUntil > 0 &&
-        timeUntil <= COUNTDOWN_DURATION;
+        gapBefore >= COUNTDOWN_GAP_THRESHOLD && timeUntil > 0 && timeUntil <= COUNTDOWN_DURATION;
 
       const showCurrent = isActive || showCountdown;
       const hasNext = idx + 1 < segments.length;
 
-      if (containerRef.current)
-        containerRef.current.style.display = showCurrent ? '' : 'none';
+      if (containerRef.current) containerRef.current.style.display = showCurrent ? "" : "none";
       if (nextContainerRef.current)
-        nextContainerRef.current.style.display =
-          showCurrent && hasNext ? '' : 'none';
+        nextContainerRef.current.style.display = showCurrent && hasNext ? "" : "none";
 
       updateCountdown(countdownRef.current, showCountdown, timeUntil);
       updateWordSpans(wordRefs.current, seg.words, time, isActive);
@@ -241,12 +205,12 @@ function LyricsDisplayImpl({
       <div
         ref={containerRef}
         className="relative max-w-full rounded-lg bg-black/40 px-5 py-2.5"
-        style={{ display: 'none' }}
+        style={{ display: "none" }}
       >
         <span
           ref={countdownRef}
           className="absolute -left-9 -top-9 z-10 flex size-10 items-center justify-center rounded-full bg-black/40 text-[22px] font-bold text-white"
-          style={{ display: 'none' }}
+          style={{ display: "none" }}
         />
         {seg.words.length > 0 && (
           <p className="text-center text-[2.5rem] leading-tight font-bold">
@@ -262,7 +226,7 @@ function LyricsDisplayImpl({
                 }}
               >
                 {word.word}
-                {wi < seg.words.length - 1 ? ' ' : ''}
+                {wi < seg.words.length - 1 ? " " : ""}
               </span>
             ))}
           </p>
@@ -273,7 +237,7 @@ function LyricsDisplayImpl({
         <div
           ref={nextContainerRef}
           className="max-w-full rounded-md bg-black/25 px-4 py-1.5"
-          style={{ display: 'none' }}
+          style={{ display: "none" }}
         >
           <p className="text-center text-[1.5rem] leading-tight">
             {nextSeg.words.map((word, wi) => {
@@ -281,7 +245,7 @@ function LyricsDisplayImpl({
               return (
                 <span key={wi} style={{ color: ns.rgb, opacity: ns.opacity }}>
                   {word.word}
-                  {wi < nextSeg.words.length - 1 ? ' ' : ''}
+                  {wi < nextSeg.words.length - 1 ? " " : ""}
                 </span>
               );
             })}

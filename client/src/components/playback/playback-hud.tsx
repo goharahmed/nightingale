@@ -1,45 +1,38 @@
-import type { TimeSubscriber } from '@/hooks/use-audio-player';
-import { forwardRef, memo, useEffect, useRef } from 'react';
-import type { VideoFlavor } from './video-background';
-import { isPixabayTheme, themeName } from './background';
+import type { TimeSubscriber } from "@/hooks/use-audio-player";
+import { forwardRef, memo, useEffect, useRef } from "react";
+import type { VideoFlavor } from "./video-background";
+import { isPixabayTheme, themeName } from "./background";
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds) % 60;
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
 function formatGuideText(volume: number): string {
   const pct = Math.round(volume * 100);
-  return pct === 0 ? 'Guide: OFF' : `Guide: ${pct}% [G +/-]`;
+  return pct === 0 ? "Guide: OFF" : `Guide: ${pct}% [G +/-]`;
 }
 
 function formatThemeText(themeIndex: number, videoFlavor: VideoFlavor): string {
-  return `Theme: ${themeName(themeIndex, videoFlavor)} [T${isPixabayTheme(themeIndex) ? '/F' : ''}]`;
+  return `Theme: ${themeName(themeIndex, videoFlavor)} [T${isPixabayTheme(themeIndex) ? "/F" : ""}]`;
 }
 
 // --- Shared sub-components ---
 
-const SkipButton = forwardRef<
-  HTMLButtonElement,
-  { label: string; onClick: () => void }
->(({ label, onClick }, ref) => (
-  <button
-    ref={ref}
-    onClick={onClick}
-    className="pointer-events-auto flex gap-1 rounded-sm border-2 border-white/70 bg-black/10 px-2.5 py-1 text-sm text-white/90 transition-colors hover:bg-black/20"
-    style={{ display: 'none' }}
-  >
-    <span>{label}</span> <span>⏎</span>
-  </button>
-));
+const SkipButton = forwardRef<HTMLButtonElement, { label: string; onClick: () => void }>(
+  ({ label, onClick }, ref) => (
+    <button
+      ref={ref}
+      onClick={onClick}
+      className="pointer-events-auto flex gap-1 rounded-sm border-2 border-white/70 bg-black/10 px-2.5 py-1 text-sm text-white/90 transition-colors hover:bg-black/20"
+      style={{ display: "none" }}
+    >
+      <span>{label}</span> <span>⏎</span>
+    </button>
+  ),
+);
 
-function HintText({
-  children,
-  fontSize = 'sm',
-}: {
-  children: React.ReactNode;
-  fontSize?: string;
-}) {
+function HintText({ children, fontSize = "sm" }: { children: React.ReactNode; fontSize?: string }) {
   return <p className={`text-${fontSize} text-white/50`}>{children}</p>;
 }
 
@@ -47,14 +40,12 @@ const FOOTER_NOTE_CLASS = `pointer-events-none absolute bottom-2 z-20 text-[0.6r
 
 function Disclaimer({ source }: { source: string }) {
   const text =
-    source === 'lyrics'
-      ? 'Timing is AI-generated and may not be perfectly accurate'
-      : 'Lyrics and timing are AI-generated and may not be perfectly accurate';
+    source === "lyrics"
+      ? "Timing is AI-generated and may not be perfectly accurate"
+      : "Lyrics and timing are AI-generated and may not be perfectly accurate";
 
   return (
-    <p
-      className={`${FOOTER_NOTE_CLASS} left-1/2 -translate-x-1/2 whitespace-nowrap text-center`}
-    >
+    <p className={`${FOOTER_NOTE_CLASS} left-1/2 -translate-x-1/2 whitespace-nowrap text-center`}>
       {text}
     </p>
   );
@@ -126,21 +117,13 @@ function PlaybackHudImpl({
 
       if (skipIntroRef.current) {
         skipIntroRef.current.style.display =
-          time < firstSegmentStart - introSkipLeadSec ? '' : 'none';
+          time < firstSegmentStart - introSkipLeadSec ? "" : "none";
       }
       if (skipOutroRef.current) {
-        skipOutroRef.current.style.display =
-          time > lastSegmentEnd + 1 ? '' : 'none';
+        skipOutroRef.current.style.display = time > lastSegmentEnd + 1 ? "" : "none";
       }
     });
-  }, [
-    subscribe,
-    getCurrentTime,
-    duration,
-    firstSegmentStart,
-    introSkipLeadSec,
-    lastSegmentEnd,
-  ]);
+  }, [subscribe, getCurrentTime, duration, firstSegmentStart, introSkipLeadSec, lastSegmentEnd]);
 
   return (
     <>
@@ -152,33 +135,23 @@ function PlaybackHudImpl({
             0:00 / {formatTime(duration)}
           </p>
           <div className="mt-2 flex gap-2">
-            <SkipButton
-              ref={skipIntroRef}
-              label="Skip Intro"
-              onClick={onSkipIntro}
-            />
-            <SkipButton
-              ref={skipOutroRef}
-              label="Skip Outro"
-              onClick={onSkipOutro}
-            />
+            <SkipButton ref={skipIntroRef} label="Skip Intro" onClick={onSkipIntro} />
+            <SkipButton ref={skipOutroRef} label="Skip Outro" onClick={onSkipOutro} />
           </div>
         </div>
 
         <div className="flex flex-col items-end">
-          <div className={`text-lg text-white${pitchScore ? '' : '/50'}`}>
-            Score: {pitchScore ?? '--'}
+          <div className={`text-lg text-white${pitchScore ? "" : "/50"}`}>
+            Score: {pitchScore ?? "--"}
           </div>
           <HintText>{formatGuideText(guideVolume)}</HintText>
-          <HintText>Mic: {micOn ? micName : 'OFF'} [M/N]</HintText>
+          <HintText>Mic: {micOn ? micName : "OFF"} [M/N]</HintText>
           <HintText>{formatThemeText(themeIndex, videoFlavor)}</HintText>
           <HintText>[ESC] Back</HintText>
         </div>
       </div>
 
-      {showPixabayCredit && (
-        <p className={`${FOOTER_NOTE_CLASS} right-4`}>Videos by Pixabay</p>
-      )}
+      {showPixabayCredit && <p className={`${FOOTER_NOTE_CLASS} right-4`}>Videos by Pixabay</p>}
 
       <Disclaimer source={transcriptSource} />
     </>

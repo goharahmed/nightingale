@@ -7,13 +7,13 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { useDialogNav } from '@/hooks/navigation/use-dialog-nav';
-import { useCallback } from 'react';
-import { cn } from '@/lib/utils';
+} from "@/components/ui/alert-dialog";
+import { useDialogNav } from "@/hooks/navigation/use-dialog-nav";
+import { useCallback } from "react";
+import { cn } from "@/lib/utils";
 
-const RING = 'ring-2 ring-primary';
-const NO_FOCUS_RING = 'focus-visible:ring-0 focus-visible:border-transparent';
+const RING = "ring-2 ring-primary";
+const NO_FOCUS_RING = "focus-visible:ring-0 focus-visible:border-transparent";
 
 interface PauseOverlayProps {
   open: boolean;
@@ -21,11 +21,7 @@ interface PauseOverlayProps {
   onContinue: () => void;
 }
 
-export const PauseOverlay = ({
-  open,
-  onExit,
-  onContinue,
-}: PauseOverlayProps) => {
+export const PauseOverlay = ({ open, onExit, onContinue }: PauseOverlayProps) => {
   const onConfirm = useCallback(
     (index: number) => {
       if (index === 0) {
@@ -49,9 +45,7 @@ export const PauseOverlay = ({
       <AlertDialogContent onEscapeKeyDown={(e) => e.preventDefault()}>
         <AlertDialogHeader>
           <AlertDialogTitle>Paused</AlertDialogTitle>
-          <AlertDialogDescription>
-            Exiting now won&apos;t save your progress
-          </AlertDialogDescription>
+          <AlertDialogDescription>Exiting now won&apos;t save your progress</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel

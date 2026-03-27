@@ -1,10 +1,6 @@
-import {
-  onSetupError,
-  onSetupProgress,
-  triggerSetup,
-} from '@/tauri-bridge/setup';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavInput } from '@/hooks/navigation/use-nav-input';
+import { onSetupError, onSetupProgress, triggerSetup } from "@/tauri-bridge/setup";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavInput } from "@/hooks/navigation/use-nav-input";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,16 +10,16 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { exit } from '@/tauri-bridge/exit';
-import { Progress } from '@/components/ui/progress';
-import type { SetupProgress } from '@/types/SetupProgress';
-import type { SetupStep } from '@/types/SetupStep';
-import logoSrc from '@/assets/images/logo_square.png';
-import { useShouldRunSetup } from '@/hooks/use-should-run-setup';
+} from "@/components/ui/alert-dialog";
+import { exit } from "@/tauri-bridge/exit";
+import { Progress } from "@/components/ui/progress";
+import type { SetupProgress } from "@/types/SetupProgress";
+import type { SetupStep } from "@/types/SetupStep";
+import logoSrc from "@/assets/images/logo_square.png";
+import { useShouldRunSetup } from "@/hooks/use-should-run-setup";
 
-interface ExtendedSetupProgress extends Omit<SetupProgress, 'step'> {
-  step: SetupStep | 'init' | 'error';
+interface ExtendedSetupProgress extends Omit<SetupProgress, "step"> {
+  step: SetupStep | "init" | "error";
 }
 
 type InitialStepProps = {
@@ -35,13 +31,12 @@ const InitialStep = ({ onStart }: InitialStepProps) => (
     <AlertDialogHeader>
       <AlertDialogTitle>Welcome to Nightingale!</AlertDialogTitle>
       <AlertDialogDescription>
-        Before you get started, we need to install a few dependencies:{' '}
-        <code>ffmpeg</code>, <code>uv</code>, <code>python 3.10</code>, Python
-        packages, and <code>CUDA</code> wheels (NVIDIA GPUs only).
+        Before you get started, we need to install a few dependencies: <code>ffmpeg</code>,{" "}
+        <code>uv</code>, <code>python 3.10</code>, Python packages, and <code>CUDA</code> wheels
+        (NVIDIA GPUs only).
       </AlertDialogDescription>
       <AlertDialogDescription>
-        This may take a few minutes. You can exit at any time if you'd prefer
-        not to continue.
+        This may take a few minutes. You can exit at any time if you'd prefer not to continue.
       </AlertDialogDescription>
       <AlertDialogDescription>This only happens once.</AlertDialogDescription>
     </AlertDialogHeader>
@@ -62,9 +57,7 @@ const LoadStep = ({ action, percent }: LoadStepProps) => (
     <AlertDialogHeader>
       <AlertDialogTitle>Setting up Nightingale</AlertDialogTitle>
       <div className="flex flex-col gap-2 w-full">
-        <AlertDialogDescription className="w-full">
-          {action}
-        </AlertDialogDescription>
+        <AlertDialogDescription className="w-full">{action}</AlertDialogDescription>
         <Progress value={percent} />
       </div>
     </AlertDialogHeader>
@@ -101,8 +94,8 @@ const FinalStep = ({ onFinish }: FinalStepProps) => (
     <AlertDialogHeader>
       <AlertDialogTitle>You're all set!</AlertDialogTitle>
       <AlertDialogDescription>
-        All dependencies have been installed to{' '}
-        <code>~/.nightingale/vendor</code>. Nightingale is ready to use.
+        All dependencies have been installed to <code>~/.nightingale/vendor</code>. Nightingale is
+        ready to use.
       </AlertDialogDescription>
     </AlertDialogHeader>
     <AlertDialogFooter>
@@ -112,16 +105,15 @@ const FinalStep = ({ onFinish }: FinalStepProps) => (
 );
 
 const defaultProgress = {
-  step: 'init' as const,
+  step: "init" as const,
   percent: 0,
-  action: '',
+  action: "",
 };
 
 export const Setup = () => {
   const { shouldRunSetup, setShouldRunSetup } = useShouldRunSetup();
 
-  const [setupProgress, setSetupProgress] =
-    useState<ExtendedSetupProgress>(defaultProgress);
+  const [setupProgress, setSetupProgress] = useState<ExtendedSetupProgress>(defaultProgress);
 
   useEffect(() => {
     let unlistenProgress: (() => void) | undefined;
@@ -134,7 +126,7 @@ export const Setup = () => {
     });
 
     onSetupError((error) => {
-      setSetupProgress({ step: 'error', percent: 0, action: error });
+      setSetupProgress({ step: "error", percent: 0, action: error });
     }).then((fn) => {
       unlistenError = fn;
     });
@@ -155,7 +147,7 @@ export const Setup = () => {
         }
 
         if (navAction.back) {
-          if (step === 'finish') {
+          if (step === "finish") {
             setShouldRunSetup(false);
           } else {
             exit();
@@ -165,11 +157,11 @@ export const Setup = () => {
         }
 
         if (navAction.confirm) {
-          if (step === 'init') {
+          if (step === "init") {
             triggerSetup();
-          } else if (step === 'finish') {
+          } else if (step === "finish") {
             setShouldRunSetup(false);
-          } else if (step === 'error') {
+          } else if (step === "error") {
             exit();
           }
         }
@@ -180,18 +172,18 @@ export const Setup = () => {
 
   const Step = useMemo(() => {
     switch (step) {
-      case 'init':
+      case "init":
         return () => <InitialStep onStart={triggerSetup} />;
-      case 'clearvendor':
-      case 'ffmpeg':
-      case 'uv':
-      case 'python':
-      case 'venv':
-      case 'dependencies':
-      case 'extractscripts':
-      case 'videos':
+      case "clearvendor":
+      case "ffmpeg":
+      case "uv":
+      case "python":
+      case "venv":
+      case "dependencies":
+      case "extractscripts":
+      case "videos":
         return () => <LoadStep action={action} percent={percent} />;
-      case 'finish':
+      case "finish":
         return () => (
           <FinalStep
             onFinish={() => {
@@ -200,17 +192,14 @@ export const Setup = () => {
             }}
           />
         );
-      case 'error':
+      case "error":
         return () => <ErrorStep error={action} />;
     }
   }, [step, action, percent]);
 
   return (
     <AlertDialog open={shouldRunSetup}>
-      <AlertDialogContent
-        data-nav-passthrough
-        onEscapeKeyDown={(e) => e.preventDefault()}
-      >
+      <AlertDialogContent data-nav-passthrough onEscapeKeyDown={(e) => e.preventDefault()}>
         <img src={logoSrc} width={80} height={80} />
         <Step />
       </AlertDialogContent>

@@ -1,24 +1,18 @@
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  Item,
-  ItemContent,
-  ItemDescription,
-  ItemMedia,
-  ItemTitle,
-} from '@/components/ui/item';
-import { Stars } from '@/components/shared/stars';
-import { useAnalysis } from '@/hooks/use-analysis';
-import type { QueuedStatus } from '@/types/QueuedStatus';
-import type { Song } from '@/types/Song';
-import { convertFileSrc } from '@/tauri-bridge/media';
+} from "@/components/ui/dropdown-menu";
+import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item";
+import { Stars } from "@/components/shared/stars";
+import { useAnalysis } from "@/hooks/use-analysis";
+import type { QueuedStatus } from "@/types/QueuedStatus";
+import type { Song } from "@/types/Song";
+import { convertFileSrc } from "@/tauri-bridge/media";
 import {
   AudioLinesIcon,
   LanguagesIcon,
@@ -28,63 +22,60 @@ import {
   MusicIcon,
   Trash2Icon,
   VideoIcon,
-} from 'lucide-react';
-import { memo } from 'react';
-import { useNavigate } from 'react-router';
-import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
-import { useDialog } from '@/hooks/use-dialog';
+} from "lucide-react";
+import { memo } from "react";
+import { useNavigate } from "react-router";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { useDialog } from "@/hooks/use-dialog";
 
 function formatSeconds(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
   const secs = Math.floor(seconds) % 60;
 
-  return `${minutes}:${secs.toString().padStart(2, '0')}`;
+  return `${minutes}:${secs.toString().padStart(2, "0")}`;
 }
 
 type StatusInfo = {
   label: string;
-  variant: 'default' | 'secondary' | 'destructive' | 'outline';
+  variant: "default" | "secondary" | "destructive" | "outline";
   className?: string;
   isAnalyzing?: boolean;
   isReady?: boolean;
 };
 
-function getStatusInfo(
-  isAnalyzed: boolean,
-  queueStatus?: QueuedStatus,
-): StatusInfo {
+function getStatusInfo(isAnalyzed: boolean, queueStatus?: QueuedStatus): StatusInfo {
   if (queueStatus) {
-    if (queueStatus === 'Queued') {
-      return { label: 'Queued', variant: 'secondary' };
+    if (queueStatus === "Queued") {
+      return { label: "Queued", variant: "secondary" };
     }
 
-    if (typeof queueStatus === 'object') {
-      if ('Analyzing' in queueStatus) {
+    if (typeof queueStatus === "object") {
+      if ("Analyzing" in queueStatus) {
         return {
           label: `Analyzing ${queueStatus.Analyzing}%`,
-          variant: 'default',
-          className: 'animate-pulse',
+          variant: "default",
+          className: "animate-pulse",
           isAnalyzing: true,
         };
       }
 
-      if ('Failed' in queueStatus) {
-        return { label: 'Failed', variant: 'destructive' };
+      if ("Failed" in queueStatus) {
+        return { label: "Failed", variant: "destructive" };
       }
     }
   }
 
   if (isAnalyzed) {
     return {
-      label: 'Analyzed',
-      variant: 'default',
-      className: 'bg-green-600 text-white',
+      label: "Analyzed",
+      variant: "default",
+      className: "bg-green-600 text-white",
       isReady: true,
     };
   }
 
-  return { label: 'Not Analyzed', variant: 'outline' };
+  return { label: "Not Analyzed", variant: "outline" };
 }
 
 interface SongCardProps {
@@ -98,8 +89,7 @@ interface SongCardProps {
 export const SongCard = memo(
   ({ song, queueStatus, bestScore, index, isFocused }: SongCardProps) => {
     const navigate = useNavigate();
-    const { enqueueOne, deleteSongCache, reanalyzeFull, reanalyzeTranscript } =
-      useAnalysis();
+    const { enqueueOne, deleteSongCache, reanalyzeFull, reanalyzeTranscript } = useAnalysis();
     const { label, variant, className, isAnalyzing, isReady } = getStatusInfo(
       song.is_analyzed,
       queueStatus,
@@ -107,8 +97,8 @@ export const SongCard = memo(
     const { setMode } = useDialog();
 
     const displaySource = isReady
-      ? ` (${song.transcript_source === 'Lyrics' ? 'Lyrics' : 'Generated'})`
-      : '';
+      ? ` (${song.transcript_source === "Lyrics" ? "Lyrics" : "Generated"})`
+      : "";
 
     return (
       <Item
@@ -116,12 +106,12 @@ export const SongCard = memo(
         role="listitem"
         data-song-index={index}
         className={cn(
-          'cursor-pointer transition-colors hover:bg-muted focus-visible:ring-0 focus-visible:border-border',
-          isFocused && 'ring-2 ring-primary bg-muted',
+          "cursor-pointer transition-colors hover:bg-muted focus-visible:ring-0 focus-visible:border-border",
+          isFocused && "ring-2 ring-primary bg-muted",
         )}
         onClick={() => {
           if (isReady) {
-            return navigate('/playback', { state: { song } });
+            return navigate("/playback", { state: { song } });
           }
 
           enqueueOne(song.file_hash);
@@ -148,23 +138,18 @@ export const SongCard = memo(
           )}
           <ItemTitle className="flex min-w-0 flex-row flex-wrap items-center gap-2">
             <span className="line-clamp-1 min-w-0">{song.title}</span>
-            {bestScore != null ? (
-              <Stars score={bestScore} size="sm" className="shrink-0" />
-            ) : null}
+            {bestScore != null ? <Stars score={bestScore} size="sm" className="shrink-0" /> : null}
           </ItemTitle>
           <ItemDescription>
-            {song.artist} &bull; {song.album} &bull;{' '}
-            {formatSeconds(song.duration_secs)}
-            {song.language ? ` • ${song.language.toUpperCase()}` : ''}
+            {song.artist} &bull; {song.album} &bull; {formatSeconds(song.duration_secs)}
+            {song.language ? ` • ${song.language.toUpperCase()}` : ""}
           </ItemDescription>
         </ItemContent>
 
         <ItemContent className="flex flex-col items-end gap-1">
           <div className="flex items-center gap-1">
             <Badge variant={variant} className={className}>
-              {isAnalyzing && (
-                <LoaderCircleIcon className="size-3 animate-spin" />
-              )}
+              {isAnalyzing && <LoaderCircleIcon className="size-3 animate-spin" />}
               {label}
               {displaySource}
             </Badge>
@@ -175,11 +160,7 @@ export const SongCard = memo(
                 <MenuIcon /> Actions
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent
-              side="bottom"
-              align="start"
-              className="min-w-56"
-            >
+            <DropdownMenuContent side="bottom" align="start" className="min-w-56">
               <DropdownMenuGroup>
                 <DropdownMenuItem
                   onClick={async (e) => {
@@ -208,9 +189,7 @@ export const SongCard = memo(
                     e.stopPropagation();
 
                     reanalyzeFull(song.file_hash);
-                    toast.info(
-                      `Reanalyzing full (with stems) for "${song.title}"`,
-                    );
+                    toast.info(`Reanalyzing full (with stems) for "${song.title}"`);
                   }}
                 >
                   <AudioLinesIcon />
@@ -220,7 +199,7 @@ export const SongCard = memo(
                   onClick={async (e) => {
                     e.stopPropagation();
 
-                    setMode({ mode: 'language', song });
+                    setMode({ mode: "language", song });
                   }}
                 >
                   <LanguagesIcon />

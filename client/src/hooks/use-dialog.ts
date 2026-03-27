@@ -1,13 +1,13 @@
-import { Song } from '@/types/Song';
-import { atom, useAtom } from 'jotai';
+import { Song } from "@/types/Song";
+import { atom, useAtom } from "jotai";
 
 export type DialogMode =
-  | 'exit'
-  | 'create-profile'
-  | 'select-profile'
-  | 'settings'
-  | 'about'
-  | { mode: 'language'; song: Song }
+  | "exit"
+  | "create-profile"
+  | "select-profile"
+  | "settings"
+  | "about"
+  | { mode: "language"; song: Song }
   | null;
 
 const dialogAtom = atom<DialogMode>(null);

@@ -1,8 +1,5 @@
-import type { AudioPaths } from '@/types/Transcript';
-import {
-  getAudioPaths as tauriGetAudioPaths,
-  getMediaPort,
-} from '@/tauri-bridge/playback';
+import type { AudioPaths } from "@/types/Transcript";
+import { getAudioPaths as tauriGetAudioPaths, getMediaPort } from "@/tauri-bridge/playback";
 
 export interface PlaybackAdapter {
   getMediaBaseUrl(): Promise<string>;
@@ -10,7 +7,7 @@ export interface PlaybackAdapter {
 }
 
 export function joinMediaUrl(baseUrl: string, absolutePath: string): string {
-  const base = baseUrl.replace(/\/$/, '');
+  const base = baseUrl.replace(/\/$/, "");
   return `${base}/${encodeURIComponent(absolutePath)}`;
 }
 

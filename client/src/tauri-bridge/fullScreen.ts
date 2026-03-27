@@ -1,6 +1,6 @@
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
-import { windowImmersive } from '@/tauri-bridge/window';
+import { windowImmersive } from "@/tauri-bridge/window";
 
 const win = getCurrentWindow();
 

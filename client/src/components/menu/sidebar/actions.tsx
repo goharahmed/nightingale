@@ -1,4 +1,4 @@
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,19 +7,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from '@/components/ui/sidebar';
-import { useMenuFocus } from '@/contexts/menu-focus-context';
-import { useClearCache } from '@/hooks/use-clear-cache';
-import { useCurrentProfile } from '@/hooks/use-current-profile';
-import { useDialog } from '@/hooks/use-dialog';
-import { useShouldRunSetup } from '@/hooks/use-should-run-setup';
-import { useConfigMutation } from '@/mutations/use-config-mutation';
-import { useTheme } from '@/providers/theme/ThemeProvider';
+} from "@/components/ui/dropdown-menu";
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
+import { useMenuFocus } from "@/contexts/menu-focus-context";
+import { useClearCache } from "@/hooks/use-clear-cache";
+import { useCurrentProfile } from "@/hooks/use-current-profile";
+import { useDialog } from "@/hooks/use-dialog";
+import { useShouldRunSetup } from "@/hooks/use-should-run-setup";
+import { useConfigMutation } from "@/mutations/use-config-mutation";
+import { useTheme } from "@/providers/theme/ThemeProvider";
 import {
   BoxIcon,
   ChevronsUpDownIcon,
@@ -32,10 +28,10 @@ import {
   Trash2Icon,
   UserIcon,
   VideoIcon,
-} from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavInput } from '@/hooks/navigation/use-nav-input';
-import type { SidebarCallbacks } from './sidebar';
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavInput } from "@/hooks/navigation/use-nav-input";
+import type { SidebarCallbacks } from "./sidebar";
 
 interface ActionsProps {
   sidebarCallbacks: SidebarCallbacks;
@@ -60,9 +56,7 @@ export const Actions = ({ sidebarCallbacks }: ActionsProps) => {
       setDropdownOpen(true);
 
       setTimeout(() => {
-        const firstItem = document.querySelector(
-          '[role="menu"] [role="menuitem"]',
-        );
+        const firstItem = document.querySelector('[role="menu"] [role="menuitem"]');
 
         if (firstItem instanceof HTMLElement) {
           firstItem.focus();
@@ -98,12 +92,10 @@ export const Actions = ({ sidebarCallbacks }: ActionsProps) => {
       const focused = document.activeElement;
 
       if (action.up || action.down) {
-        const key = action.up ? 'ArrowUp' : 'ArrowDown';
+        const key = action.up ? "ArrowUp" : "ArrowDown";
 
         if (focused) {
-          focused.dispatchEvent(
-            new KeyboardEvent('keydown', { key, bubbles: true }),
-          );
+          focused.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
         }
       }
 
@@ -116,12 +108,12 @@ export const Actions = ({ sidebarCallbacks }: ActionsProps) => {
   );
 
   const { ThemeIcon, themeLabel } = useMemo(() => {
-    return theme === 'dark'
-      ? { ThemeIcon: SunIcon, themeLabel: 'Light Mode' }
-      : { ThemeIcon: MoonIcon, themeLabel: 'Dark mode' };
+    return theme === "dark"
+      ? { ThemeIcon: SunIcon, themeLabel: "Light Mode" }
+      : { ThemeIcon: MoonIcon, themeLabel: "Dark mode" };
   }, [theme]);
 
-  const isSidebarActive = focus.active && focus.panel === 'sidebar';
+  const isSidebarActive = focus.active && focus.panel === "sidebar";
 
   return (
     <SidebarMenu>
@@ -133,18 +125,16 @@ export const Actions = ({ sidebarCallbacks }: ActionsProps) => {
               size="lg"
               className={`data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground ${
                 isSidebarActive && focus.sidebarIndex === 2
-                  ? 'ring-2 ring-primary bg-sidebar-accent'
-                  : ''
+                  ? "ring-2 ring-primary bg-sidebar-accent"
+                  : ""
               }`}
             >
               <Avatar>
                 <AvatarFallback>
-                  {profile ? profile.slice(0, 2).toLocaleUpperCase() : 'NP'}
+                  {profile ? profile.slice(0, 2).toLocaleUpperCase() : "NP"}
                 </AvatarFallback>
               </Avatar>
-              <span className="truncate font-medium">
-                {profile ?? 'No Selected Profile'}
-              </span>
+              <span className="truncate font-medium">{profile ?? "No Selected Profile"}</span>
               <ChevronsUpDownIcon className="ml-auto size-4" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
@@ -178,16 +168,16 @@ export const Actions = ({ sidebarCallbacks }: ActionsProps) => {
               <DropdownMenuItem
                 onClick={() => {
                   if (profile) {
-                    return setMode('select-profile');
+                    return setMode("select-profile");
                   }
 
-                  setMode('create-profile');
+                  setMode("create-profile");
                 }}
               >
                 <UserIcon />
                 Profile
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setMode('settings')}>
+              <DropdownMenuItem onClick={() => setMode("settings")}>
                 <CogIcon />
                 Settings
               </DropdownMenuItem>
@@ -195,17 +185,17 @@ export const Actions = ({ sidebarCallbacks }: ActionsProps) => {
                 onClick={() => {
                   toggle();
 
-                  mutate({ dark_mode: theme === 'dark' ? false : true });
+                  mutate({ dark_mode: theme === "dark" ? false : true });
                 }}
               >
                 <ThemeIcon />
                 {themeLabel}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setMode('about')}>
+              <DropdownMenuItem onClick={() => setMode("about")}>
                 <InfoIcon />
                 About
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setMode('exit')}>
+              <DropdownMenuItem onClick={() => setMode("exit")}>
                 <DoorOpenIcon />
                 Exit
               </DropdownMenuItem>

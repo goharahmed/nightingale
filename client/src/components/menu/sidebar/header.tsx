@@ -1,6 +1,6 @@
-import { SidebarHeader } from '@/components/ui/sidebar';
+import { SidebarHeader } from "@/components/ui/sidebar";
 
-import logoUrl from '@/assets/images/logo.png';
+import logoUrl from "@/assets/images/logo.png";
 
 export const Header = () => (
   <SidebarHeader>

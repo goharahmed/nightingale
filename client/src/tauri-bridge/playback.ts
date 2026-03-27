@@ -1,18 +1,18 @@
-import type { AudioPaths } from '@/types/Transcript';
-import type { Transcript } from '@/types/Transcript';
-import { invoke } from '@tauri-apps/api/core';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import type { AudioPaths } from "@/types/Transcript";
+import type { Transcript } from "@/types/Transcript";
+import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 export const loadTranscript = async (fileHash: string): Promise<Transcript> => {
-  return await invoke<Transcript>('load_transcript', { fileHash });
+  return await invoke<Transcript>("load_transcript", { fileHash });
 };
 
 export const getAudioPaths = async (fileHash: string): Promise<AudioPaths> => {
-  return await invoke<AudioPaths>('get_audio_paths', { fileHash });
+  return await invoke<AudioPaths>("get_audio_paths", { fileHash });
 };
 
 export const ensureMp3Stems = (fileHash: string): void => {
-  void invoke<void>('ensure_mp3_stems', { fileHash });
+  void invoke<void>("ensure_mp3_stems", { fileHash });
 };
 
 export interface StemsReadyEvent {
@@ -20,20 +20,16 @@ export interface StemsReadyEvent {
   error: string | null;
 }
 
-export const onStemsReady = async (
-  cb: (event: StemsReadyEvent) => void,
-): Promise<UnlistenFn> => {
-  return await listen<StemsReadyEvent>('stems-ready', ({ payload }) =>
-    cb(payload),
-  );
+export const onStemsReady = async (cb: (event: StemsReadyEvent) => void): Promise<UnlistenFn> => {
+  return await listen<StemsReadyEvent>("stems-ready", ({ payload }) => cb(payload));
 };
 
 export const fetchPixabayVideos = async (flavor: string): Promise<string[]> => {
-  return await invoke<string[]>('fetch_pixabay_videos', { flavor });
+  return await invoke<string[]>("fetch_pixabay_videos", { flavor });
 };
 
 export const getMediaPort = async (): Promise<number> => {
-  return await invoke<number>('get_media_port');
+  return await invoke<number>("get_media_port");
 };
 
 export interface PixabayVideoDownloaded {
@@ -44,8 +40,7 @@ export interface PixabayVideoDownloaded {
 export const onPixabayVideoDownloaded = async (
   cb: (event: PixabayVideoDownloaded) => void,
 ): Promise<UnlistenFn> => {
-  return await listen<PixabayVideoDownloaded>(
-    'pixabay-video-downloaded',
-    ({ payload }) => cb(payload),
+  return await listen<PixabayVideoDownloaded>("pixabay-video-downloaded", ({ payload }) =>
+    cb(payload),
   );
 };
