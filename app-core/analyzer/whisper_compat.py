@@ -30,7 +30,12 @@ def align_device_for(device: str) -> str:
 
 
 def compute_type_for(device: str) -> str:
-    return "float16" if device == "cuda" else "float32"
+    if device != "cuda":
+        return "float32"
+    major, _ = torch.cuda.get_device_capability()
+    if major >= 7:
+        return "float16"
+    return "int8"
 
 
 def is_oom(err):

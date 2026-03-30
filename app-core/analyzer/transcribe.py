@@ -32,7 +32,8 @@ def transcribe_vocals(
     """
     import whisperx
 
-    compute_type = "float16" if device == "cuda" else "float32"
+    from whisper_compat import compute_type_for
+    compute_type = compute_type_for(device)
     if device == "mps":
         device = "cpu"
 
