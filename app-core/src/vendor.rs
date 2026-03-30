@@ -364,14 +364,24 @@ pub fn step_create_venv() -> Result<(), String> {
 struct GpuInfo {
     device: &'static str,
     torch_index: &'static str,
+    legacy_torch: bool,
 }
 
 fn detect_gpu() -> GpuInfo {
     #[cfg(target_os = "macos")]
     {
+        if cfg!(target_arch = "x86_64") {
+            info!("[vendor] GPU detection: Intel Mac (CPU-only, torch < 2.3)");
+            return GpuInfo {
+                device: "cpu",
+                torch_index: "https://download.pytorch.org/whl/cpu",
+                legacy_torch: true,
+            };
+        }
         return GpuInfo {
             device: "mps",
             torch_index: "https://download.pytorch.org/whl/cpu",
+            legacy_torch: false,
         };
     }
 
@@ -384,6 +394,7 @@ fn detect_gpu() -> GpuInfo {
                 GpuInfo {
                     device: "cuda",
                     torch_index: cuda_index,
+                    legacy_torch: false,
                 }
             }
             None => {
@@ -391,6 +402,7 @@ fn detect_gpu() -> GpuInfo {
                 GpuInfo {
                     device: "cpu",
                     torch_index: "https://download.pytorch.org/whl/cpu",
+                    legacy_torch: false,
                 }
             }
         }
@@ -444,10 +456,12 @@ pub fn step_install_packages() -> Result<(), String> {
     let py_str = py.to_string_lossy().to_string();
     let index = gpu.torch_index;
 
-    let audio_sep_pkg = if gpu.device == "cuda" {
-        "audio-separator[gpu]>=0.25"
+    let (audio_sep_pkg, whisperx_pkg) = if gpu.legacy_torch {
+        ("audio-separator>=0.24,<0.25", "whisperx>=3.3.0,<3.3.4")
+    } else if gpu.device == "cuda" {
+        ("audio-separator[gpu]>=0.25", "whisperx>=3.3.0")
     } else {
-        "audio-separator>=0.25"
+        ("audio-separator>=0.25", "whisperx>=3.3.0")
     };
 
     let cython_out = silent_command(&uv)
@@ -460,17 +474,23 @@ pub fn step_install_packages() -> Result<(), String> {
         return Err(format!("Build deps install failed: {stderr}"));
     }
 
-    let pkg_args: Vec<&str> = vec![
+    let mut pkg_args: Vec<&str> = vec![
         "pip",
         "install",
         "demucs>=4.0.0",
-        "whisperx>=3.3.0",
+        whisperx_pkg,
         "soundfile",
         "huggingface_hub>=0.27.0",
         audio_sep_pkg,
-        "--python",
-        &py_str,
     ];
+
+    if gpu.legacy_torch {
+        pkg_args.push("torch<2.3");
+        pkg_args.push("torchaudio<2.3");
+    }
+
+    pkg_args.push("--python");
+    pkg_args.push(&py_str);
 
     let output = silent_command(&uv)
         .args(&pkg_args)
