@@ -1,7 +1,7 @@
 use app_core::{
     delete_cache as core_delete_cache, enqueue_all as core_enqueue_all,
     enqueue_one as core_enqueue_one, reanalyze_full as core_reanalyze_full,
-    reanalyze_transcript as core_reanalyze_transcript,
+    reanalyze_transcript as core_reanalyze_transcript, LibraryMenuFilters,
 };
 
 #[tauri::command]
@@ -10,8 +10,8 @@ pub fn enqueue_one(file_hash: String) {
 }
 
 #[tauri::command]
-pub fn enqueue_all() {
-    core_enqueue_all();
+pub fn enqueue_all(filters: LibraryMenuFilters) {
+    core_enqueue_all(&filters);
 }
 
 #[tauri::command]

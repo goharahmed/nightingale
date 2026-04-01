@@ -12,8 +12,9 @@ use ts_rs::TS;
 use crate::cache::{models_dir, CacheDir};
 use crate::config::AppConfig;
 use crate::error::NightingaleError;
-use crate::song::{read_transcript_meta, Song, TranscriptSource};
 use crate::library_db;
+use crate::library_model::LibraryMenuFilters;
+use crate::song::{read_transcript_meta, Song, TranscriptSource};
 
 // ─── Analysis queue (persisted to disk) ──────────────────────────────
 
@@ -237,11 +238,11 @@ pub fn enqueue_one(file_hash: &str) {
     ensure_worker_running(&mut state);
 }
 
-pub fn enqueue_all() {
+pub fn enqueue_all(filters: &LibraryMenuFilters) {
     let queue = AnalysisQueue::load();
     let mut state = ANALYZER.lock().unwrap();
 
-    let pending_hashes = library_db::iter_file_hashes_not_analyzed().unwrap_or_default();
+    let pending_hashes = library_db::iter_file_hashes_filtered_not_analyzed(filters).unwrap_or_default();
 
     let mut newly_queued = Vec::new();
     for file_hash in pending_hashes {

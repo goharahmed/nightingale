@@ -43,7 +43,11 @@ const NAV_SECTIONS: NavSectionConfig[] = [
   { section: "albums", label: "Albums", icon: DiscIcon, defaultOpen: false },
 ];
 
-function MenuItemCounts({ item }: { item: LibraryMenuItem }) {
+interface MenuItemCountsProps {
+  item: LibraryMenuItem;
+}
+
+function MenuItemCounts({ item }: MenuItemCountsProps) {
   return (
     <div className="flex gap-1">
       {item.count !== item.analysedCount && (
@@ -60,6 +64,19 @@ function MenuItemCounts({ item }: { item: LibraryMenuItem }) {
   );
 }
 
+interface LibraryNavSectionProps {
+  items: LibraryMenuItem[];
+  filter: LibraryMenuFilters;
+  isSidebarActive: boolean;
+  focusedCollapse: boolean;
+  focusedItemKeys: Set<string>;
+  collapseIndex: number | undefined;
+  itemIndexByValue: Map<string, number>;
+  open: boolean;
+  onToggleOpen: (open: boolean) => void;
+  onSelectItem: (section: LibraryMenuSection, item: LibraryMenuItem) => void;
+}
+
 function LibraryNavSection({
   section,
   label,
@@ -74,18 +91,7 @@ function LibraryNavSection({
   open,
   onToggleOpen,
   onSelectItem,
-}: Omit<NavSectionConfig, "defaultOpen"> & {
-  items: LibraryMenuItem[];
-  filter: LibraryMenuFilters;
-  isSidebarActive: boolean;
-  focusedCollapse: boolean;
-  focusedItemKeys: Set<string>;
-  collapseIndex: number | undefined;
-  itemIndexByValue: Map<string, number>;
-  open: boolean;
-  onToggleOpen: (open: boolean) => void;
-  onSelectItem: (section: LibraryMenuSection, item: LibraryMenuItem) => void;
-}) {
+}: Omit<NavSectionConfig, "defaultOpen"> & LibraryNavSectionProps) {
   return (
     <Collapsible open={open} onOpenChange={onToggleOpen} className="group/collapsible">
       <SidebarMenuItem>

@@ -465,14 +465,6 @@ pub fn load_song_by_hash(file_hash: &str) -> rusqlite::Result<Option<Song>> {
     })
 }
 
-pub fn iter_file_hashes_not_analyzed() -> rusqlite::Result<Vec<String>> {
-    with_conn(|c| {
-        let mut stmt = c.prepare("SELECT file_hash FROM songs WHERE is_analyzed = 0")?;
-        let rows = stmt.query_map([], |r| r.get(0))?;
-        rows.collect()
-    })
-}
-
 pub fn update_song_fields(file_hash: &str, song: &Song) -> rusqlite::Result<()> {
     let payload = song_to_payload(song)?;
     let album_art = song
@@ -650,6 +642,30 @@ fn append_structural_filters(
     }
 }
 
+fn build_song_where_clause(
+    search_words: Option<&[String]>,
+    filters: &LibraryMenuFilters,
+    extra_where_parts: &[&str],
+) -> (Option<String>, Vec<String>) {
+    let mut where_parts: Vec<String> = Vec::new();
+    let mut bind_strings: Vec<String> = Vec::new();
+
+    if let Some(words) = search_words {
+        let (w, mut b) = songs_where_like_words(words);
+        where_parts.push(format!("({w})"));
+        bind_strings.append(&mut b);
+    }
+
+    append_structural_filters(filters, &mut where_parts, &mut bind_strings);
+    where_parts.extend(extra_where_parts.iter().map(|part| (*part).to_string()));
+
+    if where_parts.is_empty() {
+        (None, bind_strings)
+    } else {
+        (Some(where_parts.join(" AND ")), bind_strings)
+    }
+}
+
 pub fn load_songs_page(params: &LoadSongsParams) -> rusqlite::Result<SongsStore> {
     let (folder, scan_count) = with_conn(|c| {
         c.query_row(
@@ -659,23 +675,11 @@ pub fn load_songs_page(params: &LoadSongsParams) -> rusqlite::Result<SongsStore>
         )
     })?;
 
-    let search_words = params.search.as_ref().and_then(|s| search_words_from_query(s));
+    let search_words = params.search.as_deref().and_then(search_words_from_query);
+    let (where_sql, bind_strings) =
+        build_song_where_clause(search_words.as_deref(), &params.filters, &[]);
 
-    let mut where_parts: Vec<String> = Vec::new();
-    let mut bind_strings: Vec<String> = Vec::new();
-
-    if let Some(ref words) = search_words {
-        let (w, mut b) = songs_where_like_words(words);
-        where_parts.push(format!("({w})"));
-        bind_strings.append(&mut b);
-    }
-
-    append_structural_filters(&params.filters, &mut where_parts, &mut bind_strings);
-
-    let has_where = !where_parts.is_empty();
-    let where_sql = where_parts.join(" AND ");
-
-    let processed = if has_where {
+    let processed = if let Some(ref where_sql) = where_sql {
         let sql = format!(
             "SELECT payload FROM songs s
              WHERE {where_sql}
@@ -706,7 +710,7 @@ pub fn load_songs_page(params: &LoadSongsParams) -> rusqlite::Result<SongsStore>
         })?
     };
 
-    let processed_count = if has_where {
+    let processed_count = if let Some(ref where_sql) = where_sql {
         let sql = format!("SELECT COUNT(*) FROM songs s WHERE {where_sql}");
         with_conn(|c| {
             let n: i64 = c.query_row(
@@ -729,6 +733,38 @@ pub fn load_songs_page(params: &LoadSongsParams) -> rusqlite::Result<SongsStore>
         processed,
         processed_count,
     })
+}
+
+pub fn iter_file_hashes_filtered_not_analyzed(
+    filters: &LibraryMenuFilters,
+) -> rusqlite::Result<Vec<String>> {
+    let (where_sql, bind_strings) = build_song_where_clause(None, filters, &["s.is_analyzed = 0"]);
+
+    if let Some(where_sql) = where_sql {
+        let sql = format!(
+            "SELECT s.file_hash FROM songs s
+             WHERE {where_sql}
+             ORDER BY s.artist COLLATE NOCASE, s.title COLLATE NOCASE"
+        );
+        with_conn(|c| {
+            let mut stmt = c.prepare(&sql)?;
+            let rows = stmt.query_map(
+                rusqlite::params_from_iter(bind_strings.iter().map(|s| s.as_str())),
+                |r| r.get(0),
+            )?;
+            rows.collect()
+        })
+    } else {
+        with_conn(|c| {
+            let mut stmt = c.prepare(
+                "SELECT file_hash FROM songs
+                 WHERE is_analyzed = 0
+                 ORDER BY artist COLLATE NOCASE, title COLLATE NOCASE",
+            )?;
+            let rows = stmt.query_map([], |r| r.get(0))?;
+            rows.collect()
+        })
+    }
 }
 
 pub fn load_all_songs() -> rusqlite::Result<Vec<Song>> {
