@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use app_core::{AnalysisQueue, LibraryMenuItems, SongsMeta, SongsStore};
+use app_core::{AnalysisQueue, LibraryMenuItems, LoadSongsParams, SongsMeta, SongsStore};
 
 #[tauri::command]
 pub fn trigger_scan(folder: String) {
@@ -8,8 +8,8 @@ pub fn trigger_scan(folder: String) {
 }
 
 #[tauri::command]
-pub fn load_songs(search: Option<String>, skip: usize, take: usize) -> SongsStore {
-    SongsStore::load(search.as_ref(), skip, take)
+pub fn load_songs(params: LoadSongsParams) -> SongsStore {
+    SongsStore::load(&params)
 }
 
 #[tauri::command]

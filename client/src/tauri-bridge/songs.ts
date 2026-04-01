@@ -1,4 +1,5 @@
 import type { AnalysisQueue } from "@/types/AnalysisQueue";
+import type { LoadSongsParams } from "@/types/LoadSongsParams";
 import type { SongsMeta } from "@/types/SongsMeta";
 import type { SongsStore } from "@/types/SongsStore";
 import { invoke } from "@tauri-apps/api/core";
@@ -10,8 +11,8 @@ export function getPreloadedSongsMeta(): SongsMeta | undefined {
   return window.__NIGHTINGALE_SONGS_META__;
 }
 
-export const loadSongs = async (search?: string, skip = 0, take = 50): Promise<SongsStore> => {
-  return await invoke<SongsStore>("load_songs", { search, skip, take });
+export const loadSongs = async (params: LoadSongsParams): Promise<SongsStore> => {
+  return await invoke<SongsStore>("load_songs", { params });
 };
 
 export const loadSongsMeta = async (): Promise<SongsMeta> => {

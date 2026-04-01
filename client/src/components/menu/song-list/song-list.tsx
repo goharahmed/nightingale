@@ -5,16 +5,25 @@ import { Filters } from "./filters";
 import { Progress } from "./progress";
 import { useAnalysisQueue, useSongs } from "@/queries/use-songs";
 import { useMenuFocus } from "@/contexts/menu-focus-context";
+import { useLibraryFilter } from "@/hooks/use-library-filter";
 import { useAnalysis } from "@/hooks/use-analysis";
+import { useSearch } from "@/hooks/use-search";
 import { useNavigate } from "react-router";
 
 export const SongList = () => {
   const navigate = useNavigate();
   const { enqueueOne } = useAnalysis();
   const { data: queue } = useAnalysisQueue();
-  const { focus, actionsRef, scrollRef } = useMenuFocus();
+  const { focus, actionsRef, scrollRef, setFocus } = useMenuFocus();
+  const { search } = useSearch();
+  const { artist, album, query } = useLibraryFilter();
   const bestBySong = useBestScoresBySongForActiveProfile();
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useSongs();
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 });
+    setFocus((prev) => ({ ...prev, songIndex: 0 }));
+  }, [search, artist, album, query, scrollRef, setFocus]);
 
   const songs = useMemo(() => data?.pages.flatMap((page) => page.processed) ?? [], [data]);
 

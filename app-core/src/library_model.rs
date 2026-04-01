@@ -3,6 +3,23 @@ use ts_rs::TS;
 
 use crate::song::Song;
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct LibraryMenuFilters {
+    pub artist: Option<String>,
+    pub album: Option<String>,
+    pub query: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct LoadSongsParams {
+    pub search: Option<String>,
+    pub filters: LibraryMenuFilters,
+    pub skip: usize,
+    pub take: usize,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
 #[ts(export)]
 pub struct SongsStore {

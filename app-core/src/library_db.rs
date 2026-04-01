@@ -6,7 +6,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::cache::{analysis_queue_path, nightingale_dir, songs_path};
 use crate::library_menu::{LibraryMenuItem, LibraryMenuItems};
-use crate::library_model::{SongsMeta, SongsStore};
+use crate::library_model::{LibraryMenuFilters, LoadSongsParams, SongsMeta, SongsStore};
 use crate::song::{Song, TranscriptSource};
 
 const SCHEMA_VERSION: i32 = 1;
@@ -610,11 +610,47 @@ fn songs_where_like_words(words: &[String]) -> (String, Vec<String>) {
     (parts.join(" AND "), flat)
 }
 
-pub fn load_songs_page(
-    search: Option<&String>,
-    skip: usize,
-    take: usize,
-) -> rusqlite::Result<SongsStore> {
+fn append_structural_filters(
+    filters: &LibraryMenuFilters,
+    where_parts: &mut Vec<String>,
+    bind_strings: &mut Vec<String>,
+) {
+    let artist = filters.artist.as_deref();
+    let album = filters.album.as_deref();
+    let query = filters.query.as_deref();
+
+    if let Some(a) = artist.filter(|s| !s.is_empty()) {
+        if a == "unknown_artist" {
+            where_parts.push("s.artist = ?".to_string());
+            bind_strings.push("Unknown Artist".to_string());
+        } else {
+            where_parts.push("s.artist = ?".to_string());
+            bind_strings.push(a.to_string());
+        }
+    }
+    if let Some(al) = album.filter(|s| !s.is_empty()) {
+        if al == "unknown_album" {
+            where_parts.push("s.album = ?".to_string());
+            bind_strings.push("Unknown Album".to_string());
+        } else if let Some((a, b)) = al.split_once('\u{001f}') {
+            where_parts.push("s.artist = ? AND s.album = ?".to_string());
+            bind_strings.push(a.to_string());
+            bind_strings.push(b.to_string());
+        } else {
+            where_parts.push("s.album = ?".to_string());
+            bind_strings.push(al.to_string());
+        }
+    }
+    if let Some(q) = query.filter(|s| !s.is_empty()) {
+        match q {
+            "analysed" => where_parts.push("s.is_analyzed = 1".to_string()),
+            "videos" => where_parts.push("s.is_video = 1".to_string()),
+            _ => {}
+        }
+    }
+}
+
+pub fn load_songs_page(params: &LoadSongsParams) -> rusqlite::Result<SongsStore> {
     let (folder, scan_count) = with_conn(|c| {
         c.query_row(
             "SELECT folder, scan_count FROM library_meta WHERE id = 1",
@@ -623,18 +659,31 @@ pub fn load_songs_page(
         )
     })?;
 
-    let search_words = search.and_then(|s| search_words_from_query(s));
+    let search_words = params.search.as_ref().and_then(|s| search_words_from_query(s));
 
-    let processed = if let Some(ref words) = search_words {
-        let (where_sql, bind_strings) = songs_where_like_words(words);
+    let mut where_parts: Vec<String> = Vec::new();
+    let mut bind_strings: Vec<String> = Vec::new();
+
+    if let Some(ref words) = search_words {
+        let (w, mut b) = songs_where_like_words(words);
+        where_parts.push(format!("({w})"));
+        bind_strings.append(&mut b);
+    }
+
+    append_structural_filters(&params.filters, &mut where_parts, &mut bind_strings);
+
+    let has_where = !where_parts.is_empty();
+    let where_sql = where_parts.join(" AND ");
+
+    let processed = if has_where {
+        let sql = format!(
+            "SELECT payload FROM songs s
+             WHERE {where_sql}
+             ORDER BY s.artist COLLATE NOCASE, s.title COLLATE NOCASE
+             LIMIT {} OFFSET {}",
+            params.take as i64, params.skip as i64
+        );
         with_conn(|c| {
-            let sql = format!(
-                "SELECT payload FROM songs s
-                 WHERE {where_sql}
-                 ORDER BY s.artist COLLATE NOCASE, s.title COLLATE NOCASE
-                 LIMIT {} OFFSET {}",
-                take as i64, skip as i64
-            );
             let mut stmt = c.prepare(&sql)?;
             let rows = stmt.query_map(
                 rusqlite::params_from_iter(bind_strings.iter().map(|s| s.as_str())),
@@ -650,17 +699,16 @@ pub fn load_songs_page(
                  LIMIT ?1 OFFSET ?2",
             )?;
             let rows = stmt.query_map(
-                params![take as i64, skip as i64],
+                params![params.take as i64, params.skip as i64],
                 load_song_from_payload_column,
             )?;
             rows.collect::<Result<Vec<_>, _>>()
         })?
     };
 
-    let processed_count = if let Some(ref words) = search_words {
-        let (where_sql, bind_strings) = songs_where_like_words(words);
+    let processed_count = if has_where {
+        let sql = format!("SELECT COUNT(*) FROM songs s WHERE {where_sql}");
         with_conn(|c| {
-            let sql = format!("SELECT COUNT(*) FROM songs s WHERE {where_sql}");
             let n: i64 = c.query_row(
                 &sql,
                 rusqlite::params_from_iter(bind_strings.iter().map(|s| s.as_str())),
@@ -769,7 +817,7 @@ pub fn query_library_menu_items() -> rusqlite::Result<LibraryMenuItems> {
                 count: analysed_total as u64,
             },
             LibraryMenuItem {
-                value: "Videos".into(),
+                value: "videos".into(),
                 label: "Videos".into(),
                 analysed_count: video_analysed as u64,
                 count: video_total as u64,

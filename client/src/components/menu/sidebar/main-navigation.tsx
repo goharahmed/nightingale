@@ -8,58 +8,99 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { ChevronDown, Flame, FileQuestionMark, DiscIcon, UserIcon } from "lucide-react";
+import {
+  ChevronDown,
+  Flame,
+  FileQuestionMark,
+  DiscIcon,
+  UserIcon,
+  type LucideIcon,
+} from "lucide-react";
 import { useLibraryMenuItems } from "@/queries/use-library-menu-items";
-import { LibraryMenuItem } from "@/types/LibraryMenuItem";
-import { ReactNode, useMemo } from "react";
+import type { LibraryMenuItem } from "@/types/LibraryMenuItem";
+import { useCallback, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
+import {
+  isLibraryMenuItemActive,
+  libraryFilterFromMenuSelection,
+  type LibraryMenuSection,
+} from "@/lib/library-menu-filter";
+import type { LibraryMenuFilters } from "@/types/LibraryMenuFilters";
+import { useLibraryFilter } from "@/hooks/use-library-filter";
 
-interface CollapsibleBlockProps {
-  items: LibraryMenuItem[];
-  icon: ReactNode;
+type NavSectionConfig = {
+  section: LibraryMenuSection;
   label: string;
-  defaultOpen?: boolean;
+  icon: LucideIcon;
+  defaultOpen: boolean;
+};
+
+const NAV_SECTIONS: NavSectionConfig[] = [
+  { section: "hot", label: "Quick Filters", icon: Flame, defaultOpen: true },
+  { section: "no_metadata", label: "No Metadata", icon: FileQuestionMark, defaultOpen: false },
+  { section: "artists", label: "Artists", icon: UserIcon, defaultOpen: false },
+  { section: "albums", label: "Albums", icon: DiscIcon, defaultOpen: false },
+];
+
+function MenuItemCounts({ item }: { item: LibraryMenuItem }) {
+  return (
+    <div className="flex gap-1">
+      {item.count !== item.analysedCount && (
+        <Badge className="h-5 border-0 bg-muted px-1.5 text-[0.65rem] font-medium text-muted-foreground">
+          {item.count.toString()}
+        </Badge>
+      )}
+      {item.analysedCount > 0n && (
+        <Badge className="h-5 border-0 bg-chart-3/15 px-1.5 text-[0.65rem] font-medium text-chart-3 dark:bg-chart-3/20">
+          {item.analysedCount.toString()}
+        </Badge>
+      )}
+    </div>
+  );
 }
 
-const CollapsibleBlock = ({ items, icon, label, defaultOpen = true }: CollapsibleBlockProps) => {
-  const filtered = useMemo(() => items.filter(({ count }) => count), [items]);
+function LibraryNavSection({
+  section,
+  label,
+  icon: Icon,
+  defaultOpen,
+  items,
+  filter,
+  onSelectItem,
+}: NavSectionConfig & {
+  items: LibraryMenuItem[];
+  filter: LibraryMenuFilters;
+  onSelectItem: (section: LibraryMenuSection, item: LibraryMenuItem) => void;
+}) {
+  const visibleItems = useMemo(() => items.filter(({ count }) => count > 0n), [items]);
 
-  if (filtered.length === 0) {
-    return;
+  if (visibleItems.length === 0) {
+    return null;
   }
 
   return (
     <Collapsible defaultOpen={defaultOpen} className="group/collapsible">
       <SidebarMenuItem>
         <CollapsibleTrigger asChild>
-          <SidebarMenuButton className="flex justify-between w-full">
+          <SidebarMenuButton className="flex w-full justify-between">
             <span className="flex items-center gap-2">
-              {icon}
+              <Icon className="size-4 shrink-0" />
               {label}
             </span>
-
             <ChevronDown className="transition-transform group-data-[state=open]/collapsible:rotate-180" />
           </SidebarMenuButton>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <SidebarMenuSub className="pr-0 mr-0">
-            {filtered.map(({ label, analysedCount, count }) => (
-              <SidebarMenuSubItem>
-                <SidebarMenuButton className="flex align-center gap-2 justify-between px-2 h-fit py-1.5">
-                  {label}
-
-                  <div className="flex gap-1">
-                    {count !== analysedCount && (
-                      <Badge className="h-5 border-0 bg-muted px-1.5 text-[0.65rem] font-medium text-muted-foreground">
-                        {count}
-                      </Badge>
-                    )}
-                    {analysedCount > 0 && (
-                      <Badge className="h-5 border-0 bg-chart-3/15 px-1.5 text-[0.65rem] font-medium text-chart-3 dark:bg-chart-3/20">
-                        {analysedCount}
-                      </Badge>
-                    )}
-                  </div>
+          <SidebarMenuSub className="mr-0 pr-0">
+            {visibleItems.map((item) => (
+              <SidebarMenuSubItem key={`${section}:${item.value}`}>
+                <SidebarMenuButton
+                  isActive={isLibraryMenuItemActive(section, item, filter)}
+                  className="flex h-fit items-center justify-between gap-2 px-2 py-1.5"
+                  onClick={() => onSelectItem(section, item)}
+                >
+                  {item.label}
+                  <MenuItemCounts item={item} />
                 </SidebarMenuButton>
               </SidebarMenuSubItem>
             ))}
@@ -68,7 +109,7 @@ const CollapsibleBlock = ({ items, icon, label, defaultOpen = true }: Collapsibl
       </SidebarMenuItem>
     </Collapsible>
   );
-};
+}
 
 interface MainNavigationProps {
   sidebarCallbacks?: unknown;
@@ -76,31 +117,32 @@ interface MainNavigationProps {
 
 export const MainNavigation = (_props: MainNavigationProps) => {
   const { data: menu } = useLibraryMenuItems();
+  const { setLibraryFilter, ...filter } = useLibraryFilter();
+
+  const selectMenuItem = useCallback(
+    (section: LibraryMenuSection, item: LibraryMenuItem) => {
+      setLibraryFilter(libraryFilterFromMenuSelection(section, item));
+    },
+    [setLibraryFilter],
+  );
 
   if (!menu) {
-    return;
+    return null;
   }
-
-  const { hot, no_metadata, artists, albums } = menu;
 
   return (
     <SidebarContent>
       <SidebarGroup>
         <SidebarMenu>
-          <CollapsibleBlock items={hot} label="Quick Filters" icon={<Flame />} />
-          <CollapsibleBlock
-            items={no_metadata}
-            label="No Metadata"
-            icon={<FileQuestionMark />}
-            defaultOpen={false}
-          />
-          <CollapsibleBlock
-            items={artists}
-            label="Artists"
-            icon={<UserIcon />}
-            defaultOpen={false}
-          />
-          <CollapsibleBlock items={albums} label="Albums" icon={<DiscIcon />} defaultOpen={false} />
+          {NAV_SECTIONS.map((config) => (
+            <LibraryNavSection
+              key={config.section}
+              {...config}
+              items={menu[config.section]}
+              filter={filter}
+              onSelectItem={selectMenuItem}
+            />
+          ))}
         </SidebarMenu>
       </SidebarGroup>
     </SidebarContent>

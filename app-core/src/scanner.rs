@@ -7,7 +7,7 @@ use walkdir::WalkDir;
 use crate::{
     cache::CacheDir,
     library_db,
-    library_model::{SongsMeta, SongsStore},
+    library_model::{LoadSongsParams, SongsMeta, SongsStore},
     song::{Song, build_song},
 };
 
@@ -29,8 +29,8 @@ impl SongsStore {
         }
     }
 
-    pub fn load(search: Option<&String>, skip: usize, take: usize) -> Self {
-        library_db::load_songs_page(search, skip, take).unwrap_or_else(|_| SongsStore {
+    pub fn load(params: &LoadSongsParams) -> Self {
+        library_db::load_songs_page(params).unwrap_or_else(|_| SongsStore {
             count: 0,
             folder: String::new(),
             processed: Vec::new(),

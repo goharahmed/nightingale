@@ -6,9 +6,11 @@ import {
   loadSongs,
   loadSongsMeta,
 } from "@/tauri-bridge/songs";
+import { useLibraryFilter } from "@/hooks/use-library-filter";
 import { useSearch } from "@/hooks/use-search";
 import { useRef, useState } from "react";
 import type { AnalysisQueue } from "@/types/AnalysisQueue";
+import type { LoadSongsParams } from "@/types/LoadSongsParams";
 import { SongsMeta } from "@/types/SongsMeta";
 
 const PAGE_SIZE = 25;
@@ -40,10 +42,23 @@ export const useSongsMeta = () => {
 
 export const useSongs = () => {
   const { search } = useSearch();
+  const { artist, album, query } = useLibraryFilter();
 
   return useInfiniteQuery({
-    queryKey: [...SONGS, search],
-    queryFn: ({ pageParam = 0 }) => loadSongs(search || undefined, pageParam, PAGE_SIZE),
+    queryKey: [...SONGS, search, artist, album, query],
+    queryFn: ({ pageParam = 0 }) => {
+      const params: LoadSongsParams = {
+        search: search || null,
+        filters: {
+          artist: artist ?? null,
+          album: album ?? null,
+          query: query ?? null,
+        },
+        skip: pageParam,
+        take: PAGE_SIZE,
+      };
+      return loadSongs(params);
+    },
     getNextPageParam: (lastPage, allPages) => {
       const loaded = allPages.reduce((sum, page) => sum + page.processed.length, 0);
       return loaded < lastPage.processed_count ? loaded : undefined;

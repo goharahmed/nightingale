@@ -21,7 +21,7 @@ pub use cache::{CacheDir, CacheStats, clear_models, clear_videos};
 pub use playback::{get_cached_pixabay_videos, download_pixabay_videos, ensure_mp3_stems, get_audio_paths, load_transcript, prefetch_one_per_flavor, AudioPaths};
 pub use config::AppConfig;
 pub use profile::ProfileStore;
-pub use library_model::{SongsMeta, SongsStore};
+pub use library_model::{LibraryMenuFilters, LoadSongsParams, SongsMeta, SongsStore};
 pub use library_menu::{LibraryMenuItem, LibraryMenuItems, load_library_menu_items};
 pub use scanner::start_scan;
 pub use library_db::{init_library, library_db_path};
