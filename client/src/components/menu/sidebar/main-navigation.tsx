@@ -69,6 +69,8 @@ function LibraryNavSection({
   isSidebarActive,
   focusedCollapse,
   focusedItemKeys,
+  collapseIndex,
+  itemIndexByValue,
   open,
   onToggleOpen,
   onSelectItem,
@@ -78,6 +80,8 @@ function LibraryNavSection({
   isSidebarActive: boolean;
   focusedCollapse: boolean;
   focusedItemKeys: Set<string>;
+  collapseIndex: number | undefined;
+  itemIndexByValue: Map<string, number>;
   open: boolean;
   onToggleOpen: (open: boolean) => void;
   onSelectItem: (section: LibraryMenuSection, item: LibraryMenuItem) => void;
@@ -87,6 +91,7 @@ function LibraryNavSection({
       <SidebarMenuItem>
         <CollapsibleTrigger asChild>
           <SidebarMenuButton
+            data-sidebar-nav-index={collapseIndex}
             className={`flex w-full justify-between ${
               isSidebarActive && focusedCollapse ? "ring-2 ring-primary bg-sidebar-accent" : ""
             }`}
@@ -103,6 +108,7 @@ function LibraryNavSection({
             {items.map((item) => (
               <SidebarMenuSubItem key={`${section}:${item.value}`}>
                 <SidebarMenuButton
+                  data-sidebar-nav-index={itemIndexByValue.get(item.value)}
                   isActive={isLibraryMenuItemActive(section, item, filter)}
                   className={`flex h-fit items-center justify-between gap-2 px-2 py-1.5 ${
                     isSidebarActive && focusedItemKeys.has(item.value)
@@ -208,6 +214,22 @@ export const MainNavigation = ({ registerCallbacks }: MainNavigationProps) => {
     return indexMap;
   }, [rows]);
 
+  const itemIndexBySection = useMemo(() => {
+    const itemMap = new Map<LibraryMenuSection, Map<string, number>>();
+
+    rows.forEach((row, index) => {
+      if (row.kind !== "item") {
+        return;
+      }
+
+      const sectionMap = itemMap.get(row.section) ?? new Map<string, number>();
+      sectionMap.set(row.value, index);
+      itemMap.set(row.section, sectionMap);
+    });
+
+    return itemMap;
+  }, [rows]);
+
   const focusedItemValueBySection = useMemo(() => {
     const itemMap = new Map<LibraryMenuSection, Set<string>>();
 
@@ -223,6 +245,21 @@ export const MainNavigation = ({ registerCallbacks }: MainNavigationProps) => {
 
     return itemMap;
   }, [rows, focus.sidebarIndex]);
+
+  useEffect(() => {
+    if (!isSidebarActive) {
+      return;
+    }
+
+    const rafId = requestAnimationFrame(() => {
+      const focusedItem = document.querySelector<HTMLElement>(
+        `[data-sidebar-nav-index="${focus.sidebarIndex}"]`,
+      );
+      focusedItem?.scrollIntoView({ block: "nearest" });
+    });
+
+    return () => cancelAnimationFrame(rafId);
+  }, [focus.sidebarIndex, isSidebarActive, rows]);
 
   if (!menu) {
     return null;
@@ -241,6 +278,8 @@ export const MainNavigation = ({ registerCallbacks }: MainNavigationProps) => {
               isSidebarActive={isSidebarActive}
               focusedCollapse={collapseIndexBySection.get(config.section) === focus.sidebarIndex}
               focusedItemKeys={focusedItemValueBySection.get(config.section) ?? new Set<string>()}
+              collapseIndex={collapseIndexBySection.get(config.section)}
+              itemIndexByValue={itemIndexBySection.get(config.section) ?? new Map<string, number>()}
               open={openBySection[config.section]}
               onToggleOpen={(open) => {
                 setOpenBySection((prev) => ({ ...prev, [config.section]: open }));
