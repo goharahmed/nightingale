@@ -1,0 +1,723 @@
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::{Mutex, OnceLock};
+
+use rusqlite::{Connection, OptionalExtension, params};
+
+use crate::cache::{analysis_queue_path, nightingale_dir, songs_path};
+use crate::library_model::{SongsMeta, SongsStore};
+use crate::song::{Song, TranscriptSource};
+
+const SCHEMA_VERSION: i32 = 1;
+
+static LIBRARY_DB: OnceLock<Mutex<Connection>> = OnceLock::new();
+
+static MIGRATING: AtomicBool = AtomicBool::new(false);
+static MIGRATION_TOTAL: AtomicUsize = AtomicUsize::new(0);
+static MIGRATION_DONE: AtomicUsize = AtomicUsize::new(0);
+
+/// Incremented at the start of each `start_scan` so in-flight scan threads stop writing
+/// after the library is cleared or replaced (folder change / new scan).
+static SCAN_GENERATION: AtomicU64 = AtomicU64::new(0);
+
+pub fn bump_scan_generation() -> u64 {
+    SCAN_GENERATION.fetch_add(1, Ordering::SeqCst) + 1
+}
+
+pub fn scan_generation_is_current(generation: u64) -> bool {
+    SCAN_GENERATION.load(Ordering::SeqCst) == generation
+}
+
+pub fn library_db_path() -> PathBuf {
+    nightingale_dir().join("songs.db")
+}
+
+fn configure(conn: &Connection) -> rusqlite::Result<()> {
+    conn.execute_batch(
+        "
+        PRAGMA journal_mode = WAL;
+        PRAGMA synchronous = NORMAL;
+        PRAGMA foreign_keys = ON;
+        PRAGMA cache_size = -64000;
+        PRAGMA mmap_size = 268435456;
+    ",
+    )
+}
+
+fn run_migrations(conn: &Connection) -> rusqlite::Result<()> {
+    let v: i32 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+    if v >= SCHEMA_VERSION {
+        return Ok(());
+    }
+    if v == 0 {
+        conn.execute_batch(
+            "
+            CREATE TABLE library_meta (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                folder TEXT NOT NULL DEFAULT '',
+                scan_count INTEGER NOT NULL DEFAULT 0
+            );
+            INSERT INTO library_meta (id, folder, scan_count) VALUES (1, '', 0);
+
+            CREATE TABLE songs (
+                id INTEGER PRIMARY KEY,
+                path TEXT NOT NULL UNIQUE,
+                file_hash TEXT NOT NULL,
+                title TEXT NOT NULL,
+                artist TEXT NOT NULL,
+                album TEXT NOT NULL,
+                duration_secs REAL NOT NULL,
+                album_art_path TEXT,
+                is_analyzed INTEGER NOT NULL,
+                language TEXT,
+                transcript_source TEXT,
+                is_video INTEGER NOT NULL,
+                payload TEXT NOT NULL
+            );
+            CREATE INDEX idx_songs_file_hash ON songs(file_hash);
+            CREATE INDEX idx_songs_artist_title ON songs(artist COLLATE NOCASE, title COLLATE NOCASE);
+            CREATE INDEX idx_songs_album ON songs(album COLLATE NOCASE);
+
+            CREATE VIRTUAL TABLE songs_fts USING fts5(
+                title,
+                artist,
+                album,
+                content = 'songs',
+                content_rowid = 'id'
+            );
+
+            CREATE TABLE analysis_queue (
+                file_hash TEXT PRIMARY KEY,
+                status TEXT NOT NULL CHECK (status IN ('queued', 'analyzing', 'failed')),
+                analyzing_pct INTEGER,
+                failed_message TEXT
+            );
+        ",
+        )?;
+    }
+    conn.execute(&format!("PRAGMA user_version = {SCHEMA_VERSION}"), [])?;
+    Ok(())
+}
+
+fn open_connection() -> rusqlite::Result<Connection> {
+    let path = library_db_path();
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let conn = Connection::open(path)?;
+    configure(&conn)?;
+    run_migrations(&conn)?;
+    Ok(conn)
+}
+
+pub fn init_library() -> rusqlite::Result<()> {
+    if LIBRARY_DB.get().is_some() {
+        return Ok(());
+    }
+    let conn = open_connection()?;
+    LIBRARY_DB.set(Mutex::new(conn)).map_err(|_| {
+        rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_MISUSE),
+            Some("library db already initialized".into()),
+        )
+    })?;
+    import_legacy_analysis_queue_json()?;
+    maybe_start_songs_json_migration();
+    Ok(())
+}
+
+fn with_conn<T, F: FnOnce(&Connection) -> rusqlite::Result<T>>(f: F) -> rusqlite::Result<T> {
+    let g = LIBRARY_DB
+        .get()
+        .ok_or_else(|| {
+            rusqlite::Error::SqliteFailure(
+                rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_MISUSE),
+                Some("init_library not called".into()),
+            )
+        })?
+        .lock()
+        .unwrap();
+    f(&g)
+}
+
+fn with_conn_mut<T, F: FnOnce(&mut Connection) -> rusqlite::Result<T>>(
+    f: F,
+) -> rusqlite::Result<T> {
+    let mut g = LIBRARY_DB
+        .get()
+        .ok_or_else(|| {
+            rusqlite::Error::SqliteFailure(
+                rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_MISUSE),
+                Some("init_library not called".into()),
+            )
+        })?
+        .lock()
+        .unwrap();
+    f(&mut g)
+}
+
+fn parse_legacy_queue_status(v: &serde_json::Value) -> (&'static str, Option<i64>, Option<String>) {
+    let Some(o) = v.as_object() else {
+        return ("queued", None, None);
+    };
+    if o.contains_key("Queued") {
+        return ("queued", None, None);
+    }
+    if let Some(n) = o.get("Analyzing").and_then(|x| x.as_u64()) {
+        return ("analyzing", Some(n as i64), None);
+    }
+    if let Some(s) = o.get("Failed").and_then(|x| x.as_str()) {
+        return ("failed", None, Some(s.to_string()));
+    }
+    ("queued", None, None)
+}
+
+fn import_legacy_analysis_queue_json() -> rusqlite::Result<()> {
+    let path = analysis_queue_path();
+    if !path.is_file() {
+        return Ok(());
+    }
+    let data = match std::fs::read_to_string(&path) {
+        Ok(s) => s,
+        Err(_) => return Ok(()),
+    };
+    let v: serde_json::Value = match serde_json::from_str(&data) {
+        Ok(v) => v,
+        Err(_) => return Ok(()),
+    };
+    let Some(entries) = v.get("entries").and_then(|e| e.as_object()) else {
+        return Ok(());
+    };
+    with_conn_mut(|c| {
+        let tx = c.transaction()?;
+        for (hash, val) in entries {
+            let (st, pct, msg) = parse_legacy_queue_status(val);
+            tx.execute(
+                "INSERT INTO analysis_queue (file_hash, status, analyzing_pct, failed_message)
+                 VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT(file_hash) DO UPDATE SET
+                   status = excluded.status,
+                   analyzing_pct = excluded.analyzing_pct,
+                   failed_message = excluded.failed_message",
+                params![hash, st, pct, msg],
+            )?;
+        }
+        tx.commit()?;
+        Ok(())
+    })?;
+    let _ = std::fs::rename(&path, path.with_extension("json.bak"));
+    Ok(())
+}
+
+fn upsert_queue_in_tx(
+    tx: &rusqlite::Transaction<'_>,
+    file_hash: &str,
+    status: &str,
+    analyzing_pct: Option<i64>,
+    failed_message: Option<&str>,
+) -> rusqlite::Result<()> {
+    tx.execute(
+        "INSERT INTO analysis_queue (file_hash, status, analyzing_pct, failed_message)
+         VALUES (?1, ?2, ?3, ?4)
+         ON CONFLICT(file_hash) DO UPDATE SET
+           status = excluded.status,
+           analyzing_pct = excluded.analyzing_pct,
+           failed_message = excluded.failed_message",
+        params![file_hash, status, analyzing_pct, failed_message],
+    )?;
+    Ok(())
+}
+
+pub fn analysis_queue_upsert_row(
+    file_hash: &str,
+    status: &str,
+    analyzing_pct: Option<i64>,
+    failed_message: Option<&str>,
+) -> rusqlite::Result<()> {
+    with_conn_mut(|c| {
+        let tx = c.transaction()?;
+        upsert_queue_in_tx(&tx, file_hash, status, analyzing_pct, failed_message)?;
+        tx.commit()?;
+        Ok(())
+    })
+}
+
+pub fn analysis_queue_delete(file_hash: &str) -> rusqlite::Result<()> {
+    with_conn_mut(|c| {
+        c.execute(
+            "DELETE FROM analysis_queue WHERE file_hash = ?",
+            [file_hash],
+        )?;
+        Ok(())
+    })
+}
+
+pub fn analysis_queue_clear() -> rusqlite::Result<()> {
+    with_conn_mut(|c| {
+        c.execute("DELETE FROM analysis_queue", [])?;
+        Ok(())
+    })
+}
+
+pub fn analysis_queue_load_rows()
+-> rusqlite::Result<Vec<(String, String, Option<i64>, Option<String>)>> {
+    with_conn(|c| {
+        let mut stmt = c.prepare(
+            "SELECT file_hash, status, analyzing_pct, failed_message FROM analysis_queue",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, Option<i64>>(2)?,
+                r.get::<_, Option<String>>(3)?,
+            ))
+        })?;
+        rows.collect()
+    })
+}
+
+pub fn analysis_queue_save_rows(
+    rows: &[(String, String, Option<i64>, Option<String>)],
+) -> rusqlite::Result<()> {
+    with_conn_mut(|c| {
+        let tx = c.transaction()?;
+        tx.execute("DELETE FROM analysis_queue", [])?;
+        for (hash, st, pct, msg) in rows {
+            upsert_queue_in_tx(&tx, hash, st.as_str(), *pct, msg.as_deref())?;
+        }
+        tx.commit()?;
+        Ok(())
+    })
+}
+
+fn song_to_payload(song: &Song) -> rusqlite::Result<String> {
+    serde_json::to_string(song).map_err(|e| {
+        rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            e.to_string(),
+        )))
+    })
+}
+
+fn transcript_source_to_db(t: Option<TranscriptSource>) -> Option<String> {
+    t.map(|s| match s {
+        TranscriptSource::Lyrics => "lyrics".to_string(),
+        TranscriptSource::Generated => "generated".to_string(),
+    })
+}
+
+const INSERT_SONG_SQL: &str = "\
+INSERT INTO songs (path, file_hash, title, artist, album, duration_secs, album_art_path,
+    is_analyzed, language, transcript_source, is_video, payload)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)";
+
+fn insert_song_row_prepared(
+    stmt: &mut rusqlite::Statement<'_>,
+    song: &Song,
+) -> rusqlite::Result<()> {
+    let payload = song_to_payload(song)?;
+    let album_art = song
+        .album_art_path
+        .as_ref()
+        .map(|p| p.to_string_lossy().into_owned());
+    stmt.execute(params![
+        song.path.to_string_lossy(),
+        song.file_hash,
+        song.title,
+        song.artist,
+        song.album,
+        song.duration_secs,
+        album_art,
+        song.is_analyzed as i32,
+        song.language,
+        transcript_source_to_db(song.transcript_source),
+        song.is_video as i32,
+        payload,
+    ])?;
+    Ok(())
+}
+
+pub fn read_library_meta() -> rusqlite::Result<(String, usize)> {
+    with_conn(|c| {
+        c.query_row(
+            "SELECT folder, scan_count FROM library_meta WHERE id = 1",
+            [],
+            |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)? as usize)),
+        )
+    })
+}
+
+pub fn update_library_meta(folder: &str, scan_count: usize) -> rusqlite::Result<()> {
+    with_conn_mut(|c| {
+        c.execute(
+            "UPDATE library_meta SET folder = ?1, scan_count = ?2 WHERE id = 1",
+            params![folder, scan_count as i64],
+        )?;
+        Ok(())
+    })
+}
+
+pub fn load_song_path_strings() -> rusqlite::Result<std::collections::HashSet<String>> {
+    with_conn(|c| {
+        let mut stmt = c.prepare("SELECT path FROM songs")?;
+        let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+        let v: Vec<String> = rows.collect::<Result<Vec<_>, _>>()?;
+        Ok(v.into_iter().collect())
+    })
+}
+
+pub fn append_songs(songs: &[Song]) -> rusqlite::Result<()> {
+    if songs.is_empty() {
+        return Ok(());
+    }
+    with_conn_mut(|c| {
+        let tx = c.transaction()?;
+        {
+            let mut stmt = tx.prepare(INSERT_SONG_SQL)?;
+            for song in songs {
+                insert_song_row_prepared(&mut stmt, song)?;
+            }
+        }
+        tx.commit()?;
+        Ok(())
+    })
+}
+
+pub fn append_songs_for_scan(songs: &[Song], generation: u64) -> rusqlite::Result<()> {
+    if songs.is_empty() || !scan_generation_is_current(generation) {
+        return Ok(());
+    }
+    with_conn_mut(|c| {
+        let tx = c.transaction()?;
+        {
+            let mut stmt = tx.prepare(INSERT_SONG_SQL)?;
+            for song in songs {
+                if !scan_generation_is_current(generation) {
+                    return Ok(());
+                }
+                insert_song_row_prepared(&mut stmt, song)?;
+            }
+        }
+        if !scan_generation_is_current(generation) {
+            return Ok(());
+        }
+        tx.commit()?;
+        Ok(())
+    })
+}
+
+pub fn replace_all_songs_sorted(songs: &[Song]) -> rusqlite::Result<()> {
+    with_conn_mut(|c| {
+        let tx = c.transaction()?;
+        tx.execute("DELETE FROM songs", [])?;
+        {
+            let mut stmt = tx.prepare(INSERT_SONG_SQL)?;
+            for song in songs {
+                insert_song_row_prepared(&mut stmt, song)?;
+            }
+        }
+        tx.commit()?;
+        Ok(())
+    })
+}
+
+pub fn delete_songs_not_in_paths(paths: &[String]) -> rusqlite::Result<()> {
+    with_conn_mut(|c| {
+        if paths.is_empty() {
+            c.execute("DELETE FROM songs", [])?;
+            return Ok(());
+        }
+        let placeholders = (1..=paths.len()).map(|_| "?").collect::<Vec<_>>().join(",");
+        let sql = format!("DELETE FROM songs WHERE path NOT IN ({placeholders})");
+        c.execute(
+            &sql,
+            rusqlite::params_from_iter(paths.iter().map(|s| s.as_str())),
+        )?;
+        Ok(())
+    })
+}
+
+fn load_song_from_payload_column(r: &rusqlite::Row<'_>) -> rusqlite::Result<Song> {
+    let payload: String = r.get(0)?;
+    serde_json::from_str(&payload).map_err(|e| {
+        rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e))
+    })
+}
+
+pub fn load_song_by_hash(file_hash: &str) -> rusqlite::Result<Option<Song>> {
+    with_conn(|c| {
+        let mut stmt = c.prepare("SELECT payload FROM songs WHERE file_hash = ?1 LIMIT 1")?;
+        let song = stmt
+            .query_row([file_hash], |r| {
+                let payload: String = r.get(0)?;
+                serde_json::from_str::<Song>(&payload).map_err(|e| {
+                    rusqlite::Error::FromSqlConversionFailure(
+                        0,
+                        rusqlite::types::Type::Text,
+                        Box::new(e),
+                    )
+                })
+            })
+            .optional()?;
+        Ok(song)
+    })
+}
+
+pub fn iter_file_hashes_not_analyzed() -> rusqlite::Result<Vec<String>> {
+    with_conn(|c| {
+        let mut stmt = c.prepare("SELECT file_hash FROM songs WHERE is_analyzed = 0")?;
+        let rows = stmt.query_map([], |r| r.get(0))?;
+        rows.collect()
+    })
+}
+
+pub fn update_song_fields(file_hash: &str, song: &Song) -> rusqlite::Result<()> {
+    let payload = song_to_payload(song)?;
+    let album_art = song
+        .album_art_path
+        .as_ref()
+        .map(|p| p.to_string_lossy().into_owned());
+    with_conn_mut(|c| {
+        c.execute(
+            "UPDATE songs SET title = ?2, artist = ?3, album = ?4, duration_secs = ?5,
+                album_art_path = ?6, is_analyzed = ?7, language = ?8, transcript_source = ?9,
+                is_video = ?10, payload = ?11
+             WHERE file_hash = ?1",
+            params![
+                file_hash,
+                song.title,
+                song.artist,
+                song.album,
+                song.duration_secs,
+                album_art,
+                song.is_analyzed as i32,
+                song.language,
+                transcript_source_to_db(song.transcript_source),
+                song.is_video as i32,
+                payload,
+            ],
+        )?;
+        Ok(())
+    })
+}
+
+pub fn load_meta_sql() -> rusqlite::Result<SongsMeta> {
+    if MIGRATING.load(Ordering::Acquire) {
+        return with_conn(|c| {
+            let (folder, _scan_count): (String, i64) = c.query_row(
+                "SELECT folder, scan_count FROM library_meta WHERE id = 1",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )?;
+            let songs_count: i64 =
+                c.query_row("SELECT COUNT(*) FROM songs WHERE is_video = 0", [], |r| {
+                    r.get(0)
+                })?;
+            let videos_count: i64 =
+                c.query_row("SELECT COUNT(*) FROM songs WHERE is_video != 0", [], |r| {
+                    r.get(0)
+                })?;
+            let analyzed_count: i64 = c.query_row(
+                "SELECT COUNT(*) FROM songs WHERE is_analyzed != 0",
+                [],
+                |r| r.get(0),
+            )?;
+            Ok(SongsMeta {
+                count: MIGRATION_TOTAL.load(Ordering::Acquire),
+                folder,
+                processed_count: MIGRATION_DONE.load(Ordering::Acquire),
+                songs_count: songs_count as usize,
+                videos_count: videos_count as usize,
+                analyzed_count: analyzed_count as usize,
+            })
+        });
+    }
+
+    with_conn(|c| {
+        let (folder, scan_count): (String, i64) = c.query_row(
+            "SELECT folder, scan_count FROM library_meta WHERE id = 1",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+        let processed: i64 = c.query_row("SELECT COUNT(*) FROM songs", [], |r| r.get(0))?;
+        let songs_count: i64 =
+            c.query_row("SELECT COUNT(*) FROM songs WHERE is_video = 0", [], |r| {
+                r.get(0)
+            })?;
+        let videos_count: i64 =
+            c.query_row("SELECT COUNT(*) FROM songs WHERE is_video != 0", [], |r| {
+                r.get(0)
+            })?;
+        let analyzed_count: i64 = c.query_row(
+            "SELECT COUNT(*) FROM songs WHERE is_analyzed != 0",
+            [],
+            |r| r.get(0),
+        )?;
+        Ok(SongsMeta {
+            count: scan_count as usize,
+            folder,
+            processed_count: processed as usize,
+            songs_count: songs_count as usize,
+            videos_count: videos_count as usize,
+            analyzed_count: analyzed_count as usize,
+        })
+    })
+}
+
+fn fts_escape(q: &str) -> String {
+    let mut s = String::new();
+    for ch in q.chars() {
+        match ch {
+            '"' => s.push_str("\"\""),
+            c => s.push(c),
+        }
+    }
+    s
+}
+
+fn build_fts_query(query: &str) -> String {
+    let parts: Vec<&str> = query.split_whitespace().filter(|s| !s.is_empty()).collect();
+    if parts.is_empty() {
+        return String::new();
+    }
+    parts
+        .iter()
+        .map(|p| format!("\"{}\"", fts_escape(p)))
+        .collect::<Vec<_>>()
+        .join(" AND ")
+}
+
+pub fn load_songs_page(
+    search: Option<&String>,
+    skip: usize,
+    take: usize,
+) -> rusqlite::Result<SongsStore> {
+    let (folder, scan_count) = with_conn(|c| {
+        c.query_row(
+            "SELECT folder, scan_count FROM library_meta WHERE id = 1",
+            [],
+            |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)),
+        )
+    })?;
+
+    let processed = if let Some(q) = search.filter(|s| !s.is_empty()) {
+        let fts_q = build_fts_query(q);
+        if fts_q.is_empty() {
+            Vec::new()
+        } else {
+            with_conn(|c| {
+                let sql = "SELECT payload FROM songs s
+                     WHERE s.id IN (SELECT rowid FROM songs_fts WHERE songs_fts MATCH ?1)
+                     ORDER BY s.artist COLLATE NOCASE, s.title COLLATE NOCASE
+                     LIMIT ?2 OFFSET ?3";
+                let mut stmt = c.prepare(sql)?;
+                let rows = stmt.query_map(
+                    params![fts_q, take as i64, skip as i64],
+                    load_song_from_payload_column,
+                )?;
+                rows.collect::<Result<Vec<_>, _>>()
+            })?
+        }
+    } else {
+        with_conn(|c| {
+            let mut stmt = c.prepare(
+                "SELECT payload FROM songs
+                 ORDER BY artist COLLATE NOCASE, title COLLATE NOCASE
+                 LIMIT ?1 OFFSET ?2",
+            )?;
+            let rows = stmt.query_map(
+                params![take as i64, skip as i64],
+                load_song_from_payload_column,
+            )?;
+            rows.collect::<Result<Vec<_>, _>>()
+        })?
+    };
+
+    let processed_count = if let Some(q) = search.filter(|s| !s.is_empty()) {
+        let fts_q = build_fts_query(q);
+        if fts_q.is_empty() {
+            0usize
+        } else {
+            with_conn(|c| {
+                let n: i64 = c.query_row(
+                    "SELECT COUNT(*) FROM songs s WHERE s.id IN (SELECT rowid FROM songs_fts WHERE songs_fts MATCH ?1)",
+                    params![fts_q],
+                    |r| r.get(0),
+                )?;
+                Ok(n as usize)
+            })?
+        }
+    } else {
+        with_conn(|c| {
+            let n: i64 = c.query_row("SELECT COUNT(*) FROM songs", [], |r| r.get(0))?;
+            Ok(n as usize)
+        })?
+    };
+
+    Ok(SongsStore {
+        count: scan_count as usize,
+        folder,
+        processed,
+        processed_count,
+    })
+}
+
+pub fn load_all_songs() -> rusqlite::Result<Vec<Song>> {
+    with_conn(|c| {
+        let mut stmt = c.prepare(
+            "SELECT payload FROM songs ORDER BY artist COLLATE NOCASE, title COLLATE NOCASE",
+        )?;
+        let rows = stmt.query_map([], load_song_from_payload_column)?;
+        rows.collect()
+    })
+}
+
+fn maybe_start_songs_json_migration() {
+    let json_path = songs_path();
+    if !json_path.is_file() {
+        return;
+    }
+    let count: i64 =
+        match with_conn(|c| c.query_row("SELECT COUNT(*) FROM songs", [], |r| r.get(0))) {
+            Ok(n) => n,
+            Err(_) => return,
+        };
+    if count > 0 {
+        return;
+    }
+
+    let Ok(data) = std::fs::read_to_string(&json_path) else {
+        return;
+    };
+    let Ok(store) = serde_json::from_str::<SongsStore>(&data) else {
+        return;
+    };
+    let total = store.processed.len();
+    if total == 0 {
+        let _ = update_library_meta(&store.folder, store.count);
+        let _ = std::fs::rename(&json_path, json_path.with_extension("json.bak"));
+        return;
+    }
+
+    MIGRATING.store(true, Ordering::Release);
+    MIGRATION_TOTAL.store(total, Ordering::Release);
+    MIGRATION_DONE.store(0, Ordering::Release);
+
+    let folder = store.folder.clone();
+    let scan_count = store.count;
+    let processed = store.processed;
+
+    std::thread::spawn(move || {
+        const BATCH: usize = 50;
+        let _ = update_library_meta(&folder, scan_count);
+        for chunk in processed.chunks(BATCH) {
+            if append_songs(chunk).is_err() {
+                break;
+            }
+            MIGRATION_DONE.fetch_add(chunk.len(), Ordering::AcqRel);
+        }
+        MIGRATING.store(false, Ordering::Release);
+        let _ = std::fs::rename(&json_path, json_path.with_extension("json.bak"));
+    });
+}

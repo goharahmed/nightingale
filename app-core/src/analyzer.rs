@@ -9,11 +9,11 @@ use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 use ts_rs::TS;
 
-use crate::cache::{analysis_queue_path, models_dir, CacheDir};
+use crate::cache::{models_dir, CacheDir};
 use crate::config::AppConfig;
 use crate::error::NightingaleError;
-use crate::scanner::SongsStore;
 use crate::song::{read_transcript_meta, Song, TranscriptSource};
+use crate::library_db;
 
 // ─── Analysis queue (persisted to disk) ──────────────────────────────
 
@@ -33,43 +33,39 @@ pub struct AnalysisQueue {
 
 impl AnalysisQueue {
     pub fn load() -> Self {
-        let path = analysis_queue_path();
-        if path.is_file() {
-            std::fs::read_to_string(&path)
-                .ok()
-                .and_then(|s| serde_json::from_str(&s).ok())
-                .unwrap_or_default()
-        } else {
-            Self::default()
-        }
+        let entries = library_db::analysis_queue_load_rows()
+            .map(|rows| {
+                rows.into_iter()
+                    .map(|(h, st, pct, msg)| {
+                        let status = match st.as_str() {
+                            "queued" => QueuedStatus::Queued,
+                            "analyzing" => QueuedStatus::Analyzing(pct.unwrap_or(0) as usize),
+                            "failed" => QueuedStatus::Failed(msg.unwrap_or_default()),
+                            _ => QueuedStatus::Queued,
+                        };
+                        (h, status)
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        Self { entries }
     }
 
     pub fn save(&self) {
-        let path = analysis_queue_path();
-        if let Some(parent) = path.parent() {
-            let _ = std::fs::create_dir_all(parent);
-        }
-        if let Ok(json) = serde_json::to_string_pretty(self) {
-            let tmp = path.with_extension("json.tmp");
-            if std::fs::write(&tmp, &json).is_ok() {
-                let _ = std::fs::rename(&tmp, &path);
-            }
-        }
+        let rows: Vec<_> = self
+            .entries
+            .iter()
+            .map(|(k, v)| match v {
+                QueuedStatus::Queued => (k.clone(), "queued".to_string(), None, None),
+                QueuedStatus::Analyzing(p) => (k.clone(), "analyzing".to_string(), Some(*p as i64), None),
+                QueuedStatus::Failed(s) => (k.clone(), "failed".to_string(), None, Some(s.clone())),
+            })
+            .collect();
+        let _ = library_db::analysis_queue_save_rows(&rows);
     }
 
     pub fn clear() {
-        let path = analysis_queue_path();
-        let _ = std::fs::remove_file(path);
-    }
-
-    fn set_status(&mut self, file_hash: &str, status: QueuedStatus) {
-        self.entries.insert(file_hash.to_string(), status);
-        self.save();
-    }
-
-    fn remove(&mut self, file_hash: &str) {
-        self.entries.remove(file_hash);
-        self.save();
+        let _ = library_db::analysis_queue_clear();
     }
 }
 use crate::vendor::{analyzer_dir, ffmpeg_path, python_path, silent_command};
@@ -193,13 +189,16 @@ static ANALYZER: LazyLock<Mutex<AnalyzerState>> = LazyLock::new(|| {
 // ─── Helpers ─────────────────────────────────────────────────────────
 
 fn update_queue_status(file_hash: &str, status: QueuedStatus) {
-    let mut queue = AnalysisQueue::load();
-    queue.set_status(file_hash, status);
+    let (st, pct, msg) = match &status {
+        QueuedStatus::Queued => ("queued", None, None::<String>),
+        QueuedStatus::Analyzing(p) => ("analyzing", Some(*p as i64), None::<String>),
+        QueuedStatus::Failed(s) => ("failed", None, Some(s.clone())),
+    };
+    let _ = library_db::analysis_queue_upsert_row(file_hash, st, pct, msg.as_deref());
 }
 
 fn remove_from_queue(file_hash: &str) {
-    let mut queue = AnalysisQueue::load();
-    queue.remove(file_hash);
+    let _ = library_db::analysis_queue_delete(file_hash);
 }
 
 fn update_song_analyzed(
@@ -208,17 +207,13 @@ fn update_song_analyzed(
     language: Option<String>,
     transcript_source: Option<TranscriptSource>,
 ) {
-    let mut store = SongsStore::load_all();
-    if let Some(song) = store
-        .processed
-        .iter_mut()
-        .find(|s| s.file_hash == file_hash)
-    {
-        song.is_analyzed = is_analyzed;
-        song.language = language;
-        song.transcript_source = transcript_source;
-    }
-    store.save();
+    let Some(mut song) = library_db::load_song_by_hash(file_hash).ok().flatten() else {
+        return;
+    };
+    song.is_analyzed = is_analyzed;
+    song.language = language;
+    song.transcript_source = transcript_source;
+    let _ = library_db::update_song_fields(file_hash, &song);
 }
 
 fn ensure_worker_running(state: &mut AnalyzerState) {
@@ -243,19 +238,20 @@ pub fn enqueue_one(file_hash: &str) {
 }
 
 pub fn enqueue_all() {
-    let store = SongsStore::load_all();
     let queue = AnalysisQueue::load();
     let mut state = ANALYZER.lock().unwrap();
 
+    let pending_hashes = library_db::iter_file_hashes_not_analyzed().unwrap_or_default();
+
     let mut newly_queued = Vec::new();
-    for song in &store.processed {
-        let dominated = !song.is_analyzed && !queue.entries.contains_key(&song.file_hash);
+    for file_hash in pending_hashes {
+        let dominated = !queue.entries.contains_key(&file_hash);
         if dominated
-            && state.active_hash.as_deref() != Some(&song.file_hash)
-            && !state.queue.iter().any(|h| h == &song.file_hash)
+            && state.active_hash.as_deref() != Some(&file_hash)
+            && !state.queue.iter().any(|h| h == &file_hash)
         {
-            state.queue.push_back(song.file_hash.clone());
-            newly_queued.push(song.file_hash.clone());
+            state.queue.push_back(file_hash.clone());
+            newly_queued.push(file_hash);
         }
     }
 
@@ -265,12 +261,8 @@ pub fn enqueue_all() {
     }
     drop(state);
 
-    if !newly_queued.is_empty() {
-        let mut queue = AnalysisQueue::load();
-        for hash in &newly_queued {
-            queue.entries.insert(hash.clone(), QueuedStatus::Queued);
-        }
-        queue.save();
+    for hash in &newly_queued {
+        let _ = library_db::analysis_queue_upsert_row(hash, "queued", None, None);
     }
 
     if should_start {
@@ -354,12 +346,10 @@ fn spawn_worker() {
 }
 
 fn process_song(file_hash: &str, cache: &CacheDir) {
-    let store = SongsStore::load_all();
-    let Some(song) = store.processed.iter().find(|s| s.file_hash == file_hash) else {
+    let Some(song) = library_db::load_song_by_hash(file_hash).ok().flatten() else {
         warn!("[analyzer] Song with hash {file_hash} not found in store, skipping");
         return;
     };
-    let song = song.clone();
 
     info!(
         "[analyzer] Starting analysis: {} (hash={})",

@@ -115,6 +115,7 @@ pub fn run() {
         ])
         .setup(|app| {
             let _ = dotenvy::dotenv();
+            app_core::init_library().map_err(|e| e.to_string())?;
             app_core::AnalysisQueue::clear();
             app_core::media_server::start();
 
