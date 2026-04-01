@@ -3,6 +3,7 @@ import { useNavInput } from "./use-nav-input";
 import { useCallback, useEffect, useRef } from "react";
 
 const NAV_LOCK_MS = 120;
+const CONFIRM_COOLDOWN_MS = 140;
 const BORDER_PADDING = 3;
 
 interface UseMenuNavOptions {
@@ -16,7 +17,7 @@ export function useMenuNav({ overlayOpen, onBack }: UseMenuNavOptions) {
   const onBackRef = useRef(onBack);
   onBackRef.current = onBack;
   const navLockedRef = useRef(false);
-  const confirmHandledRef = useRef(false);
+  const lastConfirmAtRef = useRef(0);
   const overlayOpenRef = useRef(overlayOpen);
   overlayOpenRef.current = overlayOpen;
   const navLockTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -122,13 +123,12 @@ export function useMenuNav({ overlayOpen, onBack }: UseMenuNavOptions) {
         }, NAV_LOCK_MS);
 
         if (action.confirm) {
+          const now = performance.now();
+
           setFocus((prev) => {
             if (!prev.active) return prev;
-            if (confirmHandledRef.current) return prev;
-            confirmHandledRef.current = true;
-            queueMicrotask(() => {
-              confirmHandledRef.current = false;
-            });
+            if (now - lastConfirmAtRef.current < CONFIRM_COOLDOWN_MS) return prev;
+            lastConfirmAtRef.current = now;
 
             if (prev.panel === "songList") {
               if (prev.analyzeAllFocused) {
@@ -190,6 +190,10 @@ export function useMenuNav({ overlayOpen, onBack }: UseMenuNavOptions) {
               }
             } else if (prev.panel === "sidebar") {
               const sidebarCount = actionsRef.current.sidebarCount;
+              if (sidebarCount <= 0) {
+                next.sidebarIndex = 0;
+                return next;
+              }
 
               if (action.up) {
                 next.sidebarIndex = Math.max(0, prev.sidebarIndex - 1);

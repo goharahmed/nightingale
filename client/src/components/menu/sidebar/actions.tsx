@@ -33,14 +33,14 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavInput } from "@/hooks/navigation/use-nav-input";
-import type { SidebarCallbacks } from "./sidebar";
 import { useFolderActions } from "@/hooks/use-folder-actions";
 
 interface ActionsProps {
-  sidebarCallbacks: SidebarCallbacks;
+  registerCallback: (callback: (() => void) | null) => void;
+  focusedSidebarIndex: number;
 }
 
-export const Actions = ({ sidebarCallbacks }: ActionsProps) => {
+export const Actions = ({ registerCallback, focusedSidebarIndex }: ActionsProps) => {
   const { setMode } = useDialog();
   const clearCache = useClearCache();
   const profile = useCurrentProfile();
@@ -56,7 +56,7 @@ export const Actions = ({ sidebarCallbacks }: ActionsProps) => {
   dropdownOpenRef.current = dropdownOpen;
 
   useEffect(() => {
-    sidebarCallbacks.current[2] = () => {
+    registerCallback(() => {
       setDropdownOpen(true);
 
       setTimeout(() => {
@@ -66,7 +66,7 @@ export const Actions = ({ sidebarCallbacks }: ActionsProps) => {
           firstItem.focus();
         }
       }, 50);
-    };
+    });
 
     actionsRef.current.onSidebarBack = () => {
       if (dropdownOpenRef.current) {
@@ -80,12 +80,12 @@ export const Actions = ({ sidebarCallbacks }: ActionsProps) => {
     actionsRef.current.isSidebarBusy = () => dropdownOpenRef.current;
 
     return () => {
-      sidebarCallbacks.current[2] = null;
+      registerCallback(null);
 
       actionsRef.current.onSidebarBack = null;
       actionsRef.current.isSidebarBusy = null;
     };
-  }, [sidebarCallbacks, actionsRef]);
+  }, [registerCallback, actionsRef]);
 
   useNavInput(
     useCallback((action) => {
@@ -128,7 +128,7 @@ export const Actions = ({ sidebarCallbacks }: ActionsProps) => {
               tabIndex={-1}
               size="lg"
               className={`data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground ${
-                isSidebarActive && focus.sidebarIndex === 2
+                isSidebarActive && focus.sidebarIndex === focusedSidebarIndex
                   ? "ring-2 ring-primary bg-sidebar-accent"
                   : ""
               }`}

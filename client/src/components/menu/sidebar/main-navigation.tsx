@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useLibraryMenuItems } from "@/queries/use-library-menu-items";
 import type { LibraryMenuItem } from "@/types/LibraryMenuItem";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   isLibraryMenuItemActive,
@@ -27,6 +27,7 @@ import {
 } from "@/lib/library-menu-filter";
 import type { LibraryMenuFilters } from "@/types/LibraryMenuFilters";
 import { useLibraryFilter } from "@/hooks/use-library-filter";
+import { useMenuFocus } from "@/contexts/menu-focus-context";
 
 type NavSectionConfig = {
   section: LibraryMenuSection;
@@ -63,26 +64,33 @@ function LibraryNavSection({
   section,
   label,
   icon: Icon,
-  defaultOpen,
   items,
   filter,
+  isSidebarActive,
+  focusedCollapse,
+  focusedItemKeys,
+  open,
+  onToggleOpen,
   onSelectItem,
-}: NavSectionConfig & {
+}: Omit<NavSectionConfig, "defaultOpen"> & {
   items: LibraryMenuItem[];
   filter: LibraryMenuFilters;
+  isSidebarActive: boolean;
+  focusedCollapse: boolean;
+  focusedItemKeys: Set<string>;
+  open: boolean;
+  onToggleOpen: (open: boolean) => void;
   onSelectItem: (section: LibraryMenuSection, item: LibraryMenuItem) => void;
 }) {
-  const visibleItems = useMemo(() => items.filter(({ count }) => count > 0n), [items]);
-
-  if (visibleItems.length === 0) {
-    return null;
-  }
-
   return (
-    <Collapsible defaultOpen={defaultOpen} className="group/collapsible">
+    <Collapsible open={open} onOpenChange={onToggleOpen} className="group/collapsible">
       <SidebarMenuItem>
         <CollapsibleTrigger asChild>
-          <SidebarMenuButton className="flex w-full justify-between">
+          <SidebarMenuButton
+            className={`flex w-full justify-between ${
+              isSidebarActive && focusedCollapse ? "ring-2 ring-primary bg-sidebar-accent" : ""
+            }`}
+          >
             <span className="flex items-center gap-2">
               <Icon className="size-4 shrink-0" />
               {label}
@@ -92,11 +100,15 @@ function LibraryNavSection({
         </CollapsibleTrigger>
         <CollapsibleContent>
           <SidebarMenuSub className="mr-0 pr-0">
-            {visibleItems.map((item) => (
+            {items.map((item) => (
               <SidebarMenuSubItem key={`${section}:${item.value}`}>
                 <SidebarMenuButton
                   isActive={isLibraryMenuItemActive(section, item, filter)}
-                  className="flex h-fit items-center justify-between gap-2 px-2 py-1.5"
+                  className={`flex h-fit items-center justify-between gap-2 px-2 py-1.5 ${
+                    isSidebarActive && focusedItemKeys.has(item.value)
+                      ? "ring-2 ring-primary bg-sidebar-accent"
+                      : ""
+                  }`}
                   onClick={() => onSelectItem(section, item)}
                 >
                   {item.label}
@@ -112,12 +124,25 @@ function LibraryNavSection({
 }
 
 interface MainNavigationProps {
-  sidebarCallbacks?: unknown;
+  registerCallbacks: (callbacks: (() => void)[]) => void;
 }
 
-export const MainNavigation = (_props: MainNavigationProps) => {
+type SidebarNavigationRow =
+  | { kind: "collapse"; section: LibraryMenuSection }
+  | { kind: "item"; section: LibraryMenuSection; value: string };
+
+export const MainNavigation = ({ registerCallbacks }: MainNavigationProps) => {
   const { data: menu } = useLibraryMenuItems();
   const { setLibraryFilter, ...filter } = useLibraryFilter();
+  const { focus } = useMenuFocus();
+  const [openBySection, setOpenBySection] = useState<Record<LibraryMenuSection, boolean>>(
+    () =>
+      Object.fromEntries(
+        NAV_SECTIONS.map(({ section, defaultOpen }) => [section, defaultOpen]),
+      ) as Record<LibraryMenuSection, boolean>,
+  );
+
+  const isSidebarActive = focus.active && focus.panel === "sidebar";
 
   const selectMenuItem = useCallback(
     (section: LibraryMenuSection, item: LibraryMenuItem) => {
@@ -125,6 +150,79 @@ export const MainNavigation = (_props: MainNavigationProps) => {
     },
     [setLibraryFilter],
   );
+
+  const visibleSections = useMemo(() => {
+    if (!menu) {
+      return [];
+    }
+
+    return NAV_SECTIONS.map((config) => ({
+      ...config,
+      visibleItems: menu[config.section].filter(({ count }) => count > 0n),
+    })).filter(({ visibleItems }) => visibleItems.length > 0);
+  }, [menu]);
+
+  const rows = useMemo<SidebarNavigationRow[]>(() => {
+    return visibleSections.flatMap(({ section, visibleItems }) => {
+      const sectionRows: SidebarNavigationRow[] = [{ kind: "collapse", section }];
+      if (openBySection[section]) {
+        sectionRows.push(
+          ...visibleItems.map(({ value }) => ({ kind: "item" as const, section, value })),
+        );
+      }
+      return sectionRows;
+    });
+  }, [visibleSections, openBySection]);
+
+  useEffect(() => {
+    const callbacks = rows.map((row) => {
+      if (row.kind === "collapse") {
+        return () => {
+          setOpenBySection((prev) => ({ ...prev, [row.section]: !prev[row.section] }));
+        };
+      }
+
+      return () => {
+        const item = menu?.[row.section].find((entry) => entry.value === row.value);
+        if (!item) {
+          return;
+        }
+        selectMenuItem(row.section, item);
+      };
+    });
+
+    registerCallbacks(callbacks);
+
+    return () => {
+      registerCallbacks([]);
+    };
+  }, [rows, menu, selectMenuItem, registerCallbacks]);
+
+  const collapseIndexBySection = useMemo(() => {
+    const indexMap = new Map<LibraryMenuSection, number>();
+    rows.forEach((row, index) => {
+      if (row.kind === "collapse") {
+        indexMap.set(row.section, index);
+      }
+    });
+    return indexMap;
+  }, [rows]);
+
+  const focusedItemValueBySection = useMemo(() => {
+    const itemMap = new Map<LibraryMenuSection, Set<string>>();
+
+    rows.forEach((row, index) => {
+      if (row.kind !== "item" || index !== focus.sidebarIndex) {
+        return;
+      }
+
+      const sectionValues = itemMap.get(row.section) ?? new Set<string>();
+      sectionValues.add(row.value);
+      itemMap.set(row.section, sectionValues);
+    });
+
+    return itemMap;
+  }, [rows, focus.sidebarIndex]);
 
   if (!menu) {
     return null;
@@ -134,12 +232,19 @@ export const MainNavigation = (_props: MainNavigationProps) => {
     <SidebarContent>
       <SidebarGroup>
         <SidebarMenu>
-          {NAV_SECTIONS.map((config) => (
+          {visibleSections.map((config) => (
             <LibraryNavSection
               key={config.section}
               {...config}
-              items={menu[config.section]}
+              items={config.visibleItems}
               filter={filter}
+              isSidebarActive={isSidebarActive}
+              focusedCollapse={collapseIndexBySection.get(config.section) === focus.sidebarIndex}
+              focusedItemKeys={focusedItemValueBySection.get(config.section) ?? new Set<string>()}
+              open={openBySection[config.section]}
+              onToggleOpen={(open) => {
+                setOpenBySection((prev) => ({ ...prev, [config.section]: open }));
+              }}
               onSelectItem={selectMenuItem}
             />
           ))}
