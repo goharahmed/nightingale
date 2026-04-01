@@ -23,7 +23,7 @@ import {
   Trash2Icon,
   VideoIcon,
 } from "lucide-react";
-import { memo, useState } from "react";
+import { memo, MouseEvent, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -111,6 +111,15 @@ export const SongCard = memo(
 
     const disabled = shifting.tempo || shifting.key;
 
+    const setShiftStatus = (type: ShiftType, isShifting: boolean) => {
+      setShifting((prev) => ({ ...prev, [type]: isShifting }));
+    };
+
+    const withMenuAction = (action: () => void | Promise<void>) => async (e: MouseEvent) => {
+      e.stopPropagation();
+      await action();
+    };
+
     return (
       <Item
         variant="outline"
@@ -179,44 +188,36 @@ export const SongCard = memo(
             <DropdownMenuContent side="bottom" align="start" className="min-w-56">
               <DropdownMenuGroup>
                 <DropdownMenuItem
-                  onClick={async (e) => {
-                    e.stopPropagation();
-
+                  onClick={withMenuAction(async () => {
                     await deleteSongCache(song.file_hash);
                     toast.info(`Cache deleted for "${song.title}"`);
-                  }}
+                  })}
                 >
                   <Trash2Icon />
                   Delete cache
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={async (e) => {
-                    e.stopPropagation();
-
+                  onClick={withMenuAction(async () => {
                     reanalyzeTranscript(song.file_hash);
                     toast.info(`Reanalyzing transcript for "${song.title}"`);
-                  }}
+                  })}
                 >
                   <FileTextIcon />
                   Reanalyze transcript
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={async (e) => {
-                    e.stopPropagation();
-
+                  onClick={withMenuAction(async () => {
                     reanalyzeFull(song.file_hash);
                     toast.info(`Reanalyzing full (with stems) for "${song.title}"`);
-                  }}
+                  })}
                 >
                   <AudioLinesIcon />
                   Reanalyze full (with stems)
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={async (e) => {
-                    e.stopPropagation();
-
+                  onClick={withMenuAction(async () => {
                     setMode({ mode: "language", song });
-                  }}
+                  })}
                 >
                   <LanguagesIcon />
                   Change language
@@ -229,16 +230,16 @@ export const SongCard = memo(
           song={song}
           status={shifting}
           onStart={(type: ShiftType) => {
-            setShifting((prev) => ({ ...prev, [type]: true }));
+            setShiftStatus(type, true);
           }}
           onSuccess={(message, type: ShiftType) => {
             toast.success(message);
             queryClient.invalidateQueries({ queryKey: SONGS });
-            setShifting((prev) => ({ ...prev, [type]: false }));
+            setShiftStatus(type, false);
           }}
           onError={(message, type: ShiftType) => {
             toast.error(message);
-            setShifting((prev) => ({ ...prev, [type]: false }));
+            setShiftStatus(type, false);
           }}
         />
       </Item>

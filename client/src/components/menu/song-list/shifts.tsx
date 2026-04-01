@@ -20,6 +20,26 @@ export const Shifts = ({ song, status, onSuccess, onError, onStart }: Props) => 
   onSuccessRef.current = onSuccess;
   onErrorRef.current = onError;
 
+  const listeners: Record<
+    ShiftType,
+    {
+      register: typeof onShiftKeyDone;
+      successMessage: string;
+      errorMessage: (error: string) => string;
+    }
+  > = {
+    key: {
+      register: onShiftKeyDone,
+      successMessage: "Song key shifted successfully",
+      errorMessage: (error) => `Error while shifting the key: ${error}`,
+    },
+    tempo: {
+      register: onShiftTempoDone,
+      successMessage: "Song tempo shifted successfully",
+      errorMessage: (error) => `Error while shifting the tempo: ${error}`,
+    },
+  };
+
   const withOnStart = (callback: () => void, shiftType: ShiftType) => () => {
     onStart(shiftType);
 
@@ -34,54 +54,39 @@ export const Shifts = ({ song, status, onSuccess, onError, onStart }: Props) => 
 
   useEffect(() => {
     let cancelled = false;
-    let unlistenTempo: (() => void) | undefined;
-    let unlistenKey: (() => void) | undefined;
+    const unlisteners: Partial<Record<ShiftType, () => void>> = {};
 
-    onShiftKeyDone(({ file_hash, error }) => {
-      if (file_hash !== song.file_hash) {
-        return;
-      }
+    (Object.entries(listeners) as Array<[ShiftType, (typeof listeners)[ShiftType]]>).forEach(
+      ([shiftType, config]) => {
+        config
+          .register(({ file_hash, error }) => {
+            if (file_hash !== song.file_hash) {
+              return;
+            }
 
-      if (!error) {
-        onSuccessRef.current("Song key shifted successfully", "key");
-      } else {
-        onErrorRef.current(`Error while shifting the key: ${error}`, "key");
-      }
-    }).then((fn) => {
-      if (cancelled) {
-        fn();
+            if (!error) {
+              onSuccessRef.current(config.successMessage, shiftType);
+            } else {
+              onErrorRef.current(config.errorMessage(error), shiftType);
+            }
+          })
+          .then((fn) => {
+            if (cancelled) {
+              fn();
 
-        return;
-      }
+              return;
+            }
 
-      unlistenKey = fn;
-    });
-
-    onShiftTempoDone(({ file_hash, error }) => {
-      if (file_hash !== song.file_hash) {
-        return;
-      }
-
-      if (!error) {
-        onSuccessRef.current("Song tempo shifted successfully", "tempo");
-      } else {
-        onErrorRef.current(`Error while shifting the tempo: ${error}`, "tempo");
-      }
-    }).then((fn) => {
-      if (cancelled) {
-        fn();
-
-        return;
-      }
-
-      unlistenTempo = fn;
-    });
+            unlisteners[shiftType] = fn;
+          });
+      },
+    );
 
     return () => {
       cancelled = true;
 
-      unlistenTempo?.();
-      unlistenKey?.();
+      unlisteners.tempo?.();
+      unlisteners.key?.();
     };
   }, [song.file_hash]);
 
@@ -104,34 +109,49 @@ export const Shifts = ({ song, status, onSuccess, onError, onStart }: Props) => 
     shiftKey(song.file_hash, key, pitchRatio, keyOffset);
   };
 
+  const stepperConfigs = [
+    {
+      shiftType: "tempo" as const,
+      label: song.tempo.toFixed(1),
+      tooltip: "Click +/- to shift the song tempo",
+      onPlus: () => shiftTempo(song.file_hash, song.tempo + 0.1),
+      onMinus: () => shiftTempo(song.file_hash, song.tempo - 0.1),
+      disabled: {
+        plus: song.tempo >= 2,
+        minus: song.tempo <= 0.5,
+      },
+    },
+    {
+      shiftType: "key" as const,
+      label: song.override_key ?? song.key,
+      tooltip: `Click +/- to shift the song key. ${song.key ? `Default key is ${song.key}` : "Reanalyze the song to identify the key"}`,
+      onPlus: () => onShiftKey("up"),
+      onMinus: () => onShiftKey("down"),
+      disabled: {
+        plus: song.key_offset >= 5,
+        minus: song.key_offset <= -5,
+      },
+    },
+  ];
+
   return (
     <div className="flex gap-1">
-      <Stepper
-        loading={status.tempo}
-        label={song.tempo.toFixed(1)}
-        tooltip="Click +/- to shift the song tempo"
-        onClick={{
-          plus: withOnStart(() => shiftTempo(song.file_hash, song.tempo + 0.1), "tempo"),
-          minus: withOnStart(() => shiftTempo(song.file_hash, song.tempo - 0.1), "tempo"),
-        }}
-        disabled={{
-          plus: loading,
-          minus: loading,
-        }}
-      />
-      <Stepper
-        loading={status.key}
-        label={song.override_key ?? song.key}
-        tooltip={`Click +/- to shift the song key. ${song.key ? `Default key is ${song.key}` : "Reanalyze the song to identify the key"}`}
-        onClick={{
-          plus: withOnStart(() => onShiftKey("up"), "key"),
-          minus: withOnStart(() => onShiftKey("down"), "key"),
-        }}
-        disabled={{
-          plus: loading,
-          minus: loading,
-        }}
-      />
+      {stepperConfigs.map(({ shiftType, label, tooltip, onPlus, onMinus, disabled }) => (
+        <Stepper
+          key={shiftType}
+          loading={status[shiftType]}
+          label={label}
+          tooltip={tooltip}
+          onClick={{
+            plus: withOnStart(onPlus, shiftType),
+            minus: withOnStart(onMinus, shiftType),
+          }}
+          disabled={{
+            plus: loading || disabled.plus,
+            minus: loading || disabled.minus,
+          }}
+        />
+      ))}
     </div>
   );
 };

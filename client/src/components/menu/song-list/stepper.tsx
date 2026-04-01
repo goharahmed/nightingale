@@ -26,30 +26,42 @@ export const Stepper = ({
   disabled: { plus: plusDisabled, minus: minusDisabled } = {},
   onClick = {},
 }: Props) => {
+  const valueCellClassName = "grid h-5 place-items-center border border-gray-200 text-gray-500";
+
   const withStopPropagation = (callback?: () => void) => (event: MouseEvent) => {
     event.stopPropagation();
 
     callback?.();
   };
 
-  return (
-    <ButtonGroup orientation="vertical" aria-label="Media controls" className="h-fit self-center">
+  const renderButton = (direction: "plus" | "minus") => {
+    const Icon = direction === "plus" ? PlusIcon : MinusIcon;
+    const isDisabled = direction === "plus" ? plusDisabled : minusDisabled;
+    const handler = direction === "plus" ? onClick?.plus : onClick?.minus;
+
+    return (
       <Button
-        onClick={withStopPropagation(onClick?.plus)}
-        disabled={plusDisabled}
+        onClick={withStopPropagation(handler)}
+        disabled={isDisabled}
         variant="outline"
         size="icon-xs"
       >
-        <PlusIcon />
+        <Icon />
       </Button>
+    );
+  };
+
+  return (
+    <ButtonGroup orientation="vertical" aria-label="Media controls" className="h-fit self-center">
+      {renderButton("plus")}
       {loading ? (
-        <span className="flex align-center justify-center py-0.5 text-gray-500 border-1">
-          <Spinner className="size-3" />
+        <span className={valueCellClassName}>
+          <Spinner className="size-2.5 will-change-transform" />
         </span>
       ) : (
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="text-center py-0.5 text-gray-500 border-1 text-[0.5rem]">
+            <span className={`${valueCellClassName} text-center text-[0.5rem] leading-none`}>
               {label ?? "??"}
             </span>
           </TooltipTrigger>
@@ -58,14 +70,7 @@ export const Stepper = ({
           </TooltipContent>
         </Tooltip>
       )}
-      <Button
-        onClick={withStopPropagation(onClick?.minus)}
-        disabled={minusDisabled}
-        variant="outline"
-        size="icon-xs"
-      >
-        <MinusIcon />
-      </Button>
+      {renderButton("minus")}
     </ButtonGroup>
   );
 };
