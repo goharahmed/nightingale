@@ -1,4 +1,4 @@
-import { ANALYSIS_QUEUE, SONGS, SONGS_META } from "@/queries/keys";
+import { ANALYSIS_QUEUE, MENU, SONGS, SONGS_META } from "@/queries/keys";
 import {
   deleteSongCache,
   enqueueAll,
@@ -19,6 +19,7 @@ export const useAnalysis = () => {
     };
 
     const invalidateSongs = () => {
+      queryClient.invalidateQueries({ queryKey: MENU });
       queryClient.invalidateQueries({ queryKey: SONGS });
       queryClient.invalidateQueries({ queryKey: SONGS_META });
       queryClient.invalidateQueries({ queryKey: ANALYSIS_QUEUE });

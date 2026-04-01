@@ -5,6 +5,7 @@ use std::sync::{Mutex, OnceLock};
 use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::cache::{analysis_queue_path, nightingale_dir, songs_path};
+use crate::library_menu::{LibraryMenuItem, LibraryMenuItems};
 use crate::library_model::{SongsMeta, SongsStore};
 use crate::song::{Song, TranscriptSource};
 
@@ -565,27 +566,48 @@ pub fn load_meta_sql() -> rusqlite::Result<SongsMeta> {
     })
 }
 
-fn fts_escape(q: &str) -> String {
-    let mut s = String::new();
-    for ch in q.chars() {
+fn escape_like_pattern(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    for ch in input.chars() {
         match ch {
-            '"' => s.push_str("\"\""),
-            c => s.push(c),
+            '%' | '_' | '\\' => {
+                out.push('\\');
+                out.push(ch);
+            }
+            c => out.push(c),
         }
     }
-    s
+    out
 }
 
-fn build_fts_query(query: &str) -> String {
-    let parts: Vec<&str> = query.split_whitespace().filter(|s| !s.is_empty()).collect();
-    if parts.is_empty() {
-        return String::new();
+fn search_words_from_query(q: &str) -> Option<Vec<String>> {
+    let t = q.trim();
+    if t.is_empty() {
+        return None;
     }
-    parts
-        .iter()
-        .map(|p| format!("\"{}\"", fts_escape(p)))
-        .collect::<Vec<_>>()
-        .join(" AND ")
+    let words: Vec<String> = t
+        .split_whitespace()
+        .map(escape_like_pattern)
+        .filter(|w| !w.is_empty())
+        .collect();
+    if words.is_empty() { None } else { Some(words) }
+}
+
+fn songs_where_like_words(words: &[String]) -> (String, Vec<String>) {
+    let mut flat = Vec::new();
+    let mut parts = Vec::new();
+    for w in words {
+        parts.push(
+            "(s.title LIKE ('%' || ? || '%') ESCAPE '\\' OR \
+             s.artist LIKE ('%' || ? || '%') ESCAPE '\\' OR \
+             s.album LIKE ('%' || ? || '%') ESCAPE '\\' OR \
+             s.path LIKE ('%' || ? || '%') ESCAPE '\\')",
+        );
+        for _ in 0..4 {
+            flat.push(w.clone());
+        }
+    }
+    (parts.join(" AND "), flat)
 }
 
 pub fn load_songs_page(
@@ -601,24 +623,25 @@ pub fn load_songs_page(
         )
     })?;
 
-    let processed = if let Some(q) = search.filter(|s| !s.is_empty()) {
-        let fts_q = build_fts_query(q);
-        if fts_q.is_empty() {
-            Vec::new()
-        } else {
-            with_conn(|c| {
-                let sql = "SELECT payload FROM songs s
-                     WHERE s.id IN (SELECT rowid FROM songs_fts WHERE songs_fts MATCH ?1)
-                     ORDER BY s.artist COLLATE NOCASE, s.title COLLATE NOCASE
-                     LIMIT ?2 OFFSET ?3";
-                let mut stmt = c.prepare(sql)?;
-                let rows = stmt.query_map(
-                    params![fts_q, take as i64, skip as i64],
-                    load_song_from_payload_column,
-                )?;
-                rows.collect::<Result<Vec<_>, _>>()
-            })?
-        }
+    let search_words = search.and_then(|s| search_words_from_query(s));
+
+    let processed = if let Some(ref words) = search_words {
+        let (where_sql, bind_strings) = songs_where_like_words(words);
+        with_conn(|c| {
+            let sql = format!(
+                "SELECT payload FROM songs s
+                 WHERE {where_sql}
+                 ORDER BY s.artist COLLATE NOCASE, s.title COLLATE NOCASE
+                 LIMIT {} OFFSET {}",
+                take as i64, skip as i64
+            );
+            let mut stmt = c.prepare(&sql)?;
+            let rows = stmt.query_map(
+                rusqlite::params_from_iter(bind_strings.iter().map(|s| s.as_str())),
+                load_song_from_payload_column,
+            )?;
+            rows.collect::<Result<Vec<_>, _>>()
+        })?
     } else {
         with_conn(|c| {
             let mut stmt = c.prepare(
@@ -634,20 +657,17 @@ pub fn load_songs_page(
         })?
     };
 
-    let processed_count = if let Some(q) = search.filter(|s| !s.is_empty()) {
-        let fts_q = build_fts_query(q);
-        if fts_q.is_empty() {
-            0usize
-        } else {
-            with_conn(|c| {
-                let n: i64 = c.query_row(
-                    "SELECT COUNT(*) FROM songs s WHERE s.id IN (SELECT rowid FROM songs_fts WHERE songs_fts MATCH ?1)",
-                    params![fts_q],
-                    |r| r.get(0),
-                )?;
-                Ok(n as usize)
-            })?
-        }
+    let processed_count = if let Some(ref words) = search_words {
+        let (where_sql, bind_strings) = songs_where_like_words(words);
+        with_conn(|c| {
+            let sql = format!("SELECT COUNT(*) FROM songs s WHERE {where_sql}");
+            let n: i64 = c.query_row(
+                &sql,
+                rusqlite::params_from_iter(bind_strings.iter().map(|s| s.as_str())),
+                |r| r.get(0),
+            )?;
+            Ok(n as usize)
+        })?
     } else {
         with_conn(|c| {
             let n: i64 = c.query_row("SELECT COUNT(*) FROM songs", [], |r| r.get(0))?;
@@ -720,4 +740,119 @@ fn maybe_start_songs_json_migration() {
         MIGRATING.store(false, Ordering::Release);
         let _ = std::fs::rename(&json_path, json_path.with_extension("json.bak"));
     });
+}
+
+pub fn query_library_menu_items() -> rusqlite::Result<LibraryMenuItems> {
+    with_conn(|c| {
+        let (total, analysed_total, video_total, video_analysed): (i64, i64, i64, i64) = c
+            .query_row(
+                "SELECT
+                    (SELECT COUNT(*) FROM songs),
+                    (SELECT COUNT(*) FROM songs WHERE is_analyzed = 1),
+                    (SELECT COUNT(*) FROM songs WHERE is_video = 1),
+                    (SELECT COUNT(*) FROM songs WHERE is_video = 1 AND is_analyzed = 1)",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            )?;
+
+        let hot = vec![
+            LibraryMenuItem {
+                value: "all".into(),
+                label: "All".into(),
+                analysed_count: analysed_total as u64,
+                count: total as u64,
+            },
+            LibraryMenuItem {
+                value: "analysed".into(),
+                label: "Analysed".into(),
+                analysed_count: analysed_total as u64,
+                count: analysed_total as u64,
+            },
+            LibraryMenuItem {
+                value: "Videos".into(),
+                label: "Videos".into(),
+                analysed_count: video_analysed as u64,
+                count: video_total as u64,
+            },
+        ];
+
+        let (unknown_artist_cnt, unknown_artist_an): (i64, i64) = c.query_row(
+            "SELECT COUNT(*), COALESCE(SUM(CASE WHEN is_analyzed = 1 THEN 1 ELSE 0 END), 0)
+             FROM songs WHERE artist = 'Unknown Artist'",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+
+        let (unknown_album_cnt, unknown_album_an): (i64, i64) = c.query_row(
+            "SELECT COUNT(*), COALESCE(SUM(CASE WHEN is_analyzed = 1 THEN 1 ELSE 0 END), 0)
+             FROM songs WHERE album = 'Unknown Album'",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+
+        let no_metadata = vec![
+            LibraryMenuItem {
+                value: "unknown_artist".into(),
+                label: "Unknown Artist".into(),
+                analysed_count: unknown_artist_an as u64,
+                count: unknown_artist_cnt as u64,
+            },
+            LibraryMenuItem {
+                value: "unknown_album".into(),
+                label: "Unknown Album".into(),
+                analysed_count: unknown_album_an as u64,
+                count: unknown_album_cnt as u64,
+            },
+        ];
+
+        let mut stmt = c.prepare(
+            "SELECT artist, COUNT(*) AS cnt,
+                    COALESCE(SUM(CASE WHEN is_analyzed = 1 THEN 1 ELSE 0 END), 0) AS analysed
+             FROM songs
+             GROUP BY artist
+             ORDER BY artist COLLATE NOCASE",
+        )?;
+        let artists: Vec<LibraryMenuItem> = stmt
+            .query_map([], |r| {
+                let artist: String = r.get(0)?;
+                let cnt: i64 = r.get(1)?;
+                let analysed: i64 = r.get(2)?;
+                Ok(LibraryMenuItem {
+                    value: artist.clone(),
+                    label: artist,
+                    analysed_count: analysed as u64,
+                    count: cnt as u64,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let mut stmt = c.prepare(
+            "SELECT artist, album, COUNT(*) AS cnt,
+                    COALESCE(SUM(CASE WHEN is_analyzed = 1 THEN 1 ELSE 0 END), 0) AS analysed
+             FROM songs
+             GROUP BY artist, album
+             ORDER BY artist COLLATE NOCASE, album COLLATE NOCASE",
+        )?;
+        let albums: Vec<LibraryMenuItem> = stmt
+            .query_map([], |r| {
+                let artist: String = r.get(0)?;
+                let album: String = r.get(1)?;
+                let cnt: i64 = r.get(2)?;
+                let analysed: i64 = r.get(3)?;
+                Ok(LibraryMenuItem {
+                    value: format!("{artist}\x1f{album}"),
+                    label: format!("{album} — {artist}"),
+                    analysed_count: analysed as u64,
+                    count: cnt as u64,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(LibraryMenuItems {
+            hot,
+            no_metadata,
+            artists,
+            albums,
+        })
+    })
 }

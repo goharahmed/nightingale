@@ -3,6 +3,7 @@ mod cache;
 mod config;
 mod error;
 mod library_model;
+mod library_menu;
 pub mod media_server;
 mod playback;
 mod profile;
@@ -21,6 +22,7 @@ pub use playback::{get_cached_pixabay_videos, download_pixabay_videos, ensure_mp
 pub use config::AppConfig;
 pub use profile::ProfileStore;
 pub use library_model::{SongsMeta, SongsStore};
+pub use library_menu::{LibraryMenuItem, LibraryMenuItems, load_library_menu_items};
 pub use scanner::start_scan;
 pub use library_db::{init_library, library_db_path};
 pub use vendor::{

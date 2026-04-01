@@ -21,9 +21,11 @@ import {
   ChevronsUpDownIcon,
   CogIcon,
   DoorOpenIcon,
+  FolderIcon,
   InfoIcon,
   MoonIcon,
   RefreshCcwDotIcon,
+  RefreshCwIcon,
   SunIcon,
   Trash2Icon,
   UserIcon,
@@ -32,6 +34,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavInput } from "@/hooks/navigation/use-nav-input";
 import type { SidebarCallbacks } from "./sidebar";
+import { useFolderActions } from "@/hooks/use-folder-actions";
 
 interface ActionsProps {
   sidebarCallbacks: SidebarCallbacks;
@@ -45,6 +48,7 @@ export const Actions = ({ sidebarCallbacks }: ActionsProps) => {
   const { mutate } = useConfigMutation();
   const { focus, actionsRef } = useMenuFocus();
   const { setShouldRunSetup } = useShouldRunSetup();
+  const { rescanFolder, rescanFolderDisabled, selectFolder } = useFolderActions();
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownOpenRef = useRef(false);
@@ -144,6 +148,18 @@ export const Actions = ({ sidebarCallbacks }: ActionsProps) => {
               <DropdownMenuItem onClick={() => setShouldRunSetup(true)}>
                 <RefreshCcwDotIcon />
                 Re-run Setup
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Folder</DropdownMenuLabel>
+            <DropdownMenuGroup>
+              <DropdownMenuItem onClick={selectFolder}>
+                <FolderIcon />
+                Select folder
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={rescanFolder} disabled={rescanFolderDisabled}>
+                <RefreshCwIcon />
+                Rescan folder
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

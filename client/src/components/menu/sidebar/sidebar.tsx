@@ -9,11 +9,9 @@ import { Header } from "./header";
 import { MainNavigation } from "./main-navigation";
 import { Actions } from "./actions";
 import { useMenuFocus } from "@/contexts/menu-focus-context";
-import { useEffect, useRef, type RefObject, type PropsWithChildren } from "react";
+import { useEffect, useRef, type PropsWithChildren } from "react";
 
 export const SIDEBAR_ITEM_COUNT = 3;
-
-export type SidebarCallbacks = RefObject<((() => void) | null)[]>;
 
 export const Sidebar = ({ children }: PropsWithChildren<{}>) => {
   const { actionsRef } = useMenuFocus();

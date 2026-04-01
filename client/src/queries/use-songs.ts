@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ANALYSIS_QUEUE, SONGS, SONGS_META } from "./keys";
+import { ANALYSIS_QUEUE, SONGS, SONGS_META, MENU } from "./keys";
 import {
   getPreloadedSongsMeta,
   loadAnalysisQueue,
@@ -67,6 +67,7 @@ export const useAnalysisQueue = () => {
         for (const key of prevKeys) {
           if (!currentKeys.has(key)) {
             queryClient.invalidateQueries({ queryKey: SONGS });
+            queryClient.invalidateQueries({ queryKey: MENU });
             queryClient.invalidateQueries({ queryKey: SONGS_META });
             break;
           }

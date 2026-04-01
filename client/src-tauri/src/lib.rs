@@ -16,7 +16,7 @@ use config::{load_config, save_config};
 use microphones::{list_microphones, start_mic_capture, stop_mic_capture};
 use playback::{ensure_mp3_stems, fetch_pixabay_videos, get_audio_paths, load_transcript};
 use profile::{add_score, create_profile, delete_profile, load_profiles, switch_profile};
-use scanner::{load_analysis_queue, load_songs, load_songs_meta, trigger_scan};
+use scanner::{load_analysis_queue, load_library_menu_items, load_songs, load_songs_meta, trigger_scan};
 use tauri::{RunEvent, WebviewWindowBuilder};
 use vendor::{is_ready, trigger_setup};
 
@@ -94,6 +94,7 @@ pub fn run() {
             load_songs,
             load_songs_meta,
             load_analysis_queue,
+            load_library_menu_items,
             // Analyzer
             enqueue_one,
             enqueue_all,
