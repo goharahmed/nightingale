@@ -36,7 +36,27 @@ pub struct Song {
     pub language: Option<String>,
     #[serde(default)]
     pub transcript_source: Option<TranscriptSource>,
+    #[serde(default)]
+    pub key: Option<String>,
+    #[serde(default)]
+    pub override_key: Option<String>,
+    #[serde(default = "default_tempo")]
+    pub tempo: f64,
+    #[serde(default)]
+    pub key_offset: i32,
     pub is_video: bool,
+}
+
+fn default_tempo() -> f64 {
+    1.0
+}
+
+#[derive(Debug, Clone)]
+pub struct TranscriptMetaInfo {
+    pub source: TranscriptSource,
+    pub language: Option<String>,
+    pub key: Option<String>,
+    pub tempo: f64,
 }
 
 impl Song {
@@ -47,6 +67,10 @@ impl Song {
         is_analyzed: bool,
         language: Option<String>,
         transcript_source: Option<TranscriptSource>,
+        key: Option<String>,
+        override_key: Option<String>,
+        tempo: f64,
+        key_offset: i32,
         is_video: bool,
     ) -> Self {
         let (mut title, mut artist, mut album, duration_secs, cover_bytes) = if is_video {
@@ -89,6 +113,10 @@ impl Song {
             is_analyzed,
             language,
             transcript_source,
+            key,
+            override_key,
+            tempo,
+            key_offset,
             is_video,
         }
     }
@@ -116,11 +144,11 @@ pub fn build_song(path: &Path, cache: &CacheDir, is_video: bool) -> Result<Song,
     let file_hash = compute_file_hash(path)?;
 
     let is_analyzed = cache.transcript_exists(&file_hash);
-    let (transcript_source, language) = if is_analyzed {
-        let (source, lang) = read_transcript_meta(cache, &file_hash);
-        (Some(source), lang)
+    let (transcript_source, language, key, tempo) = if is_analyzed {
+        let meta = read_transcript_meta(cache, &file_hash);
+        (Some(meta.source), meta.language, meta.key, meta.tempo)
     } else {
-        (None, None)
+        (None, None, None, default_tempo())
     };
 
     Ok(Song::from_path(
@@ -130,17 +158,25 @@ pub fn build_song(path: &Path, cache: &CacheDir, is_video: bool) -> Result<Song,
         is_analyzed,
         language,
         transcript_source,
+        key,
+        None,
+        tempo,
+        0,
         is_video,
     ))
 }
 
-pub fn read_transcript_meta(cache: &CacheDir, hash: &str) -> (TranscriptSource, Option<String>) {
+pub fn read_transcript_meta(cache: &CacheDir, hash: &str) -> TranscriptMetaInfo {
     #[derive(serde::Deserialize)]
     struct TranscriptMeta {
         #[serde(default)]
         source: Option<String>,
         #[serde(default)]
         language: Option<String>,
+        #[serde(default)]
+        key: Option<String>,
+        #[serde(default = "default_tempo")]
+        tempo: f64,
     }
     let path = cache.transcript_path(hash);
     if let Ok(data) = std::fs::read_to_string(&path) {
@@ -150,10 +186,20 @@ pub fn read_transcript_meta(cache: &CacheDir, hash: &str) -> (TranscriptSource, 
             } else {
                 TranscriptSource::Generated
             };
-            return (src, parsed.language);
+            return TranscriptMetaInfo {
+                source: src,
+                language: parsed.language,
+                key: parsed.key,
+                tempo: parsed.tempo,
+            };
         }
     }
-    (TranscriptSource::Generated, None)
+    TranscriptMetaInfo {
+        source: TranscriptSource::Generated,
+        language: None,
+        key: None,
+        tempo: default_tempo(),
+    }
 }
 
 fn read_metadata(path: &Path) -> (String, String, String, f64, Option<Vec<u8>>) {

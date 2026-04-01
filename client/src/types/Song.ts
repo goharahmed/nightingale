@@ -12,5 +12,9 @@ export type Song = {
   is_analyzed: boolean;
   language: string | null;
   transcript_source: TranscriptSource | null;
+  key: string | null;
+  override_key: string | null;
+  tempo: number;
+  key_offset: number;
   is_video: boolean;
 };

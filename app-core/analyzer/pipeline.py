@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 
 from whisper_compat import progress
+from key_detect import detect_key
 from stems import separate_stems, separate_stems_uvr
 from transcribe import transcribe_vocals
 from align import align_lyrics
@@ -24,13 +25,58 @@ def convert_to_mp3(src, dest_mp3):
         os.remove(src)
 
 
-def separate_and_cache(audio_path, output_dir, file_hash, separator, device, free_gpu_fn=None):
+def normalize_tempo(tempo):
+    try:
+        t = float(tempo)
+    except (TypeError, ValueError):
+        return 1.0
+    if t <= 0:
+        return 1.0
+    return round(t + 1e-8, 1)
+
+
+def format_tempo(tempo):
+    return f"{normalize_tempo(tempo):.1f}"
+
+
+def sanitize_key(key):
+    raw = str(key or "").strip()
+    out = []
+    for ch in raw:
+        if ch.isalnum() or ch in ("#", "b"):
+            out.append(ch)
+        elif ch in (" ", "-", "_"):
+            out.append("_")
+    cleaned = "".join(out).strip("_")
+    while "__" in cleaned:
+        cleaned = cleaned.replace("__", "_")
+    return cleaned or "Unknown"
+
+
+def copy_stem(src, dest):
+    subprocess.run(
+        [ffmpeg_bin(), "-y", "-i", src, "-c:a", "copy", "-v", "error", dest],
+        check=True,
+    )
+
+
+def separate_and_cache(audio_path, output_dir, file_hash, separator, device, key, tempo, free_gpu_fn=None):
     """Run stem separation or reuse cached stems. Returns the vocals path."""
-    final_vocals = os.path.join(output_dir, f"{file_hash}_vocals.mp3")
-    final_instrumental = os.path.join(output_dir, f"{file_hash}_instrumental.mp3")
+    key_safe = sanitize_key(key)
+    tempo_safe = format_tempo(tempo)
+    final_vocals = os.path.join(output_dir, f"{file_hash}_vocals_{key_safe}_{tempo_safe}.mp3")
+    final_instrumental = os.path.join(output_dir, f"{file_hash}_instrumental_{key_safe}_{tempo_safe}.mp3")
 
     if os.path.isfile(final_vocals) and os.path.isfile(final_instrumental):
         progress(50, "Stems already cached, skipping separation")
+        return final_vocals
+
+    legacy_mp3_v = os.path.join(output_dir, f"{file_hash}_vocals.mp3")
+    legacy_mp3_i = os.path.join(output_dir, f"{file_hash}_instrumental.mp3")
+    if os.path.isfile(legacy_mp3_v) and os.path.isfile(legacy_mp3_i):
+        progress(50, "Copying legacy mp3 stems to key/tempo variant...")
+        copy_stem(legacy_mp3_v, final_vocals)
+        copy_stem(legacy_mp3_i, final_instrumental)
         return final_vocals
 
     for ext in (".ogg", ".wav"):
@@ -104,9 +150,13 @@ def run_pipeline(
         return
 
     progress(2, f"Using device: {device}")
+    detected_key = detect_key(audio_path)
+    tempo = 1.0
 
     vocals_path = separate_and_cache(
         audio_path, output_dir, file_hash, separator, device,
+        key=detected_key,
+        tempo=tempo,
         free_gpu_fn=free_gpu_fn,
     )
 
@@ -123,6 +173,8 @@ def run_pipeline(
         whisper_model=whisper_model,
         pre_align_cleanup=pre_align_cleanup,
     )
+    transcript["key"] = detected_key
+    transcript["tempo"] = normalize_tempo(tempo)
 
     progress(95, "Writing transcript...")
     with open(transcript_path, "w", encoding="utf-8") as f:

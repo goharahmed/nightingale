@@ -1,5 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import type { LibraryMenuFilters } from "@/types/LibraryMenuFilters";
+import { ShiftDone } from "@/types/ShiftDone";
 
 export const enqueueOne = async (fileHash: string): Promise<void> => {
   return await invoke<void>("enqueue_one", { fileHash });
@@ -19,4 +21,25 @@ export const reanalyzeTranscript = async (fileHash: string, language?: string): 
 
 export const reanalyzeFull = async (fileHash: string): Promise<void> => {
   return await invoke<void>("reanalyze_full", { fileHash });
+};
+
+export const shiftTempo = async (fileHash: string, tempo: number): Promise<void> => {
+  return await invoke<void>("shift_tempo", { fileHash, tempo });
+};
+
+export const shiftKey = async (
+  fileHash: string,
+  key: string,
+  pitchRatio: number,
+  keyOffset: number,
+): Promise<void> => {
+  return await invoke<void>("shift_key", { fileHash, key, pitchRatio, keyOffset });
+};
+
+export const onShiftKeyDone = async (cb: (payload: ShiftDone) => void): Promise<() => void> => {
+  return await listen<ShiftDone>("shift-key-done", ({ payload }) => cb(payload));
+};
+
+export const onShiftTempoDone = async (cb: (payload: ShiftDone) => void): Promise<() => void> => {
+  return await listen<ShiftDone>("shift-tempo-done", ({ payload }) => cb(payload));
 };

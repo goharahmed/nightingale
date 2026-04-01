@@ -23,11 +23,14 @@ import {
   Trash2Icon,
   VideoIcon,
 } from "lucide-react";
-import { memo } from "react";
+import { memo, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useDialog } from "@/hooks/use-dialog";
+import { Shifts, ShiftType } from "./shifts";
+import { useQueryClient } from "@tanstack/react-query";
+import { SONGS } from "@/queries/keys";
 
 function formatSeconds(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
@@ -88,17 +91,25 @@ interface SongCardProps {
 
 export const SongCard = memo(
   ({ song, queueStatus, bestScore, index, isFocused }: SongCardProps) => {
+    const [shifting, setShifting] = useState<Record<ShiftType, boolean>>({
+      tempo: false,
+      key: false,
+    });
+
     const navigate = useNavigate();
+    const { setMode } = useDialog();
+    const queryClient = useQueryClient();
     const { enqueueOne, deleteSongCache, reanalyzeFull, reanalyzeTranscript } = useAnalysis();
     const { label, variant, className, isAnalyzing, isReady } = getStatusInfo(
       song.is_analyzed,
       queueStatus,
     );
-    const { setMode } = useDialog();
 
     const displaySource = isReady
       ? ` (${song.transcript_source === "Lyrics" ? "Lyrics" : "Generated"})`
       : "";
+
+    const disabled = shifting.tempo || shifting.key;
 
     return (
       <Item
@@ -106,10 +117,15 @@ export const SongCard = memo(
         role="listitem"
         data-song-index={index}
         className={cn(
-          "cursor-pointer transition-colors hover:bg-muted focus-visible:ring-0 focus-visible:border-border",
+          "flex gap-2 cursor-pointer transition-colors hover:bg-muted focus-visible:ring-0 focus-visible:border-border",
           isFocused && "ring-2 ring-primary bg-muted",
+          disabled && "bd-muted",
         )}
         onClick={() => {
+          if (disabled) {
+            return;
+          }
+
           if (isReady) {
             return navigate("/playback", { state: { song } });
           }
@@ -156,7 +172,7 @@ export const SongCard = memo(
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="xs" disabled={!isReady}>
+              <Button variant="outline" size="xs" disabled={!isReady || disabled}>
                 <MenuIcon /> Actions
               </Button>
             </DropdownMenuTrigger>
@@ -209,6 +225,22 @@ export const SongCard = memo(
             </DropdownMenuContent>
           </DropdownMenu>
         </ItemContent>
+        <Shifts
+          song={song}
+          status={shifting}
+          onStart={(type: ShiftType) => {
+            setShifting((prev) => ({ ...prev, [type]: true }));
+          }}
+          onSuccess={(message, type: ShiftType) => {
+            toast.success(message);
+            queryClient.invalidateQueries({ queryKey: SONGS });
+            setShifting((prev) => ({ ...prev, [type]: false }));
+          }}
+          onError={(message, type: ShiftType) => {
+            toast.error(message);
+            setShifting((prev) => ({ ...prev, [type]: false }));
+          }}
+        />
       </Item>
     );
   },

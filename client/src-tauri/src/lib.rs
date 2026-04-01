@@ -8,7 +8,10 @@ mod profile;
 mod scanner;
 mod vendor;
 
-use analyzer::{delete_song_cache, enqueue_all, enqueue_one, reanalyze_full, reanalyze_transcript};
+use analyzer::{
+    delete_song_cache, enqueue_all, enqueue_one, reanalyze_full, reanalyze_transcript, shift_key,
+    shift_tempo,
+};
 use app_core::{AppConfig, SongsStore};
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use cache::{calculate_cache_stats, clear_all, clear_models_command, clear_videos_command};
@@ -101,6 +104,8 @@ pub fn run() {
             delete_song_cache,
             reanalyze_transcript,
             reanalyze_full,
+            shift_key,
+            shift_tempo,
             // Playback
             load_transcript,
             get_audio_paths,

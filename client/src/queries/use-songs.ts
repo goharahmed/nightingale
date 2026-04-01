@@ -74,7 +74,7 @@ export const useAnalysisQueue = () => {
     queryKey: ANALYSIS_QUEUE,
     queryFn: loadAnalysisQueue,
     refetchInterval: 2500,
-    select: (data: AnalysisQueue) => {
+    onSuccess: (data: AnalysisQueue) => {
       const currentKeys = new Set(Object.keys(data.entries));
       const prevKeys = prevKeysRef.current;
 
@@ -90,7 +90,6 @@ export const useAnalysisQueue = () => {
       }
 
       prevKeysRef.current = currentKeys;
-      return data;
     },
   });
 };

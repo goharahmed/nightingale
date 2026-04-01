@@ -9,6 +9,7 @@ import { Playback } from "./pages/playback/playback";
 import { ThemeProvider } from "./providers/theme/ThemeProvider";
 import { useConfig } from "./queries/use-config";
 import { Setup } from "./components/menu/dialogs/setup";
+import { TooltipProvider } from "./components/ui/tooltip";
 
 const queryClient = new QueryClient();
 
@@ -30,9 +31,11 @@ const ThemeWrapper = () => {
 
   return (
     <ThemeProvider defaultTheme={config?.dark_mode === false ? "light" : "dark"}>
-      <TauriAppShell>
-        <InnerWrapper />
-      </TauriAppShell>
+      <TooltipProvider>
+        <TauriAppShell>
+          <InnerWrapper />
+        </TauriAppShell>
+      </TooltipProvider>
     </ThemeProvider>
   );
 };

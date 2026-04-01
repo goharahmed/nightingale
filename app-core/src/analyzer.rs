@@ -207,6 +207,8 @@ fn update_song_analyzed(
     is_analyzed: bool,
     language: Option<String>,
     transcript_source: Option<TranscriptSource>,
+    key: Option<String>,
+    tempo: Option<f64>,
 ) {
     let Some(mut song) = library_db::load_song_by_hash(file_hash).ok().flatten() else {
         return;
@@ -214,6 +216,17 @@ fn update_song_analyzed(
     song.is_analyzed = is_analyzed;
     song.language = language;
     song.transcript_source = transcript_source;
+    if is_analyzed {
+        song.key = key;
+        if let Some(value) = tempo {
+            song.tempo = value;
+        }
+    } else {
+        song.key = None;
+        song.override_key = None;
+        song.tempo = 1.0;
+        song.key_offset = 0;
+    }
     let _ = library_db::update_song_fields(file_hash, &song);
 }
 
@@ -286,7 +299,7 @@ pub fn shutdown_server() {
 pub fn delete_cache(file_hash: &str) {
     let cache = CacheDir::new();
     cache.delete_song_cache(file_hash);
-    update_song_analyzed(file_hash, false, None, None);
+    update_song_analyzed(file_hash, false, None, None, None, None);
 }
 
 pub fn reanalyze_transcript(file_hash: &str, language: Option<String>) {
@@ -310,9 +323,10 @@ fn reanalyze(file_hash: &str, full: bool) {
         cache.delete_song_cache(file_hash);
     } else {
         let _ = std::fs::remove_file(cache.transcript_path(file_hash));
+        cache.delete_transcript_variants(file_hash);
         let _ = std::fs::remove_file(cache.lyrics_path(file_hash));
     }
-    update_song_analyzed(file_hash, false, None, None);
+    update_song_analyzed(file_hash, false, None, None, None, None);
     enqueue_one(file_hash);
 }
 
@@ -441,9 +455,16 @@ fn process_song(file_hash: &str, cache: &CacheDir) {
 
 fn finalize_song(file_hash: &str, cache: &CacheDir) {
     if cache.transcript_exists(file_hash) {
-        let (source, language) = read_transcript_meta(cache, file_hash);
+        let meta = read_transcript_meta(cache, file_hash);
         remove_from_queue(file_hash);
-        update_song_analyzed(file_hash, true, language, Some(source));
+        update_song_analyzed(
+            file_hash,
+            true,
+            meta.language,
+            Some(meta.source),
+            meta.key,
+            Some(meta.tempo),
+        );
         info!("[analyzer] Analysis complete for {file_hash}");
     } else {
         update_queue_status(

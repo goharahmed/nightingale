@@ -20,12 +20,27 @@ impl CacheDir {
         self.path.join(format!("{hash}_transcript.json"))
     }
 
+    pub fn variant_transcript_path(&self, hash: &str, tempo: f64) -> PathBuf {
+        self.path
+            .join(format!("{hash}_transcript_{}.json", format_tempo(tempo)))
+    }
+
     pub fn instrumental_path(&self, hash: &str) -> PathBuf {
         self.path.join(format!("{hash}_instrumental.mp3"))
     }
 
     pub fn vocals_path(&self, hash: &str) -> PathBuf {
         self.path.join(format!("{hash}_vocals.mp3"))
+    }
+
+    pub fn variant_instrumental_path(&self, hash: &str, key: &str, tempo: f64) -> PathBuf {
+        self.path
+            .join(format!("{hash}_instrumental_{}_{}.mp3", sanitize_key(key), format_tempo(tempo)))
+    }
+
+    pub fn variant_vocals_path(&self, hash: &str, key: &str, tempo: f64) -> PathBuf {
+        self.path
+            .join(format!("{hash}_vocals_{}_{}.mp3", sanitize_key(key), format_tempo(tempo)))
     }
 
     pub fn legacy_instrumental_path(&self, hash: &str) -> PathBuf {
@@ -40,6 +55,29 @@ impl CacheDir {
         (self.instrumental_path(hash).is_file() && self.vocals_path(hash).is_file())
             || (self.legacy_instrumental_path(hash).is_file()
                 && self.legacy_vocals_path(hash).is_file())
+            || self.has_variant_stems(hash)
+    }
+
+    fn has_variant_stems(&self, hash: &str) -> bool {
+        let Ok(entries) = std::fs::read_dir(&self.path) else {
+            return false;
+        };
+
+        let inst_prefix = format!("{hash}_instrumental_");
+        let voc_prefix = format!("{hash}_vocals_");
+        let mut inst_suffixes = std::collections::HashSet::new();
+        let mut voc_suffixes = std::collections::HashSet::new();
+
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if let Some(suffix) = stem_suffix(&name, &inst_prefix) {
+                inst_suffixes.insert(suffix.to_string());
+            } else if let Some(suffix) = stem_suffix(&name, &voc_prefix) {
+                voc_suffixes.insert(suffix.to_string());
+            }
+        }
+
+        inst_suffixes.iter().any(|s| voc_suffixes.contains(s))
     }
 
     pub fn lyrics_path(&self, hash: &str) -> PathBuf {
@@ -67,6 +105,35 @@ impl CacheDir {
                 let _ = std::fs::remove_file(&path);
             }
         }
+
+        if let Ok(entries) = std::fs::read_dir(&self.path) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+                    continue;
+                };
+                if name.starts_with(&format!("{hash}_instrumental_"))
+                    || name.starts_with(&format!("{hash}_vocals_"))
+                    || is_variant_transcript_file(name, hash)
+                {
+                    let _ = std::fs::remove_file(&path);
+                }
+            }
+        }
+    }
+
+    pub fn delete_transcript_variants(&self, hash: &str) {
+        if let Ok(entries) = std::fs::read_dir(&self.path) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+                    continue;
+                };
+                if is_variant_transcript_file(name, hash) {
+                    let _ = std::fs::remove_file(&path);
+                }
+            }
+        }
     }
 
     pub fn clear_all(&self) {
@@ -75,6 +142,43 @@ impl CacheDir {
             let _ = std::fs::create_dir_all(&self.path);
         }
     }
+}
+
+fn stem_suffix<'a>(name: &'a str, prefix: &str) -> Option<&'a str> {
+    name.strip_prefix(prefix).and_then(|tail| tail.strip_suffix(".mp3"))
+}
+
+fn is_variant_transcript_file(name: &str, hash: &str) -> bool {
+    name.starts_with(&format!("{hash}_transcript_")) && name.ends_with(".json")
+}
+
+pub fn sanitize_key(key: &str) -> String {
+    let mut out = String::with_capacity(key.len());
+    for ch in key.trim().chars() {
+        if ch.is_ascii_alphanumeric() || ch == '#' || ch == 'b' {
+            out.push(ch);
+        } else if ch == ' ' || ch == '-' || ch == '_' {
+            out.push('_');
+        }
+    }
+    let cleaned = out.trim_matches('_').replace("__", "_");
+    if cleaned.is_empty() {
+        "Unknown".to_string()
+    } else {
+        cleaned
+    }
+}
+
+pub fn normalize_tempo(tempo: f64) -> f64 {
+    if !tempo.is_finite() || tempo <= 0.0 {
+        1.0
+    } else {
+        (tempo * 10.0).round() / 10.0
+    }
+}
+
+pub fn format_tempo(tempo: f64) -> String {
+    format!("{:.1}", normalize_tempo(tempo))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
