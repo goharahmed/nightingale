@@ -26,7 +26,8 @@ export const Stepper = ({
   disabled: { plus: plusDisabled, minus: minusDisabled } = {},
   onClick = {},
 }: Props) => {
-  const valueCellClassName = "grid h-5 place-items-center border border-gray-200 text-gray-500";
+  const valueCellClassName =
+    "grid h-5 place-items-center border border-border text-muted-foreground";
 
   const withStopPropagation = (callback?: () => void) => (event: MouseEvent) => {
     event.stopPropagation();

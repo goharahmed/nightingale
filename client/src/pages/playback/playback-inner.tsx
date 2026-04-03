@@ -15,7 +15,6 @@ import {
   usePlaybackTranscript,
 } from "@/hooks/playback";
 import { useAudioPlayer } from "@/hooks/use-audio-player";
-import { useMicMonitor } from "@/hooks/use-mic-monitor";
 import { useMicCapture, useMicDevices, useMicPitch } from "@/hooks/use-mic-pitch";
 import { usePitchScoring } from "@/hooks/use-pitch-scoring";
 import { PROFILES } from "@/queries/keys";
@@ -100,7 +99,6 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
     active: micPitchActive,
     error: micPitchError,
   } = useMicPitch(micPitchEnabled);
-  const { error: micMirrorError } = useMicMonitor(micMirrorEnabled);
   const { series, score } = usePitchScoring(audio, latestPitch);
   const micErrorShown = useRef(false);
   const scoreRef = useRef(score);
@@ -109,7 +107,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
   const [skipOutroPending, setSkipOutroPending] = useState(false);
 
   useEffect(() => {
-    const micError = micCaptureError ?? micPitchError ?? micMirrorError;
+    const micError = micCaptureError ?? micPitchError;
     if (micError && !micErrorShown.current) {
       micErrorShown.current = true;
       toast.error(`Microphone: ${micError}`);
@@ -117,7 +115,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
     if (!micError) {
       micErrorShown.current = false;
     }
-  }, [micCaptureError, micPitchError, micMirrorError]);
+  }, [micCaptureError, micPitchError]);
 
   const handleToggleMic = useCallback(() => {
     setMicUserEnabled((prev) => {

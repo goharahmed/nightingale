@@ -1,10 +1,9 @@
 import type { MicrophoneInfo } from "@/types/MicrophoneInfo";
-import type { MicAudioEvent } from "@/types/MicAudioEvent";
 import type { MicCaptureOptions } from "@/types/MicCaptureOptions";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
-export type { MicAudioEvent, MicCaptureOptions };
+export type { MicCaptureOptions };
 
 export const listMicrophones = async (): Promise<MicrophoneInfo[]> => {
   return await invoke<MicrophoneInfo[]>("list_microphones");
@@ -27,11 +26,5 @@ export const stopMicCapture = async (): Promise<void> => {
 export const onMicPitch = async (cb: (pitch: number | null) => void): Promise<UnlistenFn> => {
   return await listen<{ pitch: number | null }>("mic-pitch", (event) => {
     cb(event.payload.pitch);
-  });
-};
-
-export const onMicAudio = async (cb: (chunk: MicAudioEvent) => void): Promise<UnlistenFn> => {
-  return await listen<MicAudioEvent>("mic-audio", (event) => {
-    cb(event.payload);
   });
 };

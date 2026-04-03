@@ -12,7 +12,7 @@ use ts_rs::TS;
 
 const PITCH_WINDOW: usize = 2048;
 const AUDIO_QUEUE_CAP: usize = 24_000;
-const AUDIO_EMIT_CHUNK_SIZE: usize = 1024;
+const MONITOR_GAIN: f32 = 0.65;
 const MIN_PITCH_HZ: f32 = 80.0;
 const MAX_PITCH_HZ: f32 = 1000.0;
 const PITCH_POWER_THRESHOLD: f32 = 0.2;
@@ -74,6 +74,61 @@ fn rms(samples: &[f32]) -> f32 {
     (sum_sq / samples.len() as f32).sqrt()
 }
 
+fn i16_to_f32(sample: i16) -> f32 {
+    sample as f32 / i16::MAX as f32
+}
+
+fn i32_to_f32(sample: i32) -> f32 {
+    sample as f32 / i32::MAX as f32
+}
+
+fn f32_to_i16(sample: f32) -> i16 {
+    (sample.clamp(-1.0, 1.0) * i16::MAX as f32) as i16
+}
+
+fn f32_to_u16(sample: f32) -> u16 {
+    ((sample.clamp(-1.0, 1.0) * 0.5 + 0.5) * u16::MAX as f32) as u16
+}
+
+fn f32_to_i32(sample: f32) -> i32 {
+    (sample.clamp(-1.0, 1.0) * i32::MAX as f32) as i32
+}
+
+fn f32_to_u32(sample: f32) -> u32 {
+    ((sample.clamp(-1.0, 1.0) * 0.5 + 0.5) * u32::MAX as f32) as u32
+}
+
+fn push_mapped_input<T, F>(
+    data: &[T],
+    push: &Arc<dyn Fn(&[f32]) + Send + Sync>,
+    mut map: F,
+)
+where
+    T: Copy,
+    F: FnMut(T) -> f32,
+{
+    let floats: Vec<f32> = data.iter().copied().map(&mut map).collect();
+    push(&floats);
+}
+
+fn write_output_frames<T, F>(
+    data: &mut [T],
+    channels: usize,
+    next_sample: &Arc<dyn Fn() -> f32 + Send + Sync>,
+    mut map: F,
+)
+where
+    T: Copy,
+    F: FnMut(f32) -> T,
+{
+    for frame in data.chunks_mut(channels) {
+        let out_sample = map(next_sample());
+        for out in frame {
+            *out = out_sample;
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 struct MicPitchEvent {
     pitch: Option<f32>,
@@ -81,6 +136,7 @@ struct MicPitchEvent {
 
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export)]
+#[allow(dead_code)]
 pub struct MicAudioEvent {
     sample_rate: u32,
     samples: Vec<f32>,
@@ -233,9 +289,7 @@ fn try_build_stream(
             device.build_input_stream(
                 config,
                 move |data: &[i16], _: &cpal::InputCallbackInfo| {
-                    let floats: Vec<f32> =
-                        data.iter().map(|&s| s as f32 / i16::MAX as f32).collect();
-                    push(&floats);
+                    push_mapped_input(data, &push, i16_to_f32);
                 },
                 |err| warn!("[mic] stream error: {err}"),
                 None,
@@ -246,9 +300,7 @@ fn try_build_stream(
             device.build_input_stream(
                 config,
                 move |data: &[i32], _: &cpal::InputCallbackInfo| {
-                    let floats: Vec<f32> =
-                        data.iter().map(|&s| s as f32 / i32::MAX as f32).collect();
-                    push(&floats);
+                    push_mapped_input(data, &push, i32_to_f32);
                 },
                 |err| warn!("[mic] stream error: {err}"),
                 None,
@@ -270,6 +322,119 @@ fn try_build_stream(
         return None;
     }
 
+    Some(stream)
+}
+
+fn try_build_output_stream(
+    device: &cpal::Device,
+    audio_shared: Arc<Mutex<VecDeque<f32>>>,
+    options: Arc<Mutex<MicCaptureOptions>>,
+) -> Option<cpal::Stream> {
+    let default_cfg = match device.default_output_config() {
+        Ok(c) => c,
+        Err(e) => {
+            warn!("[mic] output config error: {e}");
+            return None;
+        }
+    };
+    let sample_format = default_cfg.sample_format();
+    let config = cpal::StreamConfig {
+        channels: default_cfg.channels(),
+        sample_rate: default_cfg.sample_rate(),
+        buffer_size: cpal::BufferSize::Default,
+    };
+    let ch = config.channels as usize;
+
+    let next_sample: Arc<dyn Fn() -> f32 + Send + Sync> = {
+        let options = Arc::clone(&options);
+        let audio_shared = Arc::clone(&audio_shared);
+        Arc::new(move || -> f32 {
+            let emit_audio = options.lock().map(|o| o.emit_audio).unwrap_or(false);
+            if !emit_audio {
+                return 0.0;
+            }
+            if let Ok(mut q) = audio_shared.try_lock() {
+                q.pop_front().unwrap_or(0.0) * MONITOR_GAIN
+            } else {
+                0.0
+            }
+        })
+    };
+
+    use cpal::SampleFormat;
+    let stream = match sample_format {
+        SampleFormat::F32 => {
+            let next = Arc::clone(&next_sample);
+            device.build_output_stream(
+                &config,
+                move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+                    write_output_frames(data, ch, &next, |sample| sample);
+                },
+                |err| warn!("[mic] output stream error: {err}"),
+                None,
+            )
+        }
+        SampleFormat::I16 => {
+            let next = Arc::clone(&next_sample);
+            device.build_output_stream(
+                &config,
+                move |data: &mut [i16], _: &cpal::OutputCallbackInfo| {
+                    write_output_frames(data, ch, &next, f32_to_i16);
+                },
+                |err| warn!("[mic] output stream error: {err}"),
+                None,
+            )
+        }
+        SampleFormat::U16 => {
+            let next = Arc::clone(&next_sample);
+            device.build_output_stream(
+                &config,
+                move |data: &mut [u16], _: &cpal::OutputCallbackInfo| {
+                    write_output_frames(data, ch, &next, f32_to_u16);
+                },
+                |err| warn!("[mic] output stream error: {err}"),
+                None,
+            )
+        }
+        SampleFormat::I32 => {
+            let next = Arc::clone(&next_sample);
+            device.build_output_stream(
+                &config,
+                move |data: &mut [i32], _: &cpal::OutputCallbackInfo| {
+                    write_output_frames(data, ch, &next, f32_to_i32);
+                },
+                |err| warn!("[mic] output stream error: {err}"),
+                None,
+            )
+        }
+        SampleFormat::U32 => {
+            let next = Arc::clone(&next_sample);
+            device.build_output_stream(
+                &config,
+                move |data: &mut [u32], _: &cpal::OutputCallbackInfo| {
+                    write_output_frames(data, ch, &next, f32_to_u32);
+                },
+                |err| warn!("[mic] output stream error: {err}"),
+                None,
+            )
+        }
+        _ => {
+            warn!("[mic] unsupported output sample format: {sample_format:?}");
+            return None;
+        }
+    };
+
+    let stream = match stream {
+        Ok(s) => s,
+        Err(e) => {
+            warn!("[mic] build output stream failed: {e}");
+            return None;
+        }
+    };
+    if let Err(e) = stream.play() {
+        warn!("[mic] output play failed: {e}");
+        return None;
+    }
     Some(stream)
 }
 
@@ -314,6 +479,14 @@ fn run_mic_loop(
         warn!("[mic] failed to open '{name}'");
         return;
     };
+    let monitor_stream = cpal::default_host()
+        .default_output_device()
+        .and_then(|output_device| {
+            try_build_output_stream(&output_device, Arc::clone(&audio_shared), Arc::clone(&options))
+        });
+    if monitor_stream.is_none() {
+        warn!("[mic] no output monitoring stream available");
+    }
 
     info!("[mic] active: {name}");
 
@@ -356,27 +529,6 @@ fn run_mic_loop(
             }
         }
 
-        if opts.emit_audio {
-            let mut samples = Vec::new();
-            if let Ok(mut q) = audio_shared.lock() {
-                samples.reserve(q.len().min(AUDIO_EMIT_CHUNK_SIZE));
-                while samples.len() < AUDIO_EMIT_CHUNK_SIZE {
-                    let Some(sample) = q.pop_front() else { break };
-                    samples.push(sample);
-                }
-            } else {
-                break;
-            }
-            if !samples.is_empty() {
-                let _ = app.emit(
-                    "mic-audio",
-                    MicAudioEvent {
-                        sample_rate: sr as u32,
-                        samples,
-                    },
-                );
-            }
-        }
     }
 }
 
