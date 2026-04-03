@@ -71,6 +71,7 @@ interface PlaybackHudProps {
   pitchScore: number | null;
   micOn: boolean;
   micName: string;
+  micMirrorOn: boolean;
 }
 
 function PlaybackHudImpl({
@@ -91,6 +92,7 @@ function PlaybackHudImpl({
   pitchScore,
   micOn,
   micName,
+  micMirrorOn,
 }: PlaybackHudProps) {
   const lastSecondRef = useRef(-1);
   const timerRef = useRef<HTMLParagraphElement>(null);
@@ -146,6 +148,7 @@ function PlaybackHudImpl({
           </div>
           <HintText>{formatGuideText(guideVolume)}</HintText>
           <HintText>Mic: {micOn ? micName : "OFF"} [M/N]</HintText>
+          <HintText>Mirror: {micMirrorOn ? "ON" : "OFF"} [R]</HintText>
           <HintText>{formatThemeText(themeIndex, videoFlavor)}</HintText>
           <HintText>[ESC] Back</HintText>
         </div>

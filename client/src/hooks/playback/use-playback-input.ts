@@ -27,6 +27,7 @@ export interface UsePlaybackInputParams {
   handleContinue: () => void;
   onToggleMic: () => void;
   onCycleMic: () => void;
+  onToggleMicMirror: () => void;
 }
 
 export function usePlaybackInput({
@@ -48,6 +49,7 @@ export function usePlaybackInput({
   handleContinue,
   onToggleMic,
   onCycleMic,
+  onToggleMicMirror,
 }: UsePlaybackInputParams) {
   const pausedRef = useRef(paused);
   pausedRef.current = paused;
@@ -91,7 +93,7 @@ export function usePlaybackInput({
     ),
   );
 
-  // Keyboard-only shortcuts (G, T, F, M, N, +/-, Space)
+  // Keyboard-only shortcuts (G, T, F, M, N, R, +/-, Space)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === " ") {
@@ -159,6 +161,11 @@ export function usePlaybackInput({
         case "N":
           onCycleMic();
           break;
+
+        case "r":
+        case "R":
+          onToggleMicMirror();
+          break;
       }
     };
 
@@ -176,5 +183,6 @@ export function usePlaybackInput({
     handleContinue,
     onToggleMic,
     onCycleMic,
+    onToggleMicMirror,
   ]);
 }

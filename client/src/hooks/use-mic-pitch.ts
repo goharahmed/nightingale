@@ -1,5 +1,6 @@
 import {
   tauriMicrophoneAdapter,
+  type MicCaptureOptions,
   type MicrophoneAdapter,
   type StopListening,
 } from "@/adapters/microphone";
@@ -37,23 +38,15 @@ export function useMicDevices(adapter: MicrophoneAdapter = defaultAdapter) {
   return devices;
 }
 
-export function useMicPitch(
-  deviceId: string | null,
-  enabled: boolean,
-  adapter: MicrophoneAdapter = defaultAdapter,
-) {
+export function useMicPitch(enabled: boolean, adapter: MicrophoneAdapter = defaultAdapter) {
   const [latestPitch, setLatestPitch] = useState<number | null>(null);
-  const [active, setActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const startedRef = useRef(false);
+  const [active, setActive] = useState(false);
 
   useEffect(() => {
     if (!enabled) {
-      if (startedRef.current) {
-        adapter.stopCapture().catch(() => {});
-        startedRef.current = false;
-      }
       setLatestPitch(null);
+      setError(null);
       setActive(false);
       return;
     }
@@ -62,36 +55,19 @@ export function useMicPitch(
     let stopListening: StopListening | null = null;
 
     const run = async () => {
-      let unlisten: StopListening | null = null;
       try {
-        unlisten = await adapter.onPitch((pitch) => {
+        stopListening = await adapter.onPitch((pitch) => {
           if (!cancelled) setLatestPitch(pitch);
         });
         if (cancelled) {
-          unlisten();
+          stopListening();
           return;
         }
-        stopListening = unlisten;
-
-        if (cancelled) return;
-
-        await adapter.startCapture(deviceId);
-
-        if (cancelled) {
-          unlisten();
-          await adapter.stopCapture().catch(() => {});
-          return;
-        }
-
-        startedRef.current = true;
-        setActive(true);
         setError(null);
+        setActive(true);
       } catch (e) {
-        unlisten?.();
-        void adapter.stopCapture().catch(() => {});
         if (!cancelled) {
-          const msg = e instanceof Error ? e.message : String(e);
-          setError(msg);
+          setError(e instanceof Error ? e.message : String(e));
           setLatestPitch(null);
           setActive(false);
         }
@@ -103,14 +79,70 @@ export function useMicPitch(
     return () => {
       cancelled = true;
       stopListening?.();
+      setLatestPitch(null);
+      setActive(false);
+    };
+  }, [enabled, adapter]);
+
+  return { latestPitch, active, error };
+}
+
+export function useMicCapture(
+  deviceId: string | null,
+  options: MicCaptureOptions,
+  adapter: MicrophoneAdapter = defaultAdapter,
+) {
+  const [active, setActive] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const startedRef = useRef(false);
+  const enabled = options.emit_pitch || options.emit_audio;
+
+  useEffect(() => {
+    if (!enabled) {
       if (startedRef.current) {
         adapter.stopCapture().catch(() => {});
         startedRef.current = false;
       }
-      setLatestPitch(null);
+      setError(null);
+      setActive(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const run = async () => {
+      try {
+        await adapter.startCapture(deviceId, options);
+
+        if (cancelled) {
+          await adapter.stopCapture().catch(() => {});
+          return;
+        }
+
+        startedRef.current = true;
+        setActive(true);
+        setError(null);
+      } catch (e) {
+        void adapter.stopCapture().catch(() => {});
+        if (!cancelled) {
+          const msg = e instanceof Error ? e.message : String(e);
+          setError(msg);
+          setActive(false);
+        }
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+      if (startedRef.current) {
+        adapter.stopCapture().catch(() => {});
+        startedRef.current = false;
+      }
       setActive(false);
     };
-  }, [enabled, deviceId, adapter]);
+  }, [enabled, options.emit_pitch, options.emit_audio, deviceId, adapter]);
 
-  return { latestPitch, active, error };
+  return { active, error };
 }

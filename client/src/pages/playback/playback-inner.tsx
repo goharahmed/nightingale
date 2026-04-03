@@ -15,7 +15,8 @@ import {
   usePlaybackTranscript,
 } from "@/hooks/playback";
 import { useAudioPlayer } from "@/hooks/use-audio-player";
-import { useMicDevices, useMicPitch } from "@/hooks/use-mic-pitch";
+import { useMicMonitor } from "@/hooks/use-mic-monitor";
+import { useMicCapture, useMicDevices, useMicPitch } from "@/hooks/use-mic-pitch";
 import { usePitchScoring } from "@/hooks/use-pitch-scoring";
 import { PROFILES } from "@/queries/keys";
 import { useProfiles } from "@/queries/use-profiles";
@@ -84,15 +85,22 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
   const audio = useAudioPlayer(fileHash, initialGuideVolume, stemsReady);
 
   const [micUserEnabled, setMicUserEnabled] = useState(config?.mic_active ?? true);
+  const [micMirrorUserEnabled, setMicMirrorUserEnabled] = useState(config?.mic_mirroring ?? false);
   const [selectedMicId, setSelectedMicId] = useState<string | null>(config?.preferred_mic ?? null);
   const micDevices = useMicDevices();
 
-  const micEnabled = audio.isReady && audio.isPlaying && !paused && micUserEnabled;
+  const micPitchEnabled = audio.isReady && audio.isPlaying && !paused && micUserEnabled;
+  const micMirrorEnabled = audio.isReady && audio.isPlaying && !paused && micMirrorUserEnabled;
+  const { active: micCaptureActive, error: micCaptureError } = useMicCapture(selectedMicId, {
+    emit_pitch: micPitchEnabled,
+    emit_audio: micMirrorEnabled,
+  });
   const {
     latestPitch,
-    active: micActive,
-    error: micError,
-  } = useMicPitch(selectedMicId, micEnabled);
+    active: micPitchActive,
+    error: micPitchError,
+  } = useMicPitch(micPitchEnabled);
+  const { error: micMirrorError } = useMicMonitor(micMirrorEnabled);
   const { series, score } = usePitchScoring(audio, latestPitch);
   const micErrorShown = useRef(false);
   const scoreRef = useRef(score);
@@ -101,20 +109,29 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
   const [skipOutroPending, setSkipOutroPending] = useState(false);
 
   useEffect(() => {
+    const micError = micCaptureError ?? micPitchError ?? micMirrorError;
     if (micError && !micErrorShown.current) {
       micErrorShown.current = true;
       toast.error(`Microphone: ${micError}`);
     }
-  }, [micError]);
+    if (!micError) {
+      micErrorShown.current = false;
+    }
+  }, [micCaptureError, micPitchError, micMirrorError]);
 
   const handleToggleMic = useCallback(() => {
     setMicUserEnabled((prev) => {
       const next = !prev;
-      persistConfig({ mic_active: next });
+      if (!next && micMirrorUserEnabled) {
+        setMicMirrorUserEnabled(false);
+        persistConfig({ mic_active: false, mic_mirroring: false });
+      } else {
+        persistConfig({ mic_active: next });
+      }
 
       return next;
     });
-  }, [persistConfig]);
+  }, [persistConfig, micMirrorUserEnabled]);
 
   const handleCycleMic = useCallback(() => {
     if (micDevices.length <= 1) return;
@@ -124,6 +141,18 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
     setSelectedMicId(next.deviceId);
     persistConfig({ preferred_mic: next.deviceId });
   }, [micDevices, selectedMicId, persistConfig]);
+
+  const handleToggleMicMirror = useCallback(() => {
+    setMicMirrorUserEnabled((prev) => {
+      const next = !prev;
+      persistConfig({ mic_mirroring: next });
+      if (next && !micUserEnabled) {
+        setMicUserEnabled(true);
+        persistConfig({ mic_active: true });
+      }
+      return next;
+    });
+  }, [persistConfig, micUserEnabled]);
 
   useEffect(() => {
     if (!audio.isFinished && !skipOutroPending) {
@@ -251,6 +280,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
     handleContinue,
     onToggleMic: handleToggleMic,
     onCycleMic: handleCycleMic,
+    onToggleMicMirror: handleToggleMicMirror,
   });
 
   const videoFlavor: VideoFlavor = FLAVORS[flavorIndex % FLAVORS.length];
@@ -284,11 +314,15 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
             subscribe={audio.subscribe}
             getCurrentTime={audio.getCurrentTime}
             transcriptSource={transcriptSource}
-            pitchScore={micActive && micUserEnabled ? score : null}
+            pitchScore={micCaptureActive && micPitchActive && micUserEnabled ? score : null}
             micOn={micUserEnabled}
             micName={selectedMicId ?? "Default"}
+            micMirrorOn={micMirrorUserEnabled}
           />
-          <PitchGraph series={series} visible={micActive && micUserEnabled} />
+          <PitchGraph
+            series={series}
+            visible={micCaptureActive && micPitchActive && micUserEnabled}
+          />
           <LyricsDisplay
             segments={segments}
             subscribe={audio.subscribe}
