@@ -17,7 +17,10 @@ pub use analyzer::{
     AnalysisQueue, delete_cache, enqueue_all, enqueue_one, reanalyze_full, reanalyze_transcript,
     shutdown_server,
 };
-pub use cache::{CacheDir, CacheStats, clear_models, clear_videos};
+pub use cache::{
+    CacheDir, CacheStats, change_app_data_path, clear_models, clear_videos,
+    default_nightingale_dir, nightingale_dir,
+};
 pub use playback::{
     AudioPaths, ShiftResult, download_pixabay_videos, ensure_mp3_stems, get_audio_paths,
     get_cached_pixabay_videos, load_transcript, prefetch_one_per_flavor, shift_key, shift_tempo,

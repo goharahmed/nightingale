@@ -6,8 +6,8 @@ export const isAppReady = async (): Promise<boolean> => {
   return await invoke<boolean>("is_ready");
 };
 
-export const triggerSetup = async (): Promise<void> => {
-  return await invoke<void>("trigger_setup");
+export const triggerSetup = async (dataFolder?: string): Promise<void> => {
+  return await invoke<void>("trigger_setup", { dataPath: dataFolder });
 };
 
 export const onSetupProgress = async (

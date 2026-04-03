@@ -58,7 +58,7 @@ impl CacheDir {
             || self.has_variant_stems(hash)
     }
 
-    fn has_variant_stems(&self, hash: &str) -> bool {
+    pub fn has_variant_stems(&self, hash: &str) -> bool {
         let Ok(entries) = std::fs::read_dir(&self.path) else {
             return false;
         };
@@ -200,13 +200,12 @@ impl CacheStats {
         let models_bytes = dir_size(&base.join("models"));
         let other_bytes = dir_size(&base.join("vendor"))
             + dir_size(&base.join("sounds"))
-            + base
+            + default_nightingale_dir()
                 .join("nightingale.log")
                 .metadata()
                 .map(|m| m.len())
                 .unwrap_or(0)
-            + base
-                .join("config.json")
+            + config_path()
                 .metadata()
                 .map(|m| m.len())
                 .unwrap_or(0)
@@ -227,13 +226,17 @@ impl CacheStats {
 }
 
 pub fn nightingale_dir() -> PathBuf {
+    configured_data_path().unwrap_or_else(default_nightingale_dir)
+}
+
+pub fn default_nightingale_dir() -> PathBuf {
     dirs::home_dir()
         .expect("could not find home directory")
         .join(".nightingale")
 }
 
 pub fn config_path() -> PathBuf {
-    nightingale_dir().join("config.json")
+    default_nightingale_dir().join("config.json")
 }
 
 pub fn profiles_path() -> PathBuf {
@@ -336,3 +339,196 @@ pub fn clear_models() {
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
+
+#[derive(Debug, Deserialize)]
+struct DataPathOnlyConfig {
+    data_path: Option<PathBuf>,
+}
+
+fn configured_data_path() -> Option<PathBuf> {
+    let path = config_path();
+    let content = std::fs::read_to_string(path).ok()?;
+    let configured = serde_json::from_str::<DataPathOnlyConfig>(&content)
+        .ok()
+        .and_then(|cfg| cfg.data_path)?;
+    if configured.is_absolute() {
+        Some(configured)
+    } else {
+        std::env::current_dir().ok().map(|cwd| cwd.join(configured))
+    }
+}
+
+fn normalized_target_path(path: PathBuf) -> Result<PathBuf, String> {
+    if path.as_os_str().is_empty() {
+        return Err("data_path cannot be empty".to_string());
+    }
+
+    if path.is_absolute() {
+        Ok(path)
+    } else {
+        std::env::current_dir()
+            .map(|cwd| cwd.join(path))
+            .map_err(|e| format!("failed to resolve relative data_path: {e}"))
+    }
+}
+
+fn same_path(lhs: &Path, rhs: &Path) -> bool {
+    match (
+        std::fs::canonicalize(lhs).ok(),
+        std::fs::canonicalize(rhs).ok(),
+    ) {
+        (Some(a), Some(b)) => a == b,
+        _ => lhs == rhs,
+    }
+}
+
+fn copy_path_entry(src: &Path, dst: &Path) -> Result<(), String> {
+    let metadata = std::fs::symlink_metadata(src)
+        .map_err(|e| format!("failed reading metadata for {:?}: {e}", src))?;
+    let file_type = metadata.file_type();
+
+    if file_type.is_dir() {
+        std::fs::create_dir_all(dst)
+            .map_err(|e| format!("failed creating destination directory {:?}: {e}", dst))?;
+        for child in std::fs::read_dir(src)
+            .map_err(|e| format!("failed reading directory {:?}: {e}", src))?
+        {
+            let child = child.map_err(|e| format!("failed reading directory entry: {e}"))?;
+            let child_src = child.path();
+            let child_dst = dst.join(child.file_name());
+            copy_path_entry(&child_src, &child_dst)?;
+        }
+        return Ok(());
+    }
+
+    if file_type.is_symlink() {
+        if dst.exists() {
+            if dst.is_dir() {
+                std::fs::remove_dir_all(dst)
+                    .map_err(|e| format!("failed clearing destination {:?}: {e}", dst))?;
+            } else {
+                std::fs::remove_file(dst)
+                    .map_err(|e| format!("failed clearing destination {:?}: {e}", dst))?;
+            }
+        } else if let Some(parent) = dst.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("failed creating destination parent {:?}: {e}", parent))?;
+        }
+
+        let link_target =
+            std::fs::read_link(src).map_err(|e| format!("failed reading symlink {:?}: {e}", src))?;
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(&link_target, dst)
+                .map_err(|e| format!("failed creating symlink {:?}: {e}", dst))?;
+        }
+        #[cfg(windows)]
+        {
+            let target_is_dir = src.is_dir();
+            if target_is_dir {
+                std::os::windows::fs::symlink_dir(&link_target, dst)
+                    .map_err(|e| format!("failed creating symlink dir {:?}: {e}", dst))?;
+            } else {
+                std::os::windows::fs::symlink_file(&link_target, dst)
+                    .map_err(|e| format!("failed creating symlink file {:?}: {e}", dst))?;
+            }
+        }
+        return Ok(());
+    }
+
+    if dst.exists() {
+        if dst.is_dir() {
+            std::fs::remove_dir_all(dst)
+                .map_err(|e| format!("failed clearing destination {:?}: {e}", dst))?;
+        } else {
+            std::fs::remove_file(dst)
+                .map_err(|e| format!("failed clearing destination {:?}: {e}", dst))?;
+        }
+    } else if let Some(parent) = dst.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("failed creating destination parent {:?}: {e}", parent))?;
+    }
+
+    std::fs::copy(src, dst).map_err(|e| format!("failed copying {:?} -> {:?}: {e}", src, dst))?;
+    Ok(())
+}
+
+fn migrate_data_entries_with<F>(
+    old_root: &Path,
+    new_root: &Path,
+    copy_entry: F,
+) -> Result<Vec<std::ffi::OsString>, String>
+where
+    F: Fn(&Path, &Path) -> Result<(), String>,
+{
+    let mut migrated = Vec::new();
+    if !old_root.is_dir() {
+        return Ok(migrated);
+    }
+
+    for entry in std::fs::read_dir(old_root)
+        .map_err(|e| format!("failed reading current data path {:?}: {e}", old_root))?
+    {
+        let entry = entry.map_err(|e| format!("failed reading data path entry: {e}"))?;
+        let name = entry.file_name();
+        let entry_name = name.to_string_lossy();
+        if entry_name == "config.json" || entry_name == "nightingale.log" {
+            continue;
+        }
+
+        let src = entry.path();
+        let dst = new_root.join(&name);
+        copy_entry(&src, &dst)?;
+        migrated.push(name);
+    }
+
+    Ok(migrated)
+}
+
+fn cleanup_migrated_source_entries(old_root: &Path, migrated: &[std::ffi::OsString]) {
+    for name in migrated {
+        let src = old_root.join(name);
+        if src.is_dir() {
+            let _ = std::fs::remove_dir_all(&src);
+        } else if src.exists() {
+            let _ = std::fs::remove_file(&src);
+        }
+    }
+}
+
+pub fn change_app_data_path(new_path: PathBuf) -> Result<PathBuf, String> {
+    let old_root = nightingale_dir();
+    let new_root = normalized_target_path(new_path)?;
+
+    if same_path(&old_root, &new_root) {
+        let default_root = default_nightingale_dir();
+        if !same_path(&new_root, &default_root) {
+            crate::library_db::rebase_song_album_art_paths(&default_root, &new_root)?;
+        }
+        let mut cfg = crate::config::AppConfig::load();
+        cfg.data_path = Some(new_root.clone());
+        cfg.save();
+        crate::library_db::reconnect_library_at_root(&new_root)?;
+        return Ok(new_root);
+    }
+
+    if new_root.starts_with(&old_root) {
+        return Err("new data_path cannot be inside current data path".to_string());
+    }
+
+    std::fs::create_dir_all(&new_root)
+        .map_err(|e| format!("failed creating new data path {:?}: {e}", new_root))?;
+    let migrated =
+        migrate_data_entries_with(&old_root, &new_root, |src, dst| copy_path_entry(src, dst))?;
+
+    crate::library_db::rebase_song_album_art_paths(&old_root, &new_root)?;
+    crate::library_db::reconnect_library_at_root(&new_root)?;
+
+    let mut cfg = crate::config::AppConfig::load();
+    cfg.data_path = Some(new_root.clone());
+    cfg.save();
+    cleanup_migrated_source_entries(&old_root, &migrated);
+
+    Ok(new_root)
+}
+

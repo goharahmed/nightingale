@@ -6,9 +6,11 @@ use ts_rs::TS;
 
 use crate::cache::config_path;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct AppConfig {
+    #[serde(default = "default_data_path_option")]
+    pub data_path: Option<PathBuf>,
     pub last_folder: Option<PathBuf>,
     pub last_theme: Option<usize>,
     pub guide_volume: Option<f64>,
@@ -24,18 +26,75 @@ pub struct AppConfig {
     pub language_overrides: Option<HashMap<String, String>>,
 }
 
+fn default_data_path_option() -> Option<PathBuf> {
+    Some(AppConfig::default_data_path())
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            data_path: default_data_path_option(),
+            last_folder: None,
+            last_theme: None,
+            guide_volume: None,
+            fullscreen: None,
+            dark_mode: None,
+            mic_active: None,
+            preferred_mic: None,
+            whisper_model: None,
+            beam_size: None,
+            batch_size: None,
+            last_video_flavor: None,
+            separator: None,
+            language_overrides: None,
+        }
+    }
+}
+
 impl AppConfig {
+    pub fn default_data_path() -> PathBuf {
+        crate::cache::default_nightingale_dir()
+    }
+
+    pub fn effective_data_path(&self) -> PathBuf {
+        self.data_path
+            .clone()
+            .unwrap_or_else(Self::default_data_path)
+    }
+
+    fn with_defaults(mut self) -> Self {
+        if self.data_path.is_none() {
+            self.data_path = Some(Self::default_data_path());
+        }
+        self
+    }
+
     pub fn load() -> Self {
         let path = config_path();
 
-        if path.is_file() {
+        let loaded = if path.is_file() {
             std::fs::read_to_string(&path)
                 .ok()
-                .and_then(|s| serde_json::from_str(&s).ok())
-                .unwrap_or_default()
+                .and_then(|s| serde_json::from_str::<Self>(&s).ok())
         } else {
-            Self::default()
+            None
+        };
+
+        let (config, should_save) = match loaded {
+            Some(cfg) => {
+                let had_data_path = cfg.data_path.is_some();
+                (cfg.with_defaults(), !had_data_path)
+            }
+            None => {
+                (Self::default().with_defaults(), true)
+            }
+        };
+
+        if should_save {
+            config.save();
         }
+
+        config
     }
 
     pub fn save(&self) {

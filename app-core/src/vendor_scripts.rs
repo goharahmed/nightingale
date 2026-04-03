@@ -3,6 +3,7 @@ use std::path::Path;
 const ANALYZE_PY: &str = include_str!("../analyzer/analyze.py");
 const SERVER_PY: &str = include_str!("../analyzer/server.py");
 const PIPELINE_PY: &str = include_str!("../analyzer/pipeline.py");
+const KEY_DETECT_PY: &str = include_str!("../analyzer/key_detect.py");
 const STEMS_PY: &str = include_str!("../analyzer/stems.py");
 const TRANSCRIBE_PY: &str = include_str!("../analyzer/transcribe.py");
 const ALIGN_PY: &str = include_str!("../analyzer/align.py");
@@ -15,6 +16,7 @@ const FILES: &[(&str, &str)] = &[
     ("analyze.py", ANALYZE_PY),
     ("server.py", SERVER_PY),
     ("pipeline.py", PIPELINE_PY),
+    ("key_detect.py", KEY_DETECT_PY),
     ("stems.py", STEMS_PY),
     ("transcribe.py", TRANSCRIBE_PY),
     ("align.py", ALIGN_PY),

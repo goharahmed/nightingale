@@ -47,7 +47,8 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
   const [resultScore, setResultScore] = useState(0);
 
   const initialTheme = config?.last_theme ?? 0;
-  const initialGuideVolume = config?.guide_volume ?? 0.3;
+  const initialGuideVolumeRef = useRef(config?.guide_volume ?? 0.3);
+  const initialGuideVolume = initialGuideVolumeRef.current;
   const initialVideoFlavor = config?.last_video_flavor ?? 0;
 
   const [paused, setPaused] = useState(false);

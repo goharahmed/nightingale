@@ -6,6 +6,7 @@ pub fn load_config() -> AppConfig {
 }
 
 #[tauri::command]
-pub fn save_config(config: AppConfig) {
+pub fn save_config(config: AppConfig) -> AppConfig {
     config.save();
+    config
 }

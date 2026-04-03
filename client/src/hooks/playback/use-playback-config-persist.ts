@@ -4,21 +4,29 @@
  */
 
 import { saveConfig } from "@/tauri-bridge/config";
+import { CONFIG } from "@/queries/keys";
+import { useQueryClient } from "@tanstack/react-query";
 import type { AppConfig } from "@/types/AppConfig";
 import { useCallback, useRef } from "react";
 
 export function usePlaybackConfigPersist(config: AppConfig | null) {
+  const queryClient = useQueryClient();
   const configRef = useRef(config);
   configRef.current = config;
 
-  const persistConfig = useCallback((patch: Partial<AppConfig>) => {
-    const current = configRef.current;
-    if (!current) {
-      return;
-    }
+  const persistConfig = useCallback(
+    (patch: Partial<AppConfig>) => {
+      const current = configRef.current;
+      if (!current) {
+        return;
+      }
 
-    saveConfig({ ...current, ...patch });
-  }, []);
+      void saveConfig({ ...current, ...patch }).then((savedConfig) => {
+        queryClient.setQueryData(CONFIG, savedConfig);
+      });
+    },
+    [queryClient],
+  );
 
   return persistConfig;
 }

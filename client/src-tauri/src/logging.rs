@@ -39,10 +39,7 @@ pub fn init() {
 
     #[cfg(not(debug_assertions))]
     {
-        let log_dir = match dirs::home_dir() {
-            Some(h) => h.join(".nightingale"),
-            None => return,
-        };
+        let log_dir = app_core::default_nightingale_dir();
         let _ = std::fs::create_dir_all(&log_dir);
         let log_path = log_dir.join("nightingale.log");
 

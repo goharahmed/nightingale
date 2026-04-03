@@ -290,6 +290,10 @@ pub fn ensure_mp3_stems(file_hash: &str) -> Result<(), NightingaleError> {
         return Ok(());
     }
 
+    if cache.has_variant_stems(file_hash) {
+        return Ok(());
+    }
+
     let ogg_inst = cache.legacy_instrumental_path(file_hash);
     let ogg_voc = cache.legacy_vocals_path(file_hash);
 

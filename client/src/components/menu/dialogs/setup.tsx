@@ -17,28 +17,78 @@ import type { SetupProgress } from "@/types/SetupProgress";
 import type { SetupStep } from "@/types/SetupStep";
 import logoSrc from "@/assets/images/logo_square.png";
 import { useShouldRunSetup } from "@/hooks/use-should-run-setup";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { selectFolderRaw } from "@/tauri-bridge/folder";
+import { useConfig } from "@/queries/use-config";
+import { ANALYSIS_QUEUE, CONFIG, MENU, SONGS, SONGS_META } from "@/queries/keys";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface ExtendedSetupProgress extends Omit<SetupProgress, "step"> {
-  step: SetupStep | "init" | "error";
+  step: SetupStep | "init" | "error" | "changedatafolder";
 }
 
 type InitialStepProps = {
-  onStart: () => Promise<void>;
+  toNextStep: () => void;
 };
 
-const InitialStep = ({ onStart }: InitialStepProps) => (
+const InitialStep = ({ toNextStep }: InitialStepProps) => {
+  return (
+    <>
+      <AlertDialogHeader>
+        <AlertDialogTitle>Welcome to Nightingale!</AlertDialogTitle>
+        <AlertDialogDescription>
+          Before you get started, we need to install a few dependencies: <code>ffmpeg</code>,{" "}
+          <code>uv</code>, <code>python 3.10</code>, Python packages, and <code>CUDA</code> wheels
+          (NVIDIA GPUs only).
+        </AlertDialogDescription>
+        <AlertDialogDescription>
+          This may take a few minutes. You can exit at any time if you'd prefer not to continue.
+        </AlertDialogDescription>
+        <AlertDialogDescription>This only happens once.</AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel onClick={() => exit()}>Exit</AlertDialogCancel>
+        <AlertDialogAction onClick={toNextStep}>Continue</AlertDialogAction>
+      </AlertDialogFooter>
+    </>
+  );
+};
+
+type ChangeDataStepProps = {
+  onStart: () => Promise<void>;
+  folder?: string;
+  setFolder: (folder?: string) => void;
+};
+
+const ChangeDataFolderStep = ({ onStart, folder, setFolder }: ChangeDataStepProps) => (
   <>
     <AlertDialogHeader>
-      <AlertDialogTitle>Welcome to Nightingale!</AlertDialogTitle>
-      <AlertDialogDescription>
-        Before you get started, we need to install a few dependencies: <code>ffmpeg</code>,{" "}
-        <code>uv</code>, <code>python 3.10</code>, Python packages, and <code>CUDA</code> wheels
-        (NVIDIA GPUs only).
-      </AlertDialogDescription>
-      <AlertDialogDescription>
-        This may take a few minutes. You can exit at any time if you'd prefer not to continue.
-      </AlertDialogDescription>
-      <AlertDialogDescription>This only happens once.</AlertDialogDescription>
+      <AlertDialogTitle>Data Folder</AlertDialogTitle>
+      <>
+        <AlertDialogDescription className="mb-2">
+          Choose where Nightingale stores app data. We will store cache, videos, models, vendor
+          tools, and the library database in this folder. Only <code>config.json</code> and{" "}
+          <code>nightingale.log</code> stay in the default <code>~/.nightingale</code> path.
+        </AlertDialogDescription>
+        <div className="flex gap-2 w-full">
+          <Input value={folder ?? ""} disabled />
+          <Button
+            variant="outline"
+            onClick={async () => {
+              const folder = await selectFolderRaw();
+
+              if (!folder) {
+                return;
+              }
+
+              setFolder(folder);
+            }}
+          >
+            {folder ? "Change Folder" : "Choose Folder"}
+          </Button>
+        </div>
+      </>
     </AlertDialogHeader>
     <AlertDialogFooter>
       <AlertDialogCancel onClick={() => exit()}>Exit</AlertDialogCancel>
@@ -87,15 +137,16 @@ const ErrorStep = ({ error }: ErrorStepProps) => (
 
 interface FinalStepProps {
   onFinish: () => void;
+  folder?: string;
 }
 
-const FinalStep = ({ onFinish }: FinalStepProps) => (
+const FinalStep = ({ onFinish, folder }: FinalStepProps) => (
   <>
     <AlertDialogHeader>
       <AlertDialogTitle>You're all set!</AlertDialogTitle>
       <AlertDialogDescription>
-        All dependencies have been installed to <code>~/.nightingale/vendor</code>. Nightingale is
-        ready to use.
+        All dependencies have been installed to <code>{folder}/vendor</code>. Nightingale is ready
+        to use.
       </AlertDialogDescription>
     </AlertDialogHeader>
     <AlertDialogFooter>
@@ -111,9 +162,28 @@ const defaultProgress = {
 };
 
 export const Setup = () => {
+  const { data: config } = useConfig();
   const { shouldRunSetup, setShouldRunSetup } = useShouldRunSetup();
+  const queryClient = useQueryClient();
 
+  const [overrideFolder, setOverrideFolder] = useState(config?.data_path);
   const [setupProgress, setSetupProgress] = useState<ExtendedSetupProgress>(defaultProgress);
+
+  useEffect(() => {
+    if (!overrideFolder && config?.data_path) {
+      setOverrideFolder(config.data_path);
+    }
+  }, [config?.data_path, overrideFolder]);
+
+  const invalidatePostSetupState = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: CONFIG }),
+      queryClient.invalidateQueries({ queryKey: SONGS_META }),
+      queryClient.invalidateQueries({ queryKey: SONGS }),
+      queryClient.invalidateQueries({ queryKey: MENU }),
+      queryClient.invalidateQueries({ queryKey: ANALYSIS_QUEUE }),
+    ]);
+  }, [queryClient]);
 
   useEffect(() => {
     let unlistenProgress: (() => void) | undefined;
@@ -121,6 +191,9 @@ export const Setup = () => {
 
     onSetupProgress((progress) => {
       setSetupProgress(progress);
+      if (progress.step === "finish") {
+        void invalidatePostSetupState();
+      }
     }).then((fn) => {
       unlistenProgress = fn;
     });
@@ -135,7 +208,7 @@ export const Setup = () => {
       unlistenProgress?.();
       unlistenError?.();
     };
-  }, []);
+  }, [invalidatePostSetupState]);
 
   const { step, percent, action } = setupProgress;
 
@@ -158,24 +231,38 @@ export const Setup = () => {
 
         if (navAction.confirm) {
           if (step === "init") {
-            triggerSetup();
+            triggerSetup(overrideFolder ?? undefined);
           } else if (step === "finish") {
+            void invalidatePostSetupState();
             setShouldRunSetup(false);
           } else if (step === "error") {
             exit();
           }
         }
       },
-      [shouldRunSetup, step, setShouldRunSetup],
+      [invalidatePostSetupState, overrideFolder, setShouldRunSetup, shouldRunSetup, step],
     ),
   );
 
   const Step = useMemo(() => {
     switch (step) {
       case "init":
-        return () => <InitialStep onStart={triggerSetup} />;
+        return () => (
+          <InitialStep
+            toNextStep={() => setSetupProgress({ ...setupProgress, step: "changedatafolder" })}
+          />
+        );
+      case "changedatafolder":
+        return () => (
+          <ChangeDataFolderStep
+            folder={overrideFolder ?? undefined}
+            setFolder={setOverrideFolder}
+            onStart={() => triggerSetup(overrideFolder ?? undefined)}
+          />
+        );
       case "clearvendor":
       case "ffmpeg":
+      case "migratedata":
       case "uv":
       case "python":
       case "venv":
@@ -186,7 +273,9 @@ export const Setup = () => {
       case "finish":
         return () => (
           <FinalStep
+            folder={overrideFolder ?? undefined}
             onFinish={() => {
+              void invalidatePostSetupState();
               setSetupProgress(defaultProgress);
               setShouldRunSetup(false);
             }}
@@ -195,7 +284,7 @@ export const Setup = () => {
       case "error":
         return () => <ErrorStep error={action} />;
     }
-  }, [step, action, percent]);
+  }, [step, action, percent, overrideFolder, invalidatePostSetupState, setShouldRunSetup]);
 
   return (
     <AlertDialog open={shouldRunSetup}>

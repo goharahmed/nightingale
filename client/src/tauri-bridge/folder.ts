@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 
-export const selectFolder = async (): Promise<void> => {
+export const selectFolderRaw = async (): Promise<string | undefined> => {
   const folder = await open({
     directory: true,
     multiple: false,
@@ -11,6 +11,16 @@ export const selectFolder = async (): Promise<void> => {
   if (!folder) {
     toast.error("Folder was not selected! Please try again.");
 
+    return;
+  }
+
+  return folder;
+};
+
+export const selectFolder = async (): Promise<void> => {
+  const folder = await selectFolderRaw();
+
+  if (!folder) {
     return;
   }
 

@@ -128,8 +128,8 @@ export const Shifts = ({ song, status, onSuccess, onError, onStart }: Props) => 
       onPlus: () => onShiftKey("up"),
       onMinus: () => onShiftKey("down"),
       disabled: {
-        plus: song.key_offset >= 5,
-        minus: song.key_offset <= -5,
+        plus: song.key_offset >= 5 || !song.key,
+        minus: song.key_offset <= -5 || !song.key,
       },
     },
   ];

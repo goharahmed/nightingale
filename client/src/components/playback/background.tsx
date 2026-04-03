@@ -85,6 +85,7 @@ function backgroundContent(
       if (!sourceVideoPath) {
         return null;
       }
+
       return (
         <SourceVideo
           filePath={sourceVideoPath}
