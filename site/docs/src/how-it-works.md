@@ -10,12 +10,12 @@ flowchart TD
     B --> |"vocals.mp3 + instrumental.mp3"| C["LRCLIB"]
     C --> |"Fetches synced lyrics if available"| D["WhisperX (large-v3)"]
     D --> |"Transcription + word-level alignment"| E["Tauri App (Rust + React)"]
-    E --> F["🎤 Plays instrumental + synced lyrics\nwith pitch scoring & backgrounds"]
+    E --> F["🎤 Plays instrumental + synced lyrics\nwith pitch scoring, key/tempo controls,\nmic mirroring, and backgrounds"]
 </pre>
 
 ## Caching
 
-Analysis results are cached at `~/.nightingale/cache/` using blake3 file hashes. Re-analysis only happens if the source file changes or is manually triggered from the UI.
+Analysis results are cached in your configured data folder (`cache/`) using blake3 file hashes. Re-analysis only happens if the source file changes, if you trigger it manually, or when creating shifted key/tempo variants.
 
 ## Hardware Acceleration
 

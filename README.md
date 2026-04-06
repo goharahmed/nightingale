@@ -8,7 +8,7 @@
 
 ---
 
-Nightingale scans your music folder, separates lead vocals from instrumentals using the [UVR Karaoke model](https://github.com/Anjok07/ultimatevocalremovergui) (or [Demucs](https://github.com/facebookresearch/demucs)), transcribes lyrics with word-level timestamps via [WhisperX](https://github.com/m-bain/whisperX), and plays it all back with synchronized highlighting, pitch scoring, profiles, and dynamic backgrounds.
+Nightingale scans your music folder, separates lead vocals from instrumentals using the [UVR Karaoke model](https://github.com/Anjok07/ultimatevocalremovergui) (or [Demucs](https://github.com/facebookresearch/demucs)), transcribes lyrics with word-level timestamps via [WhisperX](https://github.com/m-bain/whisperX), and plays it all back with synchronized highlighting, pitch scoring, key/tempo controls, profiles, and dynamic backgrounds.
 
 Ships as a single binary. No manual installation of Python, ffmpeg, or ML models required — everything is downloaded and bootstrapped automatically on first launch.
 
@@ -20,21 +20,27 @@ Ships as a single binary. No manual installation of Python, ffmpeg, or ML models
 
 🎯 **Pitch Scoring** — real-time microphone input with pitch detection, star ratings, and per-song scoreboards
 
+🎚️ **Key & Tempo Shifts** — adjust song key and tempo after analysis, with cached playback variants for quick retries
+
 👤 **Profiles** — create and switch between player profiles; scores are tracked per profile
 
 🎬 **Video Files** — drop video files (`.mp4`, `.mkv`, etc.) into your music folder; vocals are separated from the audio track and the original video plays as a synchronized background
 
 🌌 **7 Background Themes** — 5 GPU shader backgrounds (Plasma, Aurora, Waves, Nebula, Starfield), Pixabay video backgrounds with 5 flavors (Nature, Underwater, Space, City, Countryside), plus automatic source video playback for video files
 
+🧭 **Sidebar + Library Filters** — quick filters, metadata cleanup buckets, artist/album groups, and an **Analyze All** action for bulk analysis
+
+🎙️ **Mic Mirroring** — optionally route your live mic into playback for low-latency practice and monitoring
+
 🎮 **Gamepad Support** — full navigation and control via gamepad (D-pad, sticks, face buttons)
 
 📺 **Adaptive UI Scaling** — scales to any resolution including 4K TVs
 
-📦 **Self-Contained** — ffmpeg, uv, Python, PyTorch, and ML packages are all downloaded to `~/.nightingale/vendor/` on first run. Video backgrounds are pre-downloaded during setup so the first session is ready to go
+📦 **Self-Contained** — ffmpeg, uv, Python, PyTorch, and ML packages are downloaded automatically during setup. Video backgrounds are pre-downloaded so the first session is ready to go
 
 ## Quick start
 
-Download the latest release for your platform from the [Releases](../../releases) page and run it. On first launch, Nightingale will set up its Python environment and download ML models — this takes a few minutes and shows a progress screen.
+Download the latest release for your platform from the [Releases](../../releases) page and run it. On first launch, Nightingale shows setup steps, lets you pick a data folder, then installs the Python environment and ML models automatically.
 
 ### macOS
 
@@ -72,6 +78,7 @@ Audio: `.mp3`, `.flac`, `.ogg`, `.wav`, `.m4a`, `.aac`, `.wma`. Video: `.mp4`, `
 | Cycle video flavor      | F                 | —         |
 | Toggle microphone       | M                 | —         |
 | Next microphone         | N                 | —         |
+| Toggle mic mirroring    | R                 | —         |
 | Toggle fullscreen       | F11               | —         |
 | Skip Intro / Skip Outro | On-screen buttons | A (South) |
 
@@ -100,11 +107,12 @@ Audio or video file
         ▼
   ┌─────────────────┐
   │  Tauri App      │  ──▶  Plays instrumental + synced lyrics
-  │  (Rust + React) │       with pitch scoring & backgrounds
-  └─────────────────┘       (video files use source video as background)
+  │  (Rust + React) │       with pitch scoring, key/tempo controls,
+  └─────────────────┘       mic mirroring, and dynamic backgrounds
+                            (video files use source video when available)
 ```
 
-Analysis results are cached at `~/.nightingale/cache/` using blake3 file hashes. Re-analysis only happens if the source file changes or is manually triggered.
+Analysis results are cached using blake3 file hashes. Re-analysis only happens if the source file changes, the user triggers it manually, or you choose to shift key/tempo and create playback variants.
 
 ## Hardware
 
@@ -122,29 +130,31 @@ A song typically takes 2–5 minutes on GPU, 10–20 minutes on CPU.
 
 ## Data storage
 
-Everything lives under `~/.nightingale/`:
+During setup, you can choose where Nightingale stores data (default: `~/.nightingale`). Most runtime data is stored in that selected data folder, while `config.json` and `nightingale.log` remain in `~/.nightingale`.
+
+Typical selected data folder layout:
 
 ```
-~/.nightingale/
-├── cache/              # Stems, transcripts, lyrics per song
-├── config.json         # App settings
-├── songs.json          # Persisted song library
-├── analysis_queue.json # Analysis queue state
-├── profiles.json       # Player profiles and scores
-├── videos/             # Cached Pixabay video backgrounds
-├── sounds/             # Sound effects (celebration)
+<selected-data-folder>/
+├── cache/               # Stems, transcripts, lyrics, shifted variants, covers, playable videos
+├── songs.db             # SQLite song library and analysis metadata
+├── profiles.json        # Player profiles and scores
+├── videos/              # Cached Pixabay video backgrounds
+├── sounds/              # Sound effects (celebration)
 ├── vendor/
-│   ├── ffmpeg          # Downloaded ffmpeg binary
-│   ├── uv              # Downloaded uv binary
-│   ├── python/         # Python 3.10 installed via uv
-│   ├── venv/           # Virtual environment with ML packages
-│   ├── analyzer/       # Extracted analyzer Python scripts
-│   └── .ready          # Marker indicating setup is complete
+│   ├── ffmpeg           # Downloaded ffmpeg binary
+│   ├── uv               # Downloaded uv binary
+│   ├── python/          # Python 3.10 installed via uv
+│   ├── venv/            # Virtual environment with ML packages
+│   ├── analyzer/        # Extracted analyzer Python scripts
+│   └── .ready           # Marker indicating setup is complete
 └── models/
-    ├── torch/          # Demucs model cache
-    ├── huggingface/    # WhisperX model cache
+    ├── torch/           # Demucs model cache
+    ├── huggingface/     # WhisperX model cache
     └── audio_separator/ # UVR Karaoke model cache
 ```
+
+`~/.nightingale/config.json` stores app settings, including the selected data folder path.
 
 ### Video backgrounds
 

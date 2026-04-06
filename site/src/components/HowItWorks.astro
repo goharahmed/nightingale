@@ -13,14 +13,17 @@ const steps = [
   {
     title: "Play",
     description:
-      "The instrumental plays back with highlighted lyrics, pitch scoring, dynamic backgrounds, and gamepad support.",
+      "Playback includes highlighted lyrics, pitch scoring, key/tempo controls, mic mirroring, and dynamic backgrounds.",
   },
 ];
 ---
 
 <section id="how-it-works">
   <div class="container">
-    <h2>How it works</h2>
+    <div class="header">
+      <h2>How it works</h2>
+      <a href="/docs/how-it-works.html" class="docs-link">Read pipeline docs</a>
+    </div>
     <div class="steps">
       {
         steps.map((step) => (
@@ -35,10 +38,23 @@ const steps = [
 </section>
 
 <style>
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
   h2 {
     font-size: 1.5rem;
     font-weight: 600;
-    margin-bottom: 32px;
+    margin: 0;
+  }
+
+  .docs-link {
+    font-size: 0.9rem;
+    color: var(--accent);
   }
 
   .steps {

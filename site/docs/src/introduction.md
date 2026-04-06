@@ -2,7 +2,7 @@
 
 **Karaoke from any song in your music library, powered by neural networks.**
 
-Nightingale scans your music folder, separates lead vocals from instrumentals using the UVR Karaoke model (or Demucs), transcribes lyrics with word-level timestamps via WhisperX, and plays it all back with synchronized highlighting, pitch scoring, profiles, and dynamic backgrounds.
+Nightingale scans your music folder, separates lead vocals from instrumentals using the UVR Karaoke model (or Demucs), transcribes lyrics with word-level timestamps via WhisperX, and plays it all back with synchronized highlighting, pitch scoring, key/tempo controls, profiles, and dynamic backgrounds.
 
 Ships as a single binary. No manual installation of Python, ffmpeg, or ML models required — everything is downloaded and bootstrapped automatically on first launch.
 
@@ -14,9 +14,12 @@ Ships as a single binary. No manual installation of Python, ffmpeg, or ML models
 - **Stem Separation** — isolates lead vocals from instrumentals
 - **Word-Level Lyrics** — automatic transcription with alignment
 - **Pitch Scoring** — real-time microphone input with star ratings
+- **Key & Tempo Shifts** — adjust analyzed songs to better fit your voice
 - **Profiles** — per-player score tracking
 - **Video Files** — use video files with synchronized background playback
 - **7 Background Themes** — GPU shaders, Pixabay videos, source video
+- **Sidebar Filters + Analyze All** — quickly browse and batch-analyze your library
+- **Mic Mirroring** — optional low-latency live mic monitoring during playback
 - **Gamepad Support** — full navigation via gamepad
 - **Self-Contained** — zero manual dependency setup
 

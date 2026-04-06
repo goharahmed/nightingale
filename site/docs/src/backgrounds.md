@@ -32,4 +32,6 @@ Videos are pre-downloaded during setup so they're ready instantly.
 
 ## Source Video Playback
 
-When playing a video file (`.mp4`, `.mkv`, etc.), the original video plays as a synchronized background automatically. This is the default for video file sources.
+When playing a video file (`.mp4`, `.mkv`, etc.), the source video plays as the background automatically. If the source is not directly playable, Nightingale generates a compatible playback version in cache.
+
+Source video background timing follows playback tempo, so visual sync stays consistent when tempo is adjusted.

@@ -30,14 +30,15 @@ This tells macOS to clear (`-c`) all extended attributes recursively (`-r`) from
 
 ## First Launch
 
-On first launch, Nightingale will set up its environment automatically:
+On first launch, Nightingale will guide you through setup:
 
-1. **Downloads ffmpeg** — needed for audio/video processing
-2. **Downloads uv** — Python package manager
-3. **Installs Python 3.10** — via uv, isolated from your system Python
-4. **Creates virtual environment** — with PyTorch, WhisperX, Demucs, and UVR models
-5. **Downloads ML models** — stem separation and transcription models
-6. **Pre-downloads video backgrounds** — Pixabay videos for the first session
+1. **Choose data folder** — select where cache, models, videos, vendor tools, and the library database are stored
+2. **Downloads ffmpeg** — needed for audio/video processing
+3. **Downloads uv** — Python package manager
+4. **Installs Python 3.10** — via uv, isolated from your system Python
+5. **Creates virtual environment** — with PyTorch, WhisperX, Demucs, and UVR models
+6. **Downloads ML models** — stem separation and transcription models
+7. **Pre-downloads video backgrounds** — Pixabay videos for the first session
 
 This process takes a few minutes and shows a progress screen. After setup completes, Nightingale is ready to use.
 
@@ -47,7 +48,7 @@ This process takes a few minutes and shows a progress screen. After setup comple
 
 ## Adding Music
 
-When prompted, select your music folder. Nightingale will scan it for supported audio and video files. You can change the folder later in the settings.
+When prompted, select your music folder. Nightingale scans it for supported audio and video files. You can change this folder later from the sidebar actions menu.
 
 ## Analysis
 
@@ -57,7 +58,7 @@ Before a song can be played as karaoke, it needs to be analyzed:
 2. Analysis runs automatically (stem separation → lyrics → transcription)
 3. Results are cached — subsequent plays are instant
 
-You can also queue multiple songs for batch analysis.
+You can also batch analysis with **Analyze All** from the song list toolbar.
 
 <!-- TODO: screenshot of the song library with a mix of analyzed/queued/not-analyzed songs -->
 
@@ -65,4 +66,4 @@ You can also queue multiple songs for batch analysis.
 
 ## Force Re-setup
 
-If something goes wrong with the vendor environment, you can force a fresh setup from within the app: open the sidebar actions menu and select **Re-run Setup**.
+If something goes wrong with setup or dependencies, open the sidebar actions menu and select **Re-run Setup**.

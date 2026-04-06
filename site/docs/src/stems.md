@@ -14,7 +14,7 @@ The UVR (Ultimate Vocal Remover) Karaoke model is optimized specifically for kar
 
 ## Video Files
 
-When processing video files (`.mp4`, `.mkv`, etc.), Nightingale first extracts the audio track using ffmpeg, then runs stem separation on the extracted audio. The original video is preserved for synchronized background playback.
+When processing video files (`.mp4`, `.mkv`, etc.), Nightingale first extracts the audio track using ffmpeg, then runs stem separation on the extracted audio. During playback, Nightingale uses the source video when available and falls back to a playable converted video when needed.
 
 ## Guide Vocals
 

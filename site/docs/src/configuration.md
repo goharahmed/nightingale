@@ -1,30 +1,30 @@
 # Configuration
 
-Nightingale stores its configuration at `~/.nightingale/config.json`.
+Nightingale stores app settings in `~/.nightingale/config.json`.
 
 ## Data Storage
 
-Everything lives under `~/.nightingale/`:
+During setup, you can choose a custom data folder. Most runtime data lives in that selected folder. `config.json` and `nightingale.log` remain in the default `~/.nightingale` path.
+
+Typical selected data folder layout:
 
 ```
-~/.nightingale/
-├── cache/              # Stems, transcripts, lyrics per song
-├── config.json         # App settings
-├── songs.json          # Persisted song library
-├── analysis_queue.json # Analysis queue state
-├── profiles.json       # Player profiles and scores
-├── videos/             # Cached Pixabay video backgrounds
-├── sounds/             # Sound effects
+<selected-data-folder>/
+├── cache/               # Stems, transcripts, lyrics, shifted variants, covers, playable videos
+├── songs.db             # Song library and analysis metadata (SQLite)
+├── profiles.json        # Player profiles and scores
+├── videos/              # Cached Pixabay video backgrounds
+├── sounds/              # Sound effects
 ├── vendor/
-│   ├── ffmpeg          # Downloaded ffmpeg binary
-│   ├── uv              # Downloaded uv binary
-│   ├── python/         # Python 3.10 installed via uv
-│   ├── venv/           # Virtual environment with ML packages
-│   ├── analyzer/       # Extracted analyzer Python scripts
-│   └── .ready          # Marker indicating setup is complete
+│   ├── ffmpeg           # Downloaded ffmpeg binary
+│   ├── uv               # Downloaded uv binary
+│   ├── python/          # Python 3.10 installed via uv
+│   ├── venv/            # Virtual environment with ML packages
+│   ├── analyzer/        # Extracted analyzer Python scripts
+│   └── .ready           # Marker indicating setup is complete
 └── models/
-    ├── torch/          # Demucs model cache
-    ├── huggingface/    # WhisperX model cache
+    ├── torch/           # Demucs model cache
+    ├── huggingface/     # WhisperX model cache
     └── audio_separator/ # UVR Karaoke model cache
 ```
 

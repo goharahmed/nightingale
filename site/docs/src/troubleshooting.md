@@ -22,6 +22,7 @@ If song analysis fails:
 ## Microphone Not Detected
 
 - Press `N` to cycle through available microphones
+- Press `R` to toggle mic mirroring if you want live monitor audio
 - Ensure microphone permissions are granted to the application
 - On macOS, check System Settings > Privacy & Security > Microphone
 
@@ -37,10 +38,10 @@ Check the setup progress screen for which backend was detected.
 
 ## Reset Everything
 
-To completely reset Nightingale, delete the data directory:
+To completely reset Nightingale, delete your selected data directory. If you use the default location:
 
 ```bash
 rm -rf ~/.nightingale
 ```
 
-The next launch will re-run setup from scratch.
+If you use a custom data folder, delete that folder instead, then relaunch and run setup again.

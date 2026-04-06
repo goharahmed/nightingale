@@ -11,6 +11,7 @@ In the main menu, sidebar, and settings screens:
 - **Escape / B button**: Go back or close overlays
 - **Tab**: Switch between sidebar and main content area
 - **Type any text**: Filter/search the song list
+- **Analyze All button**: Queue analysis for the current filtered list
 
 ## During Playback
 
@@ -24,7 +25,15 @@ While a song is playing:
 - **F**: Cycle through Pixabay video flavors (Nature, Underwater, Space, City, Countryside)
 - **M**: Toggle microphone for pitch scoring
 - **N**: Switch to the next available microphone
+- **R**: Toggle mic mirroring (live monitor during playback)
 - **F11**: Toggle fullscreen
+
+## Song List Controls
+
+After a song is analyzed, you can use the on-row controls to shift:
+
+- **Tempo**: adjust playback speed in small steps
+- **Key**: transpose to a more comfortable vocal range
 
 ## Skip Buttons
 

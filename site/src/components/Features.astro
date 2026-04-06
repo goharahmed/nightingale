@@ -19,6 +19,12 @@ const features = [
       "Sing into your mic and get scored in real-time. Star ratings and per-song scoreboards track your progress.",
   },
   {
+    icon: "🎚️",
+    title: "Key and tempo shifts",
+    description:
+      "After analysis, adjust key and tempo from the song list to match your voice and comfort level.",
+  },
+  {
     icon: "👤",
     title: "Player profiles",
     description:
@@ -37,8 +43,20 @@ const features = [
       "GPU shader effects (plasma, aurora, nebula...), Pixabay video loops, or the source video for video files.",
   },
   {
+    icon: "🧭",
+    title: "Sidebar filters",
+    description:
+      "Browse by quick filters, metadata buckets, artists, and albums. Analyze All helps queue your library faster.",
+  },
+  {
+    icon: "🎙️",
+    title: "Mic mirroring",
+    description:
+      "Optional live mic monitor during playback for practice sessions and quick vocal checks.",
+  },
+  {
     icon: "🎮",
-    title: "Gamepad",
+    title: "Gamepad support",
     description:
       "Navigate menus, pick songs, and control playback entirely with a controller. D-pad, sticks, face buttons.",
   },
@@ -48,12 +66,21 @@ const features = [
     description:
       "ffmpeg, Python, PyTorch, and the ML models are all bootstrapped on first launch. Nothing to install.",
   },
+  {
+    icon: "🗂️",
+    title: "Flexible data folder",
+    description:
+      "Choose where Nightingale stores cache, models, videos, and library data during setup.",
+  },
 ];
 ---
 
 <section id="features">
   <div class="container">
-    <h2>Features</h2>
+    <div class="header">
+      <h2>Features</h2>
+      <a href="/docs/" class="docs-link">Explore docs</a>
+    </div>
     <div class="features-grid">
       {
         features.map((f) => (
@@ -68,10 +95,23 @@ const features = [
 </section>
 
 <style>
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
   h2 {
     font-size: 1.5rem;
     font-weight: 600;
-    margin-bottom: 32px;
+    margin: 0;
+  }
+
+  .docs-link {
+    font-size: 0.9rem;
+    color: var(--accent);
   }
 
   .features-grid {
