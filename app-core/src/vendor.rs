@@ -159,8 +159,8 @@ fn ffmpeg_download_url() -> Result<&'static str, String> {
         ("linux", "aarch64") => {
             Ok("https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz")
         }
-        ("macos", "aarch64") => Ok("https://www.osxexperts.net/ffmpeg7arm.zip"),
-        ("macos", "x86_64") => Ok("https://www.osxexperts.net/ffmpeg7intel.zip"),
+        ("macos", "aarch64") => Ok("https://evermeet.cx/ffmpeg/ffmpeg-8.1.zip"),
+        ("macos", "x86_64") => Ok("https://evermeet.cx/ffmpeg/ffmpeg-8.1.zip"),
         ("windows", "x86_64") => {
             Ok("https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip")
         }
