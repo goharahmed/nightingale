@@ -315,6 +315,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
         themeIndex={themeIndex}
         videoFlavor={videoFlavor}
         sourceVideoPath={sourceVideoPath}
+        sourceVideoTempoRatio={song.tempo}
         isReady={audio.isReady}
         isPlaying={audio.isPlaying}
         subscribe={audio.subscribe}

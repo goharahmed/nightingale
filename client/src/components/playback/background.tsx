@@ -9,6 +9,7 @@ export interface BackgroundProps {
   themeIndex: number;
   videoFlavor: VideoFlavor;
   sourceVideoPath?: string;
+  sourceVideoTempoRatio?: number;
   isReady: boolean;
   isPlaying: boolean;
   subscribe: (fn: TimeSubscriber) => () => void;
@@ -69,12 +70,13 @@ function backgroundContent(
     themeIndex: number;
     videoFlavor: VideoFlavor;
     sourceVideoPath?: string;
+    sourceVideoTempoRatio?: number;
     isPlaying: boolean;
     subscribe: BackgroundProps["subscribe"];
     getCurrentTime: BackgroundProps["getCurrentTime"];
   },
 ) {
-  const { themeIndex, videoFlavor, sourceVideoPath, isPlaying, subscribe, getCurrentTime } = props;
+  const { themeIndex, videoFlavor, isPlaying } = props;
 
   switch (mode) {
     case "shader":
@@ -82,18 +84,7 @@ function backgroundContent(
     case "pixabay":
       return <PixabayVideo flavor={videoFlavor} isPlaying={isPlaying} />;
     case "source":
-      if (!sourceVideoPath) {
-        return null;
-      }
-
-      return (
-        <SourceVideo
-          filePath={sourceVideoPath}
-          isPlaying={isPlaying}
-          subscribe={subscribe}
-          getCurrentTime={getCurrentTime}
-        />
-      );
+      return null;
   }
 }
 
@@ -101,12 +92,14 @@ export const Background = ({
   themeIndex,
   videoFlavor,
   sourceVideoPath,
+  sourceVideoTempoRatio,
   isReady,
   isPlaying,
   subscribe,
   getCurrentTime,
 }: BackgroundProps) => {
   const mode = themeMode(themeIndex);
+  const showSourceVideo = mode === "source";
 
   if (!isReady) {
     return (
@@ -118,10 +111,21 @@ export const Background = ({
 
   return (
     <div className="fixed inset-0">
+      {sourceVideoPath && (
+        <SourceVideo
+          filePath={sourceVideoPath}
+          tempoRatio={sourceVideoTempoRatio ?? 1}
+          isPlaying={isReady && isPlaying && showSourceVideo}
+          isActive={showSourceVideo}
+          subscribe={subscribe}
+          getCurrentTime={getCurrentTime}
+        />
+      )}
       {backgroundContent(mode, {
         themeIndex,
         videoFlavor,
         sourceVideoPath,
+        sourceVideoTempoRatio,
         isPlaying: isReady && isPlaying,
         subscribe,
         getCurrentTime,

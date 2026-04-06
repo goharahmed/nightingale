@@ -461,14 +461,18 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
 
 interface SourceVideoProps {
   filePath: string;
+  tempoRatio: number;
   isPlaying: boolean;
+  isActive: boolean;
   subscribe: (fn: TimeSubscriber) => () => void;
   getCurrentTime: () => number;
 }
 
 export const SourceVideo = ({
   filePath,
+  tempoRatio,
   isPlaying,
+  isActive,
   subscribe,
   getCurrentTime,
 }: SourceVideoProps) => {
@@ -479,6 +483,34 @@ export const SourceVideo = ({
   const [visible, setVisible] = useState(false);
   const isPlayingRef = useRef(isPlaying);
   isPlayingRef.current = isPlaying;
+  const tempoRatioRef = useRef(tempoRatio);
+  tempoRatioRef.current = tempoRatio;
+
+  const normalizedTempoRatio = useCallback(() => {
+    const ratio = tempoRatioRef.current;
+    if (!Number.isFinite(ratio) || ratio <= 0) return 1;
+    return ratio;
+  }, []);
+
+  const toSourceTime = useCallback(
+    (audioTime: number) => Math.max(0, audioTime * normalizedTempoRatio()),
+    [normalizedTempoRatio],
+  );
+
+  const applyPlaybackRate = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const ratio = normalizedTempoRatio();
+    video.playbackRate = Math.min(4, Math.max(0.25, ratio));
+  }, [normalizedTempoRatio]);
+
+  const enforceSilentVideo = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.defaultMuted = true;
+    video.muted = true;
+    video.volume = 0;
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -498,30 +530,56 @@ export const SourceVideo = ({
     if (!video || !src) return;
     initializedRef.current = false;
     setVisible(false);
+    enforceSilentVideo();
+    applyPlaybackRate();
 
     const finalize = () => {
       if (initializedRef.current) return;
       initializedRef.current = true;
       setVisible(true);
+      applyPlaybackRate();
       if (isPlayingRef.current) video.play().catch(() => {});
     };
 
     const init = () => {
-      const t = getCurrentTime();
+      const t = toSourceTime(getCurrentTime());
       if (t > 0.1) {
         const canSeekTo =
           Number.isFinite(video.duration) && video.duration > 0
             ? Math.min(t, Math.max(0, video.duration - 0.05))
             : t;
-        const onReady = () => finalize();
-        const watchdog = window.setTimeout(onReady, 1200);
-        video.addEventListener("seeked", onReady, { once: true });
-        video.addEventListener("canplay", onReady, { once: true });
+        const SEEK_TOLERANCE_SEC = 0.12;
+        const isAligned = () => Math.abs(video.currentTime - canSeekTo) <= SEEK_TOLERANCE_SEC;
+        const tryFinalize = () => {
+          if (isAligned()) finalize();
+        };
+        const onSeeked = () => {
+          tryFinalize();
+        };
+        const onCanPlay = () => {
+          tryFinalize();
+        };
+
+        // Some WebKit builds can miss `seeked` when rapidly remounting or swapping sources.
+        // Poll alignment and nudge the seek target until the frame position is correct.
+        const watchdog = window.setInterval(() => {
+          if (initializedRef.current) return;
+          if (isAligned()) {
+            finalize();
+            return;
+          }
+          if (!video.seeking && video.readyState >= 1) {
+            video.currentTime = canSeekTo;
+          }
+        }, 120);
+
+        video.addEventListener("seeked", onSeeked);
+        video.addEventListener("canplay", onCanPlay);
         video.currentTime = canSeekTo;
         return () => {
-          window.clearTimeout(watchdog);
-          video.removeEventListener("seeked", onReady);
-          video.removeEventListener("canplay", onReady);
+          window.clearInterval(watchdog);
+          video.removeEventListener("seeked", onSeeked);
+          video.removeEventListener("canplay", onCanPlay);
         };
       } else {
         finalize();
@@ -535,38 +593,55 @@ export const SourceVideo = ({
       video.addEventListener("loadedmetadata", init, { once: true });
       return () => video.removeEventListener("loadedmetadata", init);
     }
-  }, [src, getCurrentTime]);
+  }, [applyPlaybackRate, enforceSilentVideo, getCurrentTime, src, toSourceTime]);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !initializedRef.current) return;
+    enforceSilentVideo();
+    applyPlaybackRate();
     if (isPlaying) {
       video.play().catch(() => {});
     } else {
       video.pause();
     }
-  }, [isPlaying]);
+  }, [applyPlaybackRate, enforceSilentVideo, isPlaying]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    applyPlaybackRate();
+    if (!initializedRef.current) return;
+
+    const target = toSourceTime(getCurrentTime());
+    const drift = Math.abs(video.currentTime - target);
+    if (drift > SOURCE_VIDEO_DRIFT_CORRECT) {
+      video.currentTime = target;
+      lastSyncRef.current = performance.now();
+    }
+  }, [applyPlaybackRate, getCurrentTime, tempoRatio, toSourceTime]);
 
   useEffect(() => {
     return subscribe((time) => {
       const video = videoRef.current;
       if (!video || !initializedRef.current) return;
 
-      const drift = Math.abs(video.currentTime - time);
+      const target = toSourceTime(time);
+      const drift = Math.abs(video.currentTime - target);
       const now = performance.now();
 
       if (drift > SOURCE_VIDEO_DRIFT_LARGE) {
-        video.currentTime = time;
+        video.currentTime = target;
         lastSyncRef.current = now;
       } else if (
         drift > SOURCE_VIDEO_DRIFT_CORRECT &&
         now - lastSyncRef.current > SOURCE_VIDEO_SYNC_THROTTLE_MS
       ) {
-        video.currentTime = time;
+        video.currentTime = target;
         lastSyncRef.current = now;
       }
     });
-  }, [subscribe, getCurrentTime]);
+  }, [subscribe, toSourceTime]);
 
   if (!src) return null;
 
@@ -574,7 +649,7 @@ export const SourceVideo = ({
     <video
       ref={videoRef}
       className={VIDEO_CLASS}
-      style={{ visibility: visible ? "visible" : "hidden" }}
+      style={{ visibility: visible && isActive ? "visible" : "hidden" }}
       src={src}
       muted
       playsInline

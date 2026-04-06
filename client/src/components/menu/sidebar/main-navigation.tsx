@@ -2,6 +2,7 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarMenu,
+  SidebarMenuSkeleton,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -271,28 +272,42 @@ export const MainNavigation = ({ registerCallbacks }: MainNavigationProps) => {
     return null;
   }
 
+  const showEmptyPlaceholder = visibleSections.length === 0;
+
   return (
     <SidebarContent>
       <SidebarGroup>
         <SidebarMenu>
-          {visibleSections.map((config) => (
-            <LibraryNavSection
-              key={config.section}
-              {...config}
-              items={config.visibleItems}
-              filter={filter}
-              isSidebarActive={isSidebarActive}
-              focusedCollapse={collapseIndexBySection.get(config.section) === focus.sidebarIndex}
-              focusedItemKeys={focusedItemValueBySection.get(config.section) ?? new Set<string>()}
-              collapseIndex={collapseIndexBySection.get(config.section)}
-              itemIndexByValue={itemIndexBySection.get(config.section) ?? new Map<string, number>()}
-              open={openBySection[config.section]}
-              onToggleOpen={(open) => {
-                setOpenBySection((prev) => ({ ...prev, [config.section]: open }));
-              }}
-              onSelectItem={selectMenuItem}
-            />
-          ))}
+          {showEmptyPlaceholder ? (
+            <SidebarMenuItem className="px-1 py-2">
+              <div className="space-y-1">
+                <SidebarMenuSkeleton showIcon />
+                <SidebarMenuSkeleton showIcon />
+                <SidebarMenuSkeleton showIcon />
+              </div>
+            </SidebarMenuItem>
+          ) : (
+            visibleSections.map((config) => (
+              <LibraryNavSection
+                key={config.section}
+                {...config}
+                items={config.visibleItems}
+                filter={filter}
+                isSidebarActive={isSidebarActive}
+                focusedCollapse={collapseIndexBySection.get(config.section) === focus.sidebarIndex}
+                focusedItemKeys={focusedItemValueBySection.get(config.section) ?? new Set<string>()}
+                collapseIndex={collapseIndexBySection.get(config.section)}
+                itemIndexByValue={
+                  itemIndexBySection.get(config.section) ?? new Map<string, number>()
+                }
+                open={openBySection[config.section]}
+                onToggleOpen={(open) => {
+                  setOpenBySection((prev) => ({ ...prev, [config.section]: open }));
+                }}
+                onSelectItem={selectMenuItem}
+              />
+            ))
+          )}
         </SidebarMenu>
       </SidebarGroup>
     </SidebarContent>
