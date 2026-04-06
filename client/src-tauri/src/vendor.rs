@@ -141,7 +141,7 @@ pub fn trigger_setup(app: AppHandle, data_path: Option<String>) {
                 &app,
                 SetupStep::Dependencies,
                 70,
-                "Installing python dependencies (torch, audio-separator, demucs)...",
+                "Installing python dependencies...",
             );
             step_install_packages()?;
 
