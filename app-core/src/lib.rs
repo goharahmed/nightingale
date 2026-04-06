@@ -22,8 +22,9 @@ pub use cache::{
     default_nightingale_dir, nightingale_dir,
 };
 pub use playback::{
-    AudioPaths, ShiftResult, download_pixabay_videos, ensure_mp3_stems, get_audio_paths,
-    get_cached_pixabay_videos, load_transcript, prefetch_one_per_flavor, shift_key, shift_tempo,
+    AudioPaths, ShiftResult, download_pixabay_videos, ensure_mp3_stems,
+    ensure_playable_source_video, get_audio_paths, get_cached_pixabay_videos, load_transcript,
+    prefetch_one_per_flavor, shift_key, shift_tempo,
 };
 pub use config::AppConfig;
 pub use profile::ProfileStore;

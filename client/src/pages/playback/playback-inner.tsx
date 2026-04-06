@@ -30,7 +30,7 @@ import { INTRO_SKIP_LEAD_SEC } from "@/utils/playback/transcript-segments";
 
 import successSoundUrl from "@/assets/sounds/success.mp3";
 import { ResultDialog } from "@/components/playback/dialogs/result";
-import { ensureMp3Stems, onStemsReady } from "@/tauri-bridge/playback";
+import { ensureMp3Stems, ensurePlayableSourceVideo, onStemsReady } from "@/tauri-bridge/playback";
 
 export interface PlaybackInnerProps {
   song: Song;
@@ -80,6 +80,32 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
       unlisten?.();
     };
   }, [fileHash, navigate]);
+
+  const [sourceVideoPath, setSourceVideoPath] = useState<string | undefined>(
+    song.is_video ? song.path : undefined,
+  );
+  useEffect(() => {
+    if (!song.is_video) {
+      setSourceVideoPath(undefined);
+      return;
+    }
+
+    let cancelled = false;
+    setSourceVideoPath(song.path);
+
+    void ensurePlayableSourceVideo(fileHash)
+      .then((path) => {
+        if (cancelled) return;
+        if (path && path !== song.path) {
+          setSourceVideoPath(path);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fileHash, song.is_video, song.path]);
 
   const audio = useAudioPlayer(fileHash, initialGuideVolume, stemsReady);
 
@@ -288,7 +314,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
       <Background
         themeIndex={themeIndex}
         videoFlavor={videoFlavor}
-        sourceVideoPath={song.is_video ? song.path : undefined}
+        sourceVideoPath={sourceVideoPath}
         isReady={audio.isReady}
         isPlaying={audio.isPlaying}
         subscribe={audio.subscribe}

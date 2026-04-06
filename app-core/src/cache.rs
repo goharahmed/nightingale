@@ -88,6 +88,12 @@ impl CacheDir {
         self.path.join(format!("{hash}_cover.jpg"))
     }
 
+    pub fn playable_video_path(&self, hash: &str) -> PathBuf {
+        let dir = self.path.join("playable_videos");
+        std::fs::create_dir_all(&dir).ok();
+        dir.join(format!("{hash}.mp4"))
+    }
+
     pub fn transcript_exists(&self, hash: &str) -> bool {
         self.transcript_path(hash).is_file() && self.stems_exist(hash)
     }
@@ -100,6 +106,7 @@ impl CacheDir {
             self.legacy_instrumental_path(hash),
             self.legacy_vocals_path(hash),
             self.lyrics_path(hash),
+            self.playable_video_path(hash),
         ] {
             if path.is_file() {
                 let _ = std::fs::remove_file(&path);

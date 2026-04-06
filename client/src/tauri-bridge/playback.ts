@@ -15,6 +15,10 @@ export const ensureMp3Stems = (fileHash: string): void => {
   void invoke<void>("ensure_mp3_stems", { fileHash });
 };
 
+export const ensurePlayableSourceVideo = async (fileHash: string): Promise<string | null> => {
+  return await invoke<string | null>("ensure_playable_source_video", { fileHash });
+};
+
 export interface StemsReadyEvent {
   file_hash: string;
   error: string | null;
@@ -35,12 +39,19 @@ export const getMediaPort = async (): Promise<number> => {
 export interface PixabayVideoDownloaded {
   flavor: string;
   path: string;
+  evictedPath?: string;
 }
 
 export const onPixabayVideoDownloaded = async (
   cb: (event: PixabayVideoDownloaded) => void,
 ): Promise<UnlistenFn> => {
-  return await listen<PixabayVideoDownloaded>("pixabay-video-downloaded", ({ payload }) =>
-    cb(payload),
+  return await listen<{ flavor: string; path: string; evicted_path: string | null }>(
+    "pixabay-video-downloaded",
+    ({ payload }) =>
+      cb({
+        flavor: payload.flavor,
+        path: payload.path,
+        evictedPath: payload.evicted_path ?? undefined,
+      }),
   );
 };

@@ -3,6 +3,7 @@ import { joinMediaUrl } from "@/adapters/playback";
 import {
   fetchPixabayVideos,
   getMediaPort,
+  type PixabayVideoDownloaded,
   onPixabayVideoDownloaded,
 } from "@/tauri-bridge/playback";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -31,6 +32,18 @@ interface PixabayVideoProps {
   isPlaying: boolean;
 }
 
+const MIN_QUEUE_BEFORE_REFRESH = 2;
+const REFRESH_COOLDOWN_MS = 8000;
+
+function shuffled<T>(items: T[]): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
 export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
   const videoRefs = [
     useRef<HTMLVideoElement>(null),
@@ -46,14 +59,17 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
 
   const readyUrls = useRef(new Set<string>());
   const urlsPerFlavor = useRef(new Map<string, string[]>());
-  const indexPerFlavor = useRef(new Map<string, number>());
+  const queuePerFlavor = useRef(new Map<string, string[]>());
+  const fallbackIndexPerFlavor = useRef(new Map<string, number>());
   const flavorRef = useRef(flavor);
   const isPlayingRef = useRef(isPlaying);
   isPlayingRef.current = isPlaying;
-  const generationRef = useRef(0);
   const lastTimeRef = useRef(0);
   const stallTimerRef = useRef(0);
   const portRef = useRef(0);
+  const inflightFetches = useRef(new Set<string>());
+  const lastRefreshAt = useRef(new Map<string, number>());
+  const pendingDownloads = useRef<PixabayVideoDownloaded[]>([]);
 
   const writeSrcs = useCallback((next: Trio) => {
     srcsRef.current = next;
@@ -67,159 +83,299 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
     if (video && isPlayingRef.current) video.play().catch(() => {});
   }, []);
 
-  const pullUrl = useCallback((flav: string): string => {
-    const urls = urlsPerFlavor.current.get(flav);
-    if (!urls || urls.length === 0) return "";
-    const i = indexPerFlavor.current.get(flav) ?? 0;
-    const url = urls[i % urls.length];
-    indexPerFlavor.current.set(flav, i + 1);
-    return url;
+  const toUrl = useCallback((path: string): string => {
+    return joinMediaUrl(`http://127.0.0.1:${portRef.current}`, path);
   }, []);
 
-  const setSlot = useCallback((slot: number, url: string, flav: string) => {
-    const next: Trio = [...srcsRef.current];
-    next[slot] = url;
-    writeSrcs(next);
-    slotFlavors.current[slot] = flav;
-    readyUrls.current.delete(url);
+  const queueLength = useCallback((flav: string): number => {
+    return queuePerFlavor.current.get(flav)?.length ?? 0;
+  }, []);
 
-    const video = videoRefs[slot].current;
-    if (video) {
+  const ensurePort = useCallback(async () => {
+    if (portRef.current) return portRef.current;
+    const port = await getMediaPort();
+    portRef.current = port;
+    return port;
+  }, []);
+
+  const registerUrls = useCallback((flav: string, urls: string[]) => {
+    if (urls.length === 0) return;
+
+    const existing = urlsPerFlavor.current.get(flav) ?? [];
+    const known = new Set(existing);
+    const fresh = urls.filter((url) => !known.has(url));
+    if (fresh.length === 0) return;
+
+    const merged = [...existing, ...fresh];
+    urlsPerFlavor.current.set(flav, merged);
+
+    const queue = queuePerFlavor.current.get(flav) ?? [];
+    queuePerFlavor.current.set(flav, [...queue, ...shuffled(fresh)]);
+  }, []);
+
+  const removeUrlFromFlavor = useCallback((flav: string, url: string) => {
+    const urls = urlsPerFlavor.current.get(flav) ?? [];
+    const nextUrls = urls.filter((u) => u !== url);
+    urlsPerFlavor.current.set(flav, nextUrls);
+
+    const queue = queuePerFlavor.current.get(flav) ?? [];
+    queuePerFlavor.current.set(
+      flav,
+      queue.filter((u) => u !== url),
+    );
+    readyUrls.current.delete(url);
+  }, []);
+
+  const pullUrl = useCallback((flav: string, allowFallback: boolean): string => {
+    const queue = queuePerFlavor.current.get(flav) ?? [];
+    const known = new Set(urlsPerFlavor.current.get(flav) ?? []);
+    while (queue.length > 0) {
+      const next = queue.shift() ?? "";
+      if (next && known.has(next)) {
+        queuePerFlavor.current.set(flav, queue);
+        return next;
+      }
+    }
+    queuePerFlavor.current.set(flav, queue);
+
+    if (!allowFallback) return "";
+    const urls = urlsPerFlavor.current.get(flav) ?? [];
+    if (urls.length === 0) return "";
+    const idx = fallbackIndexPerFlavor.current.get(flav) ?? 0;
+    fallbackIndexPerFlavor.current.set(flav, idx + 1);
+    return urls[idx % urls.length];
+  }, []);
+
+  const setSlot = useCallback(
+    (slot: number, url: string, flav: string) => {
+      const next: Trio = [...srcsRef.current];
+      next[slot] = url;
+      writeSrcs(next);
+      slotFlavors.current[slot] = flav;
+      readyUrls.current.delete(url);
+
+      const video = videoRefs[slot].current;
+      if (video) {
+        video.addEventListener(
+          "canplay",
+          () => {
+            readyUrls.current.add(url);
+          },
+          { once: true },
+        );
+      }
+    },
+    [writeSrcs],
+  );
+
+  const activateWhenReady = useCallback(
+    (slot: number, url: string, flav: string) => {
+      const tryActivate = () => {
+        if (
+          srcsRef.current[slot] === url &&
+          slotFlavors.current[slot] === flav &&
+          flavorRef.current === flav
+        ) {
+          activate(slot);
+        }
+      };
+
+      if (readyUrls.current.has(url)) {
+        tryActivate();
+        return;
+      }
+
+      const video = videoRefs[slot].current;
+      if (!video) return;
+
       video.addEventListener(
         "canplay",
         () => {
-          readyUrls.current.add(url);
+          tryActivate();
         },
         { once: true },
       );
+    },
+    [activate],
+  );
+
+  const keepCurrentAlive = useCallback((slot: number) => {
+    const video = videoRefs[slot].current;
+    if (!video) return;
+
+    const isAtEnd =
+      Number.isFinite(video.duration) &&
+      video.duration > 0 &&
+      video.currentTime >= video.duration - 0.05;
+
+    if (video.ended || isAtEnd) {
+      video.currentTime = 0;
+    }
+
+    if (isPlayingRef.current) {
+      video.play().catch(() => {});
     }
   }, []);
 
+  const refillSlots = useCallback(
+    (flav: string) => {
+      const cur = activeIdxRef.current;
+      for (let i = 0; i < 3; i++) {
+        if (i === cur) continue;
+        if (slotFlavors.current[i] !== flav || !srcsRef.current[i]) {
+          const url = pullUrl(flav, false) || pullUrl(flav, true);
+          if (url) setSlot(i, url, flav);
+        }
+      }
+    },
+    [pullUrl, setSlot],
+  );
+
+  const ensureFlavorPlayback = useCallback(
+    (flav: string) => {
+      const cur = activeIdxRef.current;
+
+      const activeSrc = srcsRef.current[cur];
+      if (activeSrc && slotFlavors.current[cur] === flav) {
+        refillSlots(flav);
+        return;
+      }
+
+      for (let i = 0; i < 3; i++) {
+        if (
+          i !== cur &&
+          slotFlavors.current[i] === flav &&
+          srcsRef.current[i] &&
+          readyUrls.current.has(srcsRef.current[i])
+        ) {
+          activate(i);
+          refillSlots(flav);
+          return;
+        }
+      }
+
+      for (let i = 0; i < 3; i++) {
+        const candidate = srcsRef.current[i];
+        if (i !== cur && slotFlavors.current[i] === flav && candidate) {
+          activateWhenReady(i, candidate, flav);
+          refillSlots(flav);
+          return;
+        }
+      }
+
+      const playSlot = (cur + 1) % 3;
+      const preSlot = (cur + 2) % 3;
+      const playUrl = pullUrl(flav, true);
+      if (!playUrl) return;
+      setSlot(playSlot, playUrl, flav);
+      activateWhenReady(playSlot, playUrl, flav);
+
+      const nextUrl = pullUrl(flav, false) || pullUrl(flav, true);
+      if (nextUrl) setSlot(preSlot, nextUrl, flav);
+    },
+    [activateWhenReady, pullUrl, refillSlots, setSlot],
+  );
+
+  const refreshFlavor = useCallback(
+    async (flav: string) => {
+      const now = Date.now();
+      const last = lastRefreshAt.current.get(flav) ?? 0;
+      if (now - last < REFRESH_COOLDOWN_MS) return;
+      if (inflightFetches.current.has(flav)) return;
+      lastRefreshAt.current.set(flav, now);
+      inflightFetches.current.add(flav);
+      try {
+        await ensurePort();
+        const paths = await fetchPixabayVideos(flav);
+        const urls = paths.map((path) => toUrl(path));
+        registerUrls(flav, urls);
+        if (flavorRef.current === flav) ensureFlavorPlayback(flav);
+      } finally {
+        inflightFetches.current.delete(flav);
+      }
+    },
+    [ensureFlavorPlayback, ensurePort, registerUrls, toUrl],
+  );
+
+  const ingestDownloaded = useCallback(
+    (event: PixabayVideoDownloaded) => {
+      if (!portRef.current) {
+        pendingDownloads.current.push(event);
+        return;
+      }
+      const newUrl = toUrl(event.path);
+      registerUrls(event.flavor, [newUrl]);
+
+      const evictedPath =
+        (event as { evictedPath?: string; evicted_path?: string }).evictedPath ??
+        (event as { evictedPath?: string; evicted_path?: string }).evicted_path;
+      if (evictedPath) {
+        removeUrlFromFlavor(event.flavor, toUrl(evictedPath));
+      }
+
+      if (event.flavor === flavorRef.current) {
+        ensureFlavorPlayback(event.flavor);
+      }
+    },
+    [ensureFlavorPlayback, registerUrls, removeUrlFromFlavor, toUrl],
+  );
+
+  const flushPendingDownloads = useCallback(() => {
+    if (!portRef.current || pendingDownloads.current.length === 0) return;
+    const queued = [...pendingDownloads.current];
+    pendingDownloads.current = [];
+    queued.forEach((event) => ingestDownloaded(event));
+  }, [ingestDownloaded]);
+
   const handleEnded = useCallback(() => {
+    const fl = flavorRef.current;
     const cur = activeIdxRef.current;
     const nextSlot = (cur + 1) % 3;
     const nextSrc = srcsRef.current[nextSlot];
 
-    if (nextSrc && readyUrls.current.has(nextSrc)) {
+    if (nextSrc && slotFlavors.current[nextSlot] === fl && readyUrls.current.has(nextSrc)) {
       activate(nextSlot);
-      const fl = flavorRef.current;
-      const url = pullUrl(fl);
-      if (url) setSlot(cur, url, fl);
+      const refill = pullUrl(fl, false) || pullUrl(fl, true);
+      if (refill) setSlot(cur, refill, fl);
     } else {
-      const video = videoRefs[cur].current;
-      if (video) {
-        video.currentTime = 0;
-        video.play().catch(() => {});
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    generationRef.current++;
-    const gen = generationRef.current;
-    flavorRef.current = flavor;
-    const upcoming = getNextFlavor(flavor);
-
-    const ensureUrls = async (flav: string) => {
-      if (urlsPerFlavor.current.has(flav)) return;
-      const [paths, port] = await Promise.all([
-        fetchPixabayVideos(flav),
-        portRef.current ? Promise.resolve(portRef.current) : getMediaPort(),
-      ]);
-      if (cancelled || gen !== generationRef.current) return;
-      if (!portRef.current) portRef.current = port;
-      if (paths.length > 0) {
-        urlsPerFlavor.current.set(
-          flav,
-          paths.map((p) => joinMediaUrl(`http://127.0.0.1:${portRef.current}`, p)),
-        );
-        indexPerFlavor.current.set(flav, 0);
-      }
-    };
-
-    Promise.all([ensureUrls(flavor), ensureUrls(upcoming)]).then(() => {
-      if (cancelled || gen !== generationRef.current) return;
-      if (!urlsPerFlavor.current.has(flavor)) return;
-
-      const cur = activeIdxRef.current;
-
-      let preloadedSlot = -1;
+      let switched = false;
       for (let i = 0; i < 3; i++) {
         if (
           i !== cur &&
-          slotFlavors.current[i] === flavor &&
+          slotFlavors.current[i] === fl &&
           srcsRef.current[i] &&
           readyUrls.current.has(srcsRef.current[i])
         ) {
-          preloadedSlot = i;
+          activate(i);
+          const refill = pullUrl(fl, false) || pullUrl(fl, true);
+          if (refill) setSlot(cur, refill, fl);
+          switched = true;
           break;
         }
       }
 
-      if (preloadedSlot >= 0) {
-        activate(preloadedSlot);
-
-        const nextVideoSlot = (preloadedSlot + 1) % 3;
-        const nextFlavorSlot = (preloadedSlot + 2) % 3;
-        const nextUrl = pullUrl(flavor);
-
-        if (nextUrl) setSlot(nextVideoSlot, nextUrl, flavor);
-
-        const upcomingUrl = pullUrl(upcoming);
-        if (upcomingUrl) {
-          setSlot(nextFlavorSlot, upcomingUrl, upcoming);
-        } else {
-          const extraUrl = pullUrl(flavor);
-          if (extraUrl) setSlot(nextFlavorSlot, extraUrl, flavor);
+      if (!switched) {
+        const fallback = pullUrl(fl, true);
+        if (fallback) {
+          setSlot(nextSlot, fallback, fl);
+          activateWhenReady(nextSlot, fallback, fl);
         }
-      } else {
-        const playSlot = (cur + 1) % 3;
-        const preSlot = (cur + 2) % 3;
-
-        const playUrl = pullUrl(flavor);
-        const nextUrl = pullUrl(flavor);
-        if (!playUrl) return;
-
-        setSlot(playSlot, playUrl, flavor);
-        if (nextUrl) setSlot(preSlot, nextUrl, flavor);
-
-        const video = videoRefs[playSlot].current;
-        if (!video) return;
-
-        const doSwap = () => {
-          if (cancelled || gen !== generationRef.current) return;
-          activate(playSlot);
-          const fSlot = (playSlot + 2) % 3;
-          const upcomingUrl = pullUrl(upcoming);
-          if (upcomingUrl) {
-            setSlot(fSlot, upcomingUrl, upcoming);
-          } else {
-            const extraUrl = pullUrl(flavor);
-            if (extraUrl) setSlot(fSlot, extraUrl, flavor);
-          }
-        };
-
-        if (video.readyState >= 3) {
-          readyUrls.current.add(playUrl);
-          doSwap();
-        } else {
-          video.addEventListener(
-            "canplay",
-            () => {
-              readyUrls.current.add(playUrl);
-              doSwap();
-            },
-            { once: true },
-          );
-        }
+        keepCurrentAlive(cur);
       }
-    });
+    }
 
-    return () => {
-      cancelled = true;
-    };
-  }, [flavor]);
+    if (queueLength(fl) < MIN_QUEUE_BEFORE_REFRESH) {
+      void refreshFlavor(fl);
+    }
+  }, [activate, activateWhenReady, keepCurrentAlive, pullUrl, queueLength, refreshFlavor, setSlot]);
+
+  useEffect(() => {
+    flavorRef.current = flavor;
+    ensureFlavorPlayback(flavor);
+    void refreshFlavor(flavor);
+    // Also keep the likely next flavor warm.
+    void refreshFlavor(getNextFlavor(flavor));
+  }, [ensureFlavorPlayback, flavor, refreshFlavor]);
 
   useEffect(() => {
     const video = videoRefs[activeIdx].current;
@@ -254,63 +410,34 @@ export const PixabayVideo = ({ flavor, isPlaying }: PixabayVideoProps) => {
   }, [activeIdx, handleEnded]);
 
   useEffect(() => {
+    let disposed = false;
     let unlisten: (() => void) | undefined;
 
-    onPixabayVideoDownloaded(({ flavor: dlFlavor, path }) => {
-      if (!portRef.current) return;
+    void ensurePort().then(() => {
+      flushPendingDownloads();
+      ensureFlavorPlayback(flavorRef.current);
+    });
 
-      const url = joinMediaUrl(`http://127.0.0.1:${portRef.current}`, path);
-      const existing = urlsPerFlavor.current.get(dlFlavor);
-      if (existing) {
-        existing.push(url);
-      } else {
-        urlsPerFlavor.current.set(dlFlavor, [url]);
-        indexPerFlavor.current.set(dlFlavor, 0);
-      }
-
-      if (dlFlavor !== flavorRef.current) return;
-
-      const cur = activeIdxRef.current;
-
-      const hasActiveSlot = slotFlavors.current.some(
-        (f, i) => f === dlFlavor && srcsRef.current[i] !== "",
-      );
-
-      if (!hasActiveSlot) {
-        const playSlot = (cur + 1) % 3;
-        setSlot(playSlot, url, dlFlavor);
-
-        const vid = videoRefs[playSlot].current;
-        if (!vid) return;
-
-        const startPlayback = () => {
-          readyUrls.current.add(url);
-          activate(playSlot);
-        };
-
-        if (vid.readyState >= 3) {
-          startPlayback();
-        } else {
-          vid.addEventListener("canplay", startPlayback, { once: true });
-        }
+    void onPixabayVideoDownloaded((event) => {
+      ingestDownloaded(event);
+    }).then((fn) => {
+      if (disposed) {
+        void Promise.resolve(fn()).catch(() => {
+          // Listener may already be gone during rapid remounts.
+        });
         return;
       }
-
-      for (let i = 0; i < 3; i++) {
-        if (i === cur) continue;
-        if (!srcsRef.current[i]) {
-          setSlot(i, url, dlFlavor);
-          break;
-        }
-      }
-    }).then((fn) => {
       unlisten = fn;
     });
 
     return () => {
-      unlisten?.();
+      disposed = true;
+      if (!unlisten) return;
+      void Promise.resolve(unlisten()).catch(() => {
+        // Listener may already be gone during hot reload / strict remount.
+      });
     };
-  }, []);
+  }, [ensureFlavorPlayback, ensurePort, flushPendingDownloads, ingestDownloaded]);
 
   return (
     <>
@@ -354,9 +481,16 @@ export const SourceVideo = ({
   isPlayingRef.current = isPlaying;
 
   useEffect(() => {
+    let cancelled = false;
     initializedRef.current = false;
     setVisible(false);
-    getMediaPort().then((port) => setSrc(joinMediaUrl(`http://127.0.0.1:${port}`, filePath)));
+    getMediaPort().then((port) => {
+      if (cancelled) return;
+      setSrc(joinMediaUrl(`http://127.0.0.1:${port}`, filePath));
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [filePath]);
 
   useEffect(() => {
@@ -365,28 +499,38 @@ export const SourceVideo = ({
     initializedRef.current = false;
     setVisible(false);
 
+    const finalize = () => {
+      if (initializedRef.current) return;
+      initializedRef.current = true;
+      setVisible(true);
+      if (isPlayingRef.current) video.play().catch(() => {});
+    };
+
     const init = () => {
       const t = getCurrentTime();
       if (t > 0.1) {
-        video.currentTime = t;
-        video.addEventListener(
-          "seeked",
-          () => {
-            initializedRef.current = true;
-            setVisible(true);
-            if (isPlayingRef.current) video.play().catch(() => {});
-          },
-          { once: true },
-        );
+        const canSeekTo =
+          Number.isFinite(video.duration) && video.duration > 0
+            ? Math.min(t, Math.max(0, video.duration - 0.05))
+            : t;
+        const onReady = () => finalize();
+        const watchdog = window.setTimeout(onReady, 1200);
+        video.addEventListener("seeked", onReady, { once: true });
+        video.addEventListener("canplay", onReady, { once: true });
+        video.currentTime = canSeekTo;
+        return () => {
+          window.clearTimeout(watchdog);
+          video.removeEventListener("seeked", onReady);
+          video.removeEventListener("canplay", onReady);
+        };
       } else {
-        initializedRef.current = true;
-        setVisible(true);
-        if (isPlayingRef.current) video.play().catch(() => {});
+        finalize();
+        return undefined;
       }
     };
 
     if (video.readyState >= 1) {
-      init();
+      return init();
     } else {
       video.addEventListener("loadedmetadata", init, { once: true });
       return () => video.removeEventListener("loadedmetadata", init);

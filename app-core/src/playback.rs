@@ -1,4 +1,6 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::sync::{LazyLock, Mutex};
 
 use rand::prelude::{IndexedRandom, SliceRandom};
 use serde::Serialize;
@@ -112,6 +114,112 @@ pub fn get_audio_paths(file_hash: &str) -> AudioPaths {
     AudioPaths {
         instrumental: legacy_inst.to_string_lossy().into_owned(),
         vocals: legacy_voc.to_string_lossy().into_owned(),
+    }
+}
+
+fn is_mp4_compatible_source(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| {
+            let normalized = ext.to_ascii_lowercase();
+            normalized == "mp4" || normalized == "m4v"
+        })
+        .unwrap_or(false)
+}
+
+fn convert_video_to_mp4(source: &Path, target: &Path, tmp: &Path) -> Result<(), NightingaleError> {
+    let status = silent_command(ffmpeg_path())
+        .args(["-y", "-i"])
+        .arg(source)
+        .args([
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "23",
+            "-pix_fmt",
+            "yuv420p",
+            "-movflags",
+            "+faststart",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "160k",
+            "-ac",
+            "2",
+            "-ar",
+            "48000",
+            "-sn",
+            "-dn",
+            "-v",
+            "error",
+        ])
+        .arg(tmp)
+        .status()?;
+
+    if !status.success() {
+        let _ = std::fs::remove_file(tmp);
+        return Err(NightingaleError::Other(format!(
+            "ffmpeg playable-video transcode failed with status {status}"
+        )));
+    }
+
+    if target.exists() {
+        let _ = std::fs::remove_file(target);
+    }
+    std::fs::rename(tmp, target)?;
+    Ok(())
+}
+
+pub fn ensure_playable_source_video(file_hash: &str) -> Result<Option<String>, NightingaleError> {
+    let Some(song) = library_db::load_song_by_hash(file_hash).ok().flatten() else {
+        return Err(NightingaleError::Other("Song not found".into()));
+    };
+
+    if !song.is_video {
+        return Ok(None);
+    }
+
+    if is_mp4_compatible_source(&song.path) {
+        return Ok(Some(song.path.to_string_lossy().into_owned()));
+    }
+
+    let cache = CacheDir::new();
+    let target = cache.playable_video_path(file_hash);
+    if target.is_file() {
+        return Ok(Some(target.to_string_lossy().into_owned()));
+    }
+
+    loop {
+        let mut inflight = PLAYABLE_VIDEO_INFLIGHT.lock().unwrap();
+        if inflight.insert(file_hash.to_string()) {
+            break;
+        }
+        drop(inflight);
+
+        if target.is_file() {
+            return Ok(Some(target.to_string_lossy().into_owned()));
+        }
+        std::thread::sleep(std::time::Duration::from_millis(150));
+    }
+
+    let transcode_result = (|| {
+        let Some(parent) = target.parent() else {
+            return Err(NightingaleError::Other("Invalid playable video path".into()));
+        };
+        std::fs::create_dir_all(parent)?;
+
+        let tmp = parent.join(format!("{file_hash}.{}.tmp.mp4", std::process::id()));
+        convert_video_to_mp4(&song.path, &target, &tmp)?;
+        Ok::<(), NightingaleError>(())
+    })();
+
+    PLAYABLE_VIDEO_INFLIGHT.lock().unwrap().remove(file_hash);
+
+    match transcode_result {
+        Ok(()) => Ok(Some(target.to_string_lossy().into_owned())),
+        Err(err) => Err(err),
     }
 }
 
@@ -503,7 +611,9 @@ pub fn shift_tempo(file_hash: &str, tempo: f64) -> Result<ShiftResult, Nightinga
 }
 
 const PIXABAY_PER_PAGE: u32 = 200;
-const MAX_CACHED_VIDEOS: usize = 12;
+const MAX_CACHED_VIDEOS: usize = 6;
+static PLAYABLE_VIDEO_INFLIGHT: LazyLock<Mutex<HashSet<String>>> =
+    LazyLock::new(|| Mutex::new(HashSet::new()));
 
 struct FlavorConfig {
     keywords: &'static [&'static str],
@@ -669,7 +779,29 @@ fn download_file(url: &str, dest: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
-const ROTATE_COUNT: usize = 2;
+fn oldest_cached_video(cached: &[PathBuf], exclude: Option<&PathBuf>) -> Option<PathBuf> {
+    cached
+        .iter()
+        .filter(|path| exclude.is_none_or(|skip| *path != skip))
+        .min_by(|a, b| {
+            let a_time = a
+                .metadata()
+                .and_then(|m| m.modified())
+                .ok()
+                .and_then(|t| t.duration_since(std::time::SystemTime::UNIX_EPOCH).ok())
+                .map(|d| d.as_millis())
+                .unwrap_or(0);
+            let b_time = b
+                .metadata()
+                .and_then(|m| m.modified())
+                .ok()
+                .and_then(|t| t.duration_since(std::time::SystemTime::UNIX_EPOCH).ok())
+                .map(|d| d.as_millis())
+                .unwrap_or(0);
+            a_time.cmp(&b_time).then_with(|| a.cmp(b))
+        })
+        .cloned()
+}
 
 pub fn get_cached_pixabay_videos(flavor: &str) -> Vec<String> {
     let mut cached = cached_video_paths(flavor);
@@ -681,42 +813,53 @@ pub fn get_cached_pixabay_videos(flavor: &str) -> Vec<String> {
         .collect()
 }
 
-pub fn download_pixabay_videos(flavor: &str, on_downloaded: impl Fn(String) + Send + 'static) {
+pub fn download_pixabay_videos(
+    flavor: &str,
+    on_downloaded: impl Fn(String, Option<String>) + Send + 'static,
+) {
     let listing = match fetch_video_listing(flavor) {
         Ok(l) => l,
         Err(_) => return,
     };
 
-    let current = cached_video_paths(flavor);
-    let needed = MAX_CACHED_VIDEOS.saturating_sub(current.len());
+    let mut cached = cached_video_paths(flavor);
 
-    let mut downloaded = 0;
+    while cached.len() > MAX_CACHED_VIDEOS {
+        let Some(evicted) = oldest_cached_video(&cached, None) else {
+            break;
+        };
+        std::fs::remove_file(&evicted).ok();
+        cached.retain(|path| path != &evicted);
+    }
+
     for dl in listing.iter().filter(|p| !p.dest.exists()) {
-        if downloaded >= needed {
+        if cached.len() >= MAX_CACHED_VIDEOS {
             break;
         }
         if download_file(&dl.url, &dl.dest).is_ok() {
-            downloaded += 1;
-            on_downloaded(dl.dest.to_string_lossy().into_owned());
+            cached.push(dl.dest.clone());
+            on_downloaded(dl.dest.to_string_lossy().into_owned(), None);
         }
     }
 
-    let mut rotated = 0;
-    for dl in listing.iter().filter(|p| !p.dest.exists()) {
-        if rotated >= ROTATE_COUNT {
-            break;
-        }
-        if download_file(&dl.url, &dl.dest).is_ok() {
-            on_downloaded(dl.dest.to_string_lossy().into_owned());
+    if cached.len() < MAX_CACHED_VIDEOS {
+        return;
+    }
 
-            let mut cached = cached_video_paths(flavor);
-            cached.sort();
-            if cached.len() > MAX_CACHED_VIDEOS {
-                let evicted = &cached[0];
-                std::fs::remove_file(evicted).ok();
-            }
-            rotated += 1;
+    let Some(next) = listing.iter().find(|p| !p.dest.exists()) else {
+        return;
+    };
+
+    if download_file(&next.url, &next.dest).is_ok() {
+        cached.push(next.dest.clone());
+        let new_path = next.dest.to_string_lossy().into_owned();
+        if let Some(evicted) = oldest_cached_video(&cached, Some(&next.dest)) {
+            let evicted_path = evicted.to_string_lossy().into_owned();
+            std::fs::remove_file(&evicted).ok();
+            on_downloaded(new_path, Some(evicted_path));
+            return;
         }
+        on_downloaded(new_path, None);
     }
 }
 

@@ -455,6 +455,9 @@ fn process_song(file_hash: &str, cache: &CacheDir) {
 
 fn finalize_song(file_hash: &str, cache: &CacheDir) {
     if cache.transcript_exists(file_hash) {
+        if let Err(err) = crate::playback::ensure_playable_source_video(file_hash) {
+            warn!("[analyzer] Playable source-video conversion failed for {file_hash}: {err}");
+        }
         let meta = read_transcript_meta(cache, file_hash);
         remove_from_queue(file_hash);
         update_song_analyzed(

@@ -6,6 +6,7 @@ use tauri::{AppHandle, Emitter};
 struct PixabayVideoDownloaded {
     flavor: String,
     path: String,
+    evicted_path: Option<String>,
 }
 
 #[tauri::command]
@@ -39,17 +40,25 @@ pub fn ensure_mp3_stems(app: AppHandle, file_hash: String) {
 }
 
 #[tauri::command]
+pub fn ensure_playable_source_video(file_hash: String) -> Option<String> {
+    app_core::ensure_playable_source_video(&file_hash)
+        .ok()
+        .flatten()
+}
+
+#[tauri::command]
 pub fn fetch_pixabay_videos(app: AppHandle, flavor: String) -> Vec<String> {
     let cached = app_core::get_cached_pixabay_videos(&flavor);
 
     let flavor_clone = flavor.clone();
     std::thread::spawn(move || {
-        app_core::download_pixabay_videos(&flavor_clone, move |path| {
+        app_core::download_pixabay_videos(&flavor_clone, move |path, evicted_path| {
             let _ = app.emit(
                 "pixabay-video-downloaded",
                 PixabayVideoDownloaded {
                     flavor: flavor.clone(),
                     path,
+                    evicted_path,
                 },
             );
         });
