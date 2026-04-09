@@ -7,6 +7,7 @@ export type DialogMode =
   | "select-profile"
   | "settings"
   | "about"
+  | "youtube"
   | { mode: "language"; song: Song }
   | null;
 

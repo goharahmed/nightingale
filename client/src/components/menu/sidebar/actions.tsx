@@ -30,6 +30,7 @@ import {
   Trash2Icon,
   UserIcon,
   VideoIcon,
+  YoutubeIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavInput } from "@/hooks/navigation/use-nav-input";
@@ -160,6 +161,10 @@ export const Actions = ({ registerCallback, focusedSidebarIndex }: ActionsProps)
               <DropdownMenuItem onClick={rescanFolder} disabled={rescanFolderDisabled}>
                 <RefreshCwIcon />
                 Rescan folder
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setMode("youtube")}>
+                <YoutubeIcon />
+                YouTube Download
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

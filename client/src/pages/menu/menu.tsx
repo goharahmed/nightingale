@@ -4,6 +4,7 @@ import { SelectLanguageDialog } from "@/components/menu/dialogs/language";
 import { CreateProfileDialog } from "@/components/menu/dialogs/profile/create";
 import { SelectProfileDialog } from "@/components/menu/dialogs/profile/select";
 import { SettingsDialog } from "@/components/menu/dialogs/settings";
+import { YouTubeSearchDialog } from "@/components/menu/dialogs/youtube";
 import { Sidebar } from "@/components/menu/sidebar/sidebar";
 import { EmptySongList } from "@/components/menu/song-list/empty-song-list";
 import { SongList } from "@/components/menu/song-list/song-list";
@@ -56,6 +57,7 @@ const MenuInner = () => {
       <SelectProfileDialog />
       <InfoDialog />
       <SelectLanguageDialog />
+      <YouTubeSearchDialog />
       <SidebarInset>{content}</SidebarInset>
     </Sidebar>
   );

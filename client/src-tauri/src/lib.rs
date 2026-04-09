@@ -8,6 +8,7 @@ mod playback;
 mod profile;
 mod scanner;
 mod vendor;
+mod youtube;
 
 use analyzer::{
     delete_song_cache, enqueue_all, enqueue_one, reanalyze_full, reanalyze_transcript, shift_key,
@@ -28,6 +29,7 @@ use profile::{add_score, create_profile, delete_profile, load_profiles, switch_p
 use scanner::{load_analysis_queue, load_library_menu_items, load_songs, load_songs_meta, trigger_scan};
 use tauri::{Manager, RunEvent, WebviewWindowBuilder};
 use vendor::{is_ready, trigger_setup};
+use youtube::{download_youtube_video, get_youtube_video_info, search_youtube};
 
 #[tauri::command]
 fn get_media_port() -> u16 {
@@ -132,7 +134,11 @@ pub fn run() {
             multi_channel_audio::is_multi_channel_playback_active,
             // Vendor
             is_ready,
-            trigger_setup
+            trigger_setup,
+            // YouTube
+            search_youtube,
+            download_youtube_video,
+            get_youtube_video_info
         ])
         .setup(|app| {
             let _ = dotenvy::dotenv();

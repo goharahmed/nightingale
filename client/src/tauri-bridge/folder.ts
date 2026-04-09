@@ -30,3 +30,8 @@ export const selectFolder = async (): Promise<void> => {
 export const triggerScan = async (folder: string): Promise<void> => {
   invoke("trigger_scan", { folder });
 };
+
+export const rescanLibrary = async (): Promise<void> => {
+  // Triggers a rescan of the current library folder
+  invoke("trigger_scan", { folder: null });
+};

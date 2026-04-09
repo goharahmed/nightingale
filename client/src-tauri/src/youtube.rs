@@ -1,0 +1,167 @@
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+use std::process::{Command, Stdio};
+use ts_rs::TS;
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct YouTubeSearchResult {
+    pub id: String,
+    pub title: String,
+    pub uploader: String,
+    pub duration: f64,
+    pub thumbnail: String,
+    pub url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct YouTubeDownloadResult {
+    pub filepath: String,
+    pub title: String,
+    pub uploader: String,
+    pub duration: f64,
+    pub is_audio_only: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct YouTubeVideoInfo {
+    pub id: String,
+    pub title: String,
+    pub uploader: String,
+    pub duration: f64,
+    pub thumbnail: String,
+    pub description: String,
+}
+
+fn get_python_path() -> PathBuf {
+    app_core::python_path()
+}
+
+fn get_youtube_script() -> PathBuf {
+    app_core::analyzer_dir().join("youtube.py")
+}
+
+/// Search YouTube for videos
+#[tauri::command]
+pub async fn search_youtube(
+    query: String,
+    max_results: Option<u32>,
+) -> Result<Vec<YouTubeSearchResult>, String> {
+    let python = get_python_path();
+    let script = get_youtube_script();
+    let max = max_results.unwrap_or(20);
+
+    let output = Command::new(&python)
+        .arg(&script)
+        .arg("search")
+        .arg(&query)
+        .arg("--max-results")
+        .arg(max.to_string())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .map_err(|e| format!("Failed to execute YouTube search: {}. Make sure to run Setup first to install yt-dlp.", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let error_msg = if stderr.contains("yt-dlp") || stderr.contains("yt_dlp") {
+            format!("YouTube search failed: yt-dlp not installed. Please run Setup to install dependencies.\n\nDetails: {}", stderr)
+        } else {
+            format!("YouTube search failed: {}", stderr)
+        };
+        return Err(error_msg);
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let results: Vec<YouTubeSearchResult> =
+        serde_json::from_str(&stdout).map_err(|e| format!("Failed to parse search results: {}", e))?;
+
+    Ok(results)
+}
+
+/// Download a YouTube video or audio
+#[tauri::command]
+pub async fn download_youtube_video(
+    url: String,
+    audio_only: bool,
+) -> Result<YouTubeDownloadResult, String> {
+    let python = get_python_path();
+    let script = get_youtube_script();
+    
+    // Get the library folder from the database (where songs are stored)
+    let (folder, _) = app_core::read_library_meta()
+        .map_err(|e| format!("Failed to read library metadata: {}", e))?;
+    
+    if folder.is_empty() {
+        return Err("No library folder configured. Please select a folder first.".to_string());
+    }
+    
+    let output_dir = std::path::PathBuf::from(&folder);
+
+    let mut cmd = Command::new(&python);
+    cmd.arg(&script)
+        .arg("download")
+        .arg(&url)
+        .arg("--output-dir")
+        .arg(&output_dir);
+
+    if audio_only {
+        cmd.arg("--audio-only");
+    }
+
+    let output = cmd
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .map_err(|e| format!("Failed to execute YouTube download: {}. Make sure to run Setup first to install yt-dlp.", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let error_msg = if stderr.contains("yt-dlp") || stderr.contains("yt_dlp") {
+            format!("YouTube download failed: yt-dlp not installed. Please run Setup to install dependencies.\n\nDetails: {}", stderr)
+        } else {
+            format!("YouTube download failed: {}", stderr)
+        };
+        return Err(error_msg);
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    
+    if stdout.trim().is_empty() {
+        return Err(format!("No output from download command.\nStderr: {}", stderr));
+    }
+    
+    let result: YouTubeDownloadResult = serde_json::from_str(&stdout)
+        .map_err(|e| format!("Failed to parse download result: {}\nOutput: {}\nStderr: {}", e, stdout, stderr))?;
+
+    Ok(result)
+}
+
+/// Get information about a YouTube video without downloading
+#[tauri::command]
+pub async fn get_youtube_video_info(url: String) -> Result<YouTubeVideoInfo, String> {
+    let python = get_python_path();
+    let script = get_youtube_script();
+
+    let output = Command::new(&python)
+        .arg(&script)
+        .arg("info")
+        .arg(&url)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .map_err(|e| format!("Failed to get video info: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Failed to get video info: {}", stderr));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let info: YouTubeVideoInfo =
+        serde_json::from_str(&stdout).map_err(|e| format!("Failed to parse video info: {}", e))?;
+
+    Ok(info)
+}

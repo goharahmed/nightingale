@@ -31,8 +31,9 @@ pub use profile::ProfileStore;
 pub use library_model::{LibraryMenuFilters, LoadSongsParams, SongsMeta, SongsStore};
 pub use library_menu::{LibraryMenuItem, LibraryMenuItems, load_library_menu_items};
 pub use scanner::start_scan;
-pub use library_db::{init_library, library_db_path};
+pub use library_db::{init_library, library_db_path, read_library_meta};
 pub use vendor::{
     clear_vendor_dir, is_ready, mark_ready, step_create_venv, step_download_ffmpeg,
     step_download_uv, step_extract_scripts, step_install_packages, step_install_python,
+    analyzer_dir, python_path,
 };
