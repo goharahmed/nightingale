@@ -20,6 +20,8 @@ import {
   LoaderCircleIcon,
   MenuIcon,
   MusicIcon,
+  PencilIcon,
+  PencilLineIcon,
   Trash2Icon,
   VideoIcon,
 } from "lucide-react";
@@ -221,6 +223,22 @@ export const SongCard = memo(
                 >
                   <LanguagesIcon />
                   Change language
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={withMenuAction(async () => {
+                    setMode({ mode: "edit-metadata", song });
+                  })}
+                >
+                  <PencilIcon />
+                  Edit metadata
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={withMenuAction(async () => {
+                    setMode({ mode: "edit-lyrics", song });
+                  })}
+                >
+                  <PencilLineIcon />
+                  Edit lyrics
                 </DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>

@@ -1,5 +1,6 @@
 import type { AnalysisQueue } from "@/types/AnalysisQueue";
 import type { LoadSongsParams } from "@/types/LoadSongsParams";
+import type { Song } from "@/types/Song";
 import type { SongsMeta } from "@/types/SongsMeta";
 import type { SongsStore } from "@/types/SongsStore";
 import { invoke } from "@tauri-apps/api/core";
@@ -21,4 +22,18 @@ export const loadSongsMeta = async (): Promise<SongsMeta> => {
 
 export const loadAnalysisQueue = async (): Promise<AnalysisQueue> => {
   return await invoke<AnalysisQueue>("load_analysis_queue");
+};
+
+export const updateSongMetadata = async (
+  fileHash: string,
+  title?: string,
+  artist?: string,
+  album?: string,
+): Promise<Song> => {
+  return await invoke<Song>("update_song_metadata", {
+    fileHash,
+    title: title ?? null,
+    artist: artist ?? null,
+    album: album ?? null,
+  });
 };

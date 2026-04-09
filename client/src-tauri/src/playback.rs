@@ -15,6 +15,11 @@ pub fn load_transcript(file_hash: String) -> Result<serde_json::Value, String> {
 }
 
 #[tauri::command]
+pub fn save_transcript(file_hash: String, transcript: serde_json::Value) -> Result<(), String> {
+    app_core::save_transcript(&file_hash, transcript).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub fn get_audio_paths(file_hash: String) -> AudioPaths {
     app_core::get_audio_paths(&file_hash)
 }

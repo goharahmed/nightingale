@@ -23,10 +23,10 @@ use config::{load_config, save_config};
 use microphones::{list_microphones, start_mic_capture, stop_mic_capture};
 use playback::{
     ensure_mp3_stems, ensure_playable_source_video, fetch_pixabay_videos, get_audio_paths,
-    load_transcript,
+    load_transcript, save_transcript,
 };
 use profile::{add_score, create_profile, delete_profile, load_profiles, switch_profile};
-use scanner::{load_analysis_queue, load_library_menu_items, load_songs, load_songs_meta, trigger_scan};
+use scanner::{load_analysis_queue, load_library_menu_items, load_songs, load_songs_meta, trigger_scan, update_song_metadata};
 use tauri::{Manager, RunEvent, WebviewWindowBuilder};
 use vendor::{is_ready, trigger_setup};
 use youtube::{download_youtube_video, get_youtube_video_info, search_youtube};
@@ -106,6 +106,7 @@ pub fn run() {
             load_songs_meta,
             load_analysis_queue,
             load_library_menu_items,
+            update_song_metadata,
             // Analyzer
             enqueue_one,
             enqueue_all,
@@ -116,6 +117,7 @@ pub fn run() {
             shift_tempo,
             // Playback
             load_transcript,
+            save_transcript,
             get_audio_paths,
             ensure_mp3_stems,
             ensure_playable_source_video,

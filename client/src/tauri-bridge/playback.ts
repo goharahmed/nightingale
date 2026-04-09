@@ -7,6 +7,10 @@ export const loadTranscript = async (fileHash: string): Promise<Transcript> => {
   return await invoke<Transcript>("load_transcript", { fileHash });
 };
 
+export const saveTranscript = async (fileHash: string, transcript: Transcript): Promise<void> => {
+  return await invoke<void>("save_transcript", { fileHash, transcript });
+};
+
 export const getAudioPaths = async (fileHash: string): Promise<AudioPaths> => {
   return await invoke<AudioPaths>("get_audio_paths", { fileHash });
 };

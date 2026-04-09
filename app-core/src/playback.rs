@@ -33,6 +33,14 @@ pub fn load_transcript(file_hash: &str) -> Result<serde_json::Value, Nightingale
     Ok(value)
 }
 
+pub fn save_transcript(file_hash: &str, transcript: serde_json::Value) -> Result<(), NightingaleError> {
+    let cache = CacheDir::new();
+    let path = resolve_transcript_path(&cache, file_hash);
+    let data = serde_json::to_string_pretty(&transcript)?;
+    std::fs::write(&path, data)?;
+    Ok(())
+}
+
 fn resolve_effective_key_tempo(song: &Song) -> Option<(String, f64)> {
     let key = song.override_key.as_ref().or(song.key.as_ref())?.clone();
     Some((key, normalize_tempo(song.tempo)))

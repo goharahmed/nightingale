@@ -515,6 +515,30 @@ pub fn update_song_fields(file_hash: &str, song: &Song) -> rusqlite::Result<()> 
     })
 }
 
+pub fn update_song_metadata(
+    file_hash: &str,
+    title: Option<String>,
+    artist: Option<String>,
+    album: Option<String>,
+) -> Result<Song, String> {
+    let mut song = load_song_by_hash(file_hash)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("song not found for hash {file_hash}"))?;
+
+    if let Some(t) = title {
+        song.title = t;
+    }
+    if let Some(a) = artist {
+        song.artist = a;
+    }
+    if let Some(a) = album {
+        song.album = a;
+    }
+
+    update_song_fields(file_hash, &song).map_err(|e| e.to_string())?;
+    Ok(song)
+}
+
 pub fn load_meta_sql() -> rusqlite::Result<SongsMeta> {
     if MIGRATING.load(Ordering::Acquire) {
         return with_conn(|c| {

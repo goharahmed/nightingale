@@ -1,3 +1,5 @@
+import { EditMetadataDialog } from "@/components/menu/dialogs/edit-metadata";
+import { EditLyricsDialog } from "@/components/menu/dialogs/edit-lyrics";
 import { ExitDialog } from "@/components/menu/dialogs/exit";
 import { InfoDialog } from "@/components/menu/dialogs/info";
 import { SelectLanguageDialog } from "@/components/menu/dialogs/language";
@@ -57,6 +59,8 @@ const MenuInner = () => {
       <SelectProfileDialog />
       <InfoDialog />
       <SelectLanguageDialog />
+      <EditMetadataDialog />
+      <EditLyricsDialog />
       <YouTubeSearchDialog />
       <SidebarInset>{content}</SidebarInset>
     </Sidebar>
