@@ -27,6 +27,12 @@ import { useConfig } from "@/queries/use-config";
 import { useConfigMutation } from "@/mutations/use-config-mutation";
 import { useMicDevices } from "@/hooks/use-mic-pitch";
 import { cn } from "@/lib/utils";
+import {
+  getAudioOutputDevices,
+  formatChannelPair,
+  getAvailableChannelPairs,
+  type AudioOutputDevice,
+} from "@/tauri-bridge/multi-channel-audio";
 
 const SEPARATORS = [
   { value: "karaoke", label: "UVR Karaoke" },
@@ -53,6 +59,7 @@ export const SettingsDialog = () => {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [isFullScreen, setIsFullScreen] = useState<boolean | null | undefined>(config?.fullscreen);
+  const [multiChannelDevices, setMultiChannelDevices] = useState<AudioOutputDevice[]>([]);
 
   const open = mode === "settings";
 
@@ -70,6 +77,13 @@ export const SettingsDialog = () => {
     };
 
     updateIsFullScreen();
+  }, []);
+
+  // Load multi-channel audio devices
+  useEffect(() => {
+    getAudioOutputDevices()
+      .then((devices) => setMultiChannelDevices(devices))
+      .catch((err) => console.error("Failed to load audio devices:", err));
   }, []);
 
   const toggleWindowMode = (fullscreen: boolean) => {
@@ -163,6 +177,135 @@ export const SettingsDialog = () => {
                 </SelectContent>
               </Select>
             </Field>
+            <Field>
+              <Label>Multi-Channel Audio Routing</Label>
+              <FieldDescription>
+                Route vocals and instrumental to specific output channels on your audio interface
+              </FieldDescription>
+              <ButtonGroup>
+                <Button
+                  variant={config?.enable_channel_routing ? "outline" : "default"}
+                  onClick={() => mutate({ enable_channel_routing: false })}
+                >
+                  Disabled
+                </Button>
+                <Button
+                  variant={config?.enable_channel_routing ? "default" : "outline"}
+                  onClick={() => mutate({ enable_channel_routing: true })}
+                >
+                  Enabled
+                </Button>
+              </ButtonGroup>
+            </Field>
+            {config?.enable_channel_routing && multiChannelDevices.length > 0 && (
+              <>
+                <Field>
+                  <Label>Vocals Output Device</Label>
+                  <Select
+                    onValueChange={(value) => mutate({ vocals_device_name: value })}
+                    value={config?.vocals_device_name ?? multiChannelDevices[0]?.name}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select device" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectLabel>Device</SelectLabel>
+                        {multiChannelDevices.map((device) => (
+                          <SelectItem key={device.name} value={device.name}>
+                            {device.name} ({device.maxChannels} ch)
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field>
+                  <Label>Vocals Channels</Label>
+                  <Select
+                    onValueChange={(value) => mutate({ vocals_start_channel: Number(value) })}
+                    value={String(config?.vocals_start_channel ?? 0)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select channels" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectLabel>Channel Pair</SelectLabel>
+                        {multiChannelDevices.find(
+                          (d) =>
+                            d.name === (config?.vocals_device_name ?? multiChannelDevices[0]?.name),
+                        )?.maxChannels &&
+                          getAvailableChannelPairs(
+                            multiChannelDevices.find(
+                              (d) =>
+                                d.name ===
+                                (config?.vocals_device_name ?? multiChannelDevices[0]?.name),
+                            )!.maxChannels,
+                          ).map((pair) => (
+                            <SelectItem key={pair} value={String(pair)}>
+                              {formatChannelPair(pair)}
+                            </SelectItem>
+                          ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field>
+                  <Label>Instrumental Output Device</Label>
+                  <Select
+                    onValueChange={(value) => mutate({ instrumental_device_name: value })}
+                    value={config?.instrumental_device_name ?? multiChannelDevices[0]?.name}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select device" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectLabel>Device</SelectLabel>
+                        {multiChannelDevices.map((device) => (
+                          <SelectItem key={device.name} value={device.name}>
+                            {device.name} ({device.maxChannels} ch)
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field>
+                  <Label>Instrumental Channels</Label>
+                  <Select
+                    onValueChange={(value) => mutate({ instrumental_start_channel: Number(value) })}
+                    value={String(config?.instrumental_start_channel ?? 2)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select channels" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectLabel>Channel Pair</SelectLabel>
+                        {multiChannelDevices.find(
+                          (d) =>
+                            d.name ===
+                            (config?.instrumental_device_name ?? multiChannelDevices[0]?.name),
+                        )?.maxChannels &&
+                          getAvailableChannelPairs(
+                            multiChannelDevices.find(
+                              (d) =>
+                                d.name ===
+                                (config?.instrumental_device_name ?? multiChannelDevices[0]?.name),
+                            )!.maxChannels,
+                          ).map((pair) => (
+                            <SelectItem key={pair} value={String(pair)}>
+                              {formatChannelPair(pair)}
+                            </SelectItem>
+                          ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </>
+            )}
             <Field>
               <Label htmlFor="model-1">Separator</Label>
               <FieldDescription>

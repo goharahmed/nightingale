@@ -3,6 +3,7 @@ mod cache;
 mod config;
 mod logging;
 mod microphones;
+mod multi_channel_audio;
 mod playback;
 mod profile;
 mod scanner;
@@ -121,6 +122,13 @@ pub fn run() {
             list_microphones,
             start_mic_capture,
             stop_mic_capture,
+            // Multi-channel audio
+            multi_channel_audio::get_audio_output_devices,
+            multi_channel_audio::start_multi_channel_playback,
+            multi_channel_audio::stop_multi_channel_playback,
+            multi_channel_audio::seek_multi_channel_playback,
+            multi_channel_audio::get_multi_channel_playback_position,
+            multi_channel_audio::is_multi_channel_playback_active,
             // Vendor
             is_ready,
             trigger_setup

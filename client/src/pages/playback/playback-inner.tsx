@@ -15,6 +15,7 @@ import {
   usePlaybackTranscript,
 } from "@/hooks/playback";
 import { useAudioPlayer } from "@/hooks/use-audio-player";
+import { useMultiChannelAudioPlayer } from "@/hooks/use-multi-channel-audio-player";
 import { useMicCapture, useMicDevices, useMicPitch } from "@/hooks/use-mic-pitch";
 import { usePitchScoring } from "@/hooks/use-pitch-scoring";
 import { PROFILES } from "@/queries/keys";
@@ -22,8 +23,9 @@ import { useProfiles } from "@/queries/use-profiles";
 import { addScore } from "@/tauri-bridge/profile";
 import type { Song } from "@/types/Song";
 import type { AppConfig } from "@/types/AppConfig";
+import type { MultiChannelConfig } from "@/tauri-bridge/multi-channel-audio";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { INTRO_SKIP_LEAD_SEC } from "@/utils/playback/transcript-segments";
@@ -107,7 +109,58 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
     };
   }, [fileHash, song.is_video, song.path]);
 
-  const audio = useAudioPlayer(fileHash, initialGuideVolume, stemsReady);
+  // Channel routing configuration from global config
+  const channelRoutingConfig = useMemo<MultiChannelConfig | null>(() => {
+    if (!config?.enable_channel_routing) {
+      return null;
+    }
+
+    // Only create config if all required fields are present
+    if (
+      config.vocals_device_name &&
+      config.instrumental_device_name &&
+      config.vocals_start_channel !== null &&
+      config.vocals_start_channel !== undefined &&
+      config.instrumental_start_channel !== null &&
+      config.instrumental_start_channel !== undefined
+    ) {
+      return {
+        vocalsRouting: {
+          deviceName: config.vocals_device_name,
+          startChannel: config.vocals_start_channel,
+        },
+        instrumentalRouting: {
+          deviceName: config.instrumental_device_name,
+          startChannel: config.instrumental_start_channel,
+        },
+      };
+    }
+
+    return null;
+  }, [config]);
+
+  const useMultiChannel = channelRoutingConfig !== null;
+
+  // Default config to avoid re-creating on every render
+  const defaultConfig = useRef<MultiChannelConfig>({
+    vocalsRouting: { deviceName: "", startChannel: 0 },
+    instrumentalRouting: { deviceName: "", startChannel: 0 },
+  });
+
+  // Conditionally use multi-channel or Web Audio player
+  const webAudioPlayer = useAudioPlayer(
+    fileHash,
+    initialGuideVolume,
+    stemsReady && !useMultiChannel,
+  );
+  const multiChannelPlayer = useMultiChannelAudioPlayer(
+    fileHash,
+    channelRoutingConfig ?? defaultConfig.current,
+    stemsReady && useMultiChannel,
+  );
+
+  // Use the active player
+  const audio = useMultiChannel ? multiChannelPlayer : webAudioPlayer;
 
   const [micUserEnabled, setMicUserEnabled] = useState(config?.mic_active ?? true);
   const [micMirrorUserEnabled, setMicMirrorUserEnabled] = useState(config?.mic_mirroring ?? false);

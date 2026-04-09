@@ -25,6 +25,14 @@ pub struct AppConfig {
     pub last_video_flavor: Option<usize>,
     pub separator: Option<String>,
     pub language_overrides: Option<HashMap<String, String>>,
+    pub audio_output_vocals: Option<String>,
+    pub audio_output_instrumental: Option<String>,
+    // Multi-channel audio routing
+    pub enable_channel_routing: Option<bool>,
+    pub vocals_device_name: Option<String>,
+    pub vocals_start_channel: Option<usize>,
+    pub instrumental_device_name: Option<String>,
+    pub instrumental_start_channel: Option<usize>,
 }
 
 fn default_data_path_option() -> Option<PathBuf> {
@@ -49,6 +57,13 @@ impl Default for AppConfig {
             last_video_flavor: None,
             separator: None,
             language_overrides: None,
+            audio_output_vocals: None,
+            audio_output_instrumental: None,
+            enable_channel_routing: None,
+            vocals_device_name: None,
+            vocals_start_channel: None,
+            instrumental_device_name: None,
+            instrumental_start_channel: None,
         }
     }
 }

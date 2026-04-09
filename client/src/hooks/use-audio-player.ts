@@ -31,6 +31,8 @@ export interface AudioPlayer {
   cleanup: () => void;
   getVocalsBuffer: () => AudioBuffer | null;
   getAudioContext: () => AudioContext | null;
+  setVocalsOutputDevice: (deviceId: string) => Promise<void>;
+  setInstrumentalOutputDevice: (deviceId: string) => Promise<void>;
 }
 
 export function useAudioPlayer(
@@ -45,6 +47,13 @@ export function useAudioPlayer(
   const instrumentalSrcRef = useRef<AudioBufferSourceNode | null>(null);
   const vocalsSrcRef = useRef<AudioBufferSourceNode | null>(null);
   const vocalsGainRef = useRef<GainNode | null>(null);
+
+  // HTML Audio elements for device routing
+  const vocalsAudioRef = useRef<HTMLAudioElement | null>(null);
+  const instrumentalAudioRef = useRef<HTMLAudioElement | null>(null);
+  const vocalsDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const instrumentalDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+
   const rafRef = useRef<number>(0);
   const currentTimeRef = useRef(0);
   const subscribersRef = useRef<Set<TimeSubscriber>>(new Set());
@@ -114,8 +123,21 @@ export function useAudioPlayer(
       const instBuf = instrumentalBufRef.current;
       const vocBuf = vocalsBufRef.current;
       const gainNode = vocalsGainRef.current;
+      const vocalsAudio = vocalsAudioRef.current;
+      const instrumentalAudio = instrumentalAudioRef.current;
+      const vocalsDestination = vocalsDestinationRef.current;
+      const instrumentalDestination = instrumentalDestinationRef.current;
 
-      if (!ctx || !instBuf || !vocBuf || !gainNode) {
+      if (
+        !ctx ||
+        !instBuf ||
+        !vocBuf ||
+        !gainNode ||
+        !vocalsAudio ||
+        !instrumentalAudio ||
+        !vocalsDestination ||
+        !instrumentalDestination
+      ) {
         return;
       }
 
@@ -125,7 +147,7 @@ export function useAudioPlayer(
 
       const instSrc = ctx.createBufferSource();
       instSrc.buffer = instBuf;
-      instSrc.connect(ctx.destination);
+      instSrc.connect(instrumentalDestination);
 
       const vocSrc = ctx.createBufferSource();
       vocSrc.buffer = vocBuf;
@@ -145,6 +167,12 @@ export function useAudioPlayer(
 
       instSrc.start(0, clamped);
       vocSrc.start(0, clamped);
+
+      // Start HTML audio elements for output
+      vocalsAudio.currentTime = 0;
+      instrumentalAudio.currentTime = 0;
+      vocalsAudio.play().catch(console.error);
+      instrumentalAudio.play().catch(console.error);
 
       instrumentalSrcRef.current = instSrc;
       vocalsSrcRef.current = vocSrc;
@@ -172,8 +200,26 @@ export function useAudioPlayer(
 
     const gainNode = ctx.createGain();
     gainNode.gain.value = Math.max(0, Math.min(1, initialGuideVolume));
-    gainNode.connect(ctx.destination);
+
+    // Create destination nodes for routing to separate devices
+    const vocalsDestination = ctx.createMediaStreamDestination();
+    const instrumentalDestination = ctx.createMediaStreamDestination();
+    gainNode.connect(vocalsDestination);
+
+    vocalsDestinationRef.current = vocalsDestination;
+    instrumentalDestinationRef.current = instrumentalDestination;
     vocalsGainRef.current = gainNode;
+
+    // Create HTML audio elements for device routing
+    const vocalsAudio = new Audio();
+    const instrumentalAudio = new Audio();
+    vocalsAudio.srcObject = vocalsDestination.stream;
+    instrumentalAudio.srcObject = instrumentalDestination.stream;
+    vocalsAudio.volume = 1.0;
+    instrumentalAudio.volume = 1.0;
+
+    vocalsAudioRef.current = vocalsAudio;
+    instrumentalAudioRef.current = instrumentalAudio;
 
     const isCancelled = () => cancelled || cancelledRef.current;
 
@@ -262,9 +308,24 @@ export function useAudioPlayer(
       cancelled = true;
       cancelAnimationFrame(rafRef.current);
       stopSources();
+
+      // Clean up audio elements
+      if (vocalsAudioRef.current) {
+        vocalsAudioRef.current.pause();
+        vocalsAudioRef.current.srcObject = null;
+        vocalsAudioRef.current = null;
+      }
+      if (instrumentalAudioRef.current) {
+        instrumentalAudioRef.current.pause();
+        instrumentalAudioRef.current.srcObject = null;
+        instrumentalAudioRef.current = null;
+      }
+
       instrumentalBufRef.current = null;
       vocalsBufRef.current = null;
       vocalsGainRef.current = null;
+      vocalsDestinationRef.current = null;
+      instrumentalDestinationRef.current = null;
       ctx.close();
       ctxRef.current = null;
     };
@@ -327,9 +388,43 @@ export function useAudioPlayer(
 
     stopSources();
 
+    // Clean up audio elements
+    if (vocalsAudioRef.current) {
+      vocalsAudioRef.current.pause();
+      vocalsAudioRef.current.srcObject = null;
+    }
+    if (instrumentalAudioRef.current) {
+      instrumentalAudioRef.current.pause();
+      instrumentalAudioRef.current.srcObject = null;
+    }
+
     ctxRef.current?.close();
     ctxRef.current = null;
   }, [stopSources]);
+
+  const setVocalsOutputDevice = useCallback(async (deviceId: string) => {
+    const audio = vocalsAudioRef.current;
+    if (audio && typeof audio.setSinkId === "function") {
+      try {
+        await audio.setSinkId(deviceId);
+      } catch (err) {
+        console.error("Failed to set vocals output device:", err);
+        throw err;
+      }
+    }
+  }, []);
+
+  const setInstrumentalOutputDevice = useCallback(async (deviceId: string) => {
+    const audio = instrumentalAudioRef.current;
+    if (audio && typeof audio.setSinkId === "function") {
+      try {
+        await audio.setSinkId(deviceId);
+      } catch (err) {
+        console.error("Failed to set instrumental output device:", err);
+        throw err;
+      }
+    }
+  }, []);
 
   return useMemo(
     () => ({
@@ -349,6 +444,8 @@ export function useAudioPlayer(
       cleanup,
       getVocalsBuffer,
       getAudioContext,
+      setVocalsOutputDevice,
+      setInstrumentalOutputDevice,
     }),
     [
       getCurrentTime,
@@ -367,6 +464,8 @@ export function useAudioPlayer(
       cleanup,
       getVocalsBuffer,
       getAudioContext,
+      setVocalsOutputDevice,
+      setInstrumentalOutputDevice,
     ],
   );
 }

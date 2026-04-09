@@ -16,4 +16,11 @@ export type AppConfig = {
   last_video_flavor: number | null;
   separator: string | null;
   language_overrides: { [key in string]: string } | null;
+  audio_output_vocals: string | null;
+  audio_output_instrumental: string | null;
+  enable_channel_routing: boolean | null;
+  vocals_device_name: string | null;
+  vocals_start_channel: number | null;
+  instrumental_device_name: string | null;
+  instrumental_start_channel: number | null;
 };
