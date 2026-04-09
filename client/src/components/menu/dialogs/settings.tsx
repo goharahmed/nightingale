@@ -191,7 +191,17 @@ export const SettingsDialog = () => {
                 </Button>
                 <Button
                   variant={config?.enable_channel_routing ? "default" : "outline"}
-                  onClick={() => mutate({ enable_channel_routing: true })}
+                  onClick={() => {
+                    // Enable with default values if not already set
+                    const defaultDevice = multiChannelDevices[0]?.name ?? "";
+                    mutate({
+                      enable_channel_routing: true,
+                      vocals_device_name: config?.vocals_device_name ?? defaultDevice,
+                      vocals_start_channel: config?.vocals_start_channel ?? 0,
+                      instrumental_device_name: config?.instrumental_device_name ?? defaultDevice,
+                      instrumental_start_channel: config?.instrumental_start_channel ?? 2,
+                    });
+                  }}
                 >
                   Enabled
                 </Button>

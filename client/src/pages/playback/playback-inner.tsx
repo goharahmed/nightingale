@@ -111,7 +111,16 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
 
   // Channel routing configuration from global config
   const channelRoutingConfig = useMemo<MultiChannelConfig | null>(() => {
+    console.log("[PlaybackInner] Config state:", {
+      enable_channel_routing: config?.enable_channel_routing,
+      vocals_device_name: config?.vocals_device_name,
+      instrumental_device_name: config?.instrumental_device_name,
+      vocals_start_channel: config?.vocals_start_channel,
+      instrumental_start_channel: config?.instrumental_start_channel,
+    });
+
     if (!config?.enable_channel_routing) {
+      console.log("[PlaybackInner] Multi-channel routing DISABLED");
       return null;
     }
 
@@ -124,7 +133,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
       config.instrumental_start_channel !== null &&
       config.instrumental_start_channel !== undefined
     ) {
-      return {
+      const cfg = {
         vocalsRouting: {
           deviceName: config.vocals_device_name,
           startChannel: config.vocals_start_channel,
@@ -134,8 +143,11 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
           startChannel: config.instrumental_start_channel,
         },
       };
+      console.log("[PlaybackInner] Multi-channel routing ENABLED with config:", cfg);
+      return cfg;
     }
 
+    console.log("[PlaybackInner] Multi-channel routing enabled but missing required fields");
     return null;
   }, [config]);
 
