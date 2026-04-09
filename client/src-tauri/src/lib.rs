@@ -128,6 +128,7 @@ pub fn run() {
             multi_channel_audio::stop_multi_channel_playback,
             multi_channel_audio::seek_multi_channel_playback,
             multi_channel_audio::get_multi_channel_playback_position,
+            multi_channel_audio::get_multi_channel_playback_duration,
             multi_channel_audio::is_multi_channel_playback_active,
             // Vendor
             is_ready,

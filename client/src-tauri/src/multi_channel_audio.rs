@@ -46,6 +46,7 @@ pub struct MultiChannelConfig {
 pub struct MultiChannelPlayer {
     playing: Arc<AtomicBool>,
     position: Arc<Mutex<f64>>, // Current playback position in seconds
+    duration: Arc<Mutex<f64>>, // Total duration in seconds
     vocals_stream: Option<Stream>,
     instrumental_stream: Option<Stream>,
     control_tx: Option<Sender<PlayerCommand>>,
@@ -100,6 +101,7 @@ impl MultiChannelPlayer {
         Self {
             playing: Arc::new(AtomicBool::new(false)),
             position: Arc::new(Mutex::new(0.0)),
+            duration: Arc::new(Mutex::new(0.0)),
             vocals_stream: None,
             instrumental_stream: None,
             control_tx: None,
@@ -184,6 +186,7 @@ impl MultiChannelPlayer {
                 config.instrumental_routing.start_channel,
                 Arc::clone(&playing),
                 Arc::clone(&position),
+                Arc::clone(&self.duration),
                 rx,
             )?;
 
@@ -225,6 +228,7 @@ impl MultiChannelPlayer {
                 config.vocals_routing.start_channel,
                 Arc::clone(&playing),
                 Arc::clone(&position),
+                Arc::clone(&self.duration),
                 rx,
             )?;
 
@@ -233,12 +237,14 @@ impl MultiChannelPlayer {
             
             // Start instrumental stream with separate position tracker
             let instrumental_position = Arc::new(Mutex::new(0.0));
+            let instrumental_duration = Arc::new(Mutex::new(0.0));
             let instrumental_stream = create_audio_stream(
                 &instrumental_device,
                 instrumental_path,
                 config.instrumental_routing.start_channel,
                 Arc::clone(&playing),
                 Arc::clone(&instrumental_position),
+                Arc::clone(&instrumental_duration),
                 instrumental_rx,
             )?;
 
@@ -276,6 +282,10 @@ impl MultiChannelPlayer {
         *self.position.lock().unwrap()
     }
 
+    pub fn get_duration(&self) -> f64 {
+        *self.duration.lock().unwrap()
+    }
+
     pub fn seek(&self, time: f64) -> Result<(), String> {
         if let Some(tx) = &self.control_tx {
             tx.send(PlayerCommand::Seek(time))
@@ -298,6 +308,7 @@ fn create_audio_stream(
     start_channel: usize,
     playing: Arc<AtomicBool>,
     position: Arc<Mutex<f64>>,
+    duration: Arc<Mutex<f64>>,
     control_rx: Receiver<PlayerCommand>,
 ) -> Result<Stream, String> {
     // Get supported config
@@ -331,9 +342,14 @@ fn create_audio_stream(
 
     // Decode audio file
     info!("[STREAM] Decoding audio file...");
-    let audio_samples = decode_audio_file(audio_path, sample_rate.into())?;
+    let audio_samples = decode_audio_file(audio_path, sample_rate)?;
     info!("[STREAM] Decoded {} stereo samples", audio_samples.len() / 2);
-    let audio_data = Arc::new(Mutex::new(AudioBuffer {
+    
+    // Calculate duration
+    let sample_rate_u32: u32 = sample_rate.into();
+    let audio_duration = (audio_samples.len() / 2) as f64 / sample_rate_u32 as f64;
+    *duration.lock().unwrap() = audio_duration;
+    info!("[STREAM] Duration: {:.2} seconds", audio_duration);    let audio_data = Arc::new(Mutex::new(AudioBuffer {
         samples: audio_samples,
         position: 0,
     }));
@@ -417,6 +433,7 @@ fn create_combined_audio_stream(
     instrumental_start_channel: usize,
     playing: Arc<AtomicBool>,
     position: Arc<Mutex<f64>>,
+    duration: Arc<Mutex<f64>>,
     control_rx: Receiver<PlayerCommand>,
 ) -> Result<Stream, String> {
     // Get supported config
@@ -447,6 +464,12 @@ fn create_combined_audio_stream(
     // Decode both audio files
     let vocals_samples = decode_audio_file(vocals_path, sample_rate)?;
     let instrumental_samples = decode_audio_file(instrumental_path, sample_rate)?;
+
+    // Calculate duration from vocals (both should be same length)
+    let sample_rate_u32: u32 = sample_rate.into();
+    let audio_duration = (vocals_samples.len() / 2) as f64 / sample_rate_u32 as f64;
+    *duration.lock().unwrap() = audio_duration;
+    info!("[COMBINED] Duration: {:.2} seconds", audio_duration);
 
     let vocals_data = Arc::new(Mutex::new(AudioBuffer {
         samples: vocals_samples,
@@ -941,4 +964,10 @@ pub fn get_multi_channel_playback_position() -> Result<f64, String> {
 pub fn is_multi_channel_playback_active() -> Result<bool, String> {
     let player = PLAYER.lock().map_err(|e| format!("Failed to lock player: {}", e))?;
     Ok(player.playing.load(Ordering::Relaxed))
+}
+
+#[tauri::command]
+pub fn get_multi_channel_playback_duration() -> Result<f64, String> {
+    let player = PLAYER.lock().map_err(|e| format!("Failed to lock player: {}", e))?;
+    Ok(player.get_duration())
 }

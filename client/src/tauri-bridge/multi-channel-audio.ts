@@ -92,3 +92,10 @@ export async function getMultiChannelPlaybackPosition(): Promise<number> {
 export async function isMultiChannelPlaybackActive(): Promise<boolean> {
   return invoke("is_multi_channel_playback_active");
 }
+
+/**
+ * Get total duration of the currently loaded audio in seconds
+ */
+export async function getMultiChannelPlaybackDuration(): Promise<number> {
+  return invoke("get_multi_channel_playback_duration");
+}

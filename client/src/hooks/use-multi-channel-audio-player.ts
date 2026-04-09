@@ -9,6 +9,7 @@ import {
   stopMultiChannelPlayback,
   seekMultiChannelPlayback,
   getMultiChannelPlaybackPosition,
+  getMultiChannelPlaybackDuration,
   isMultiChannelPlaybackActive,
   type MultiChannelConfig,
 } from "@/tauri-bridge/multi-channel-audio";
@@ -121,9 +122,10 @@ export function useMultiChannelAudioPlayer(
 
         console.log("[Multi-channel] Playback started successfully!");
 
-        // TODO: Get duration from audio metadata
-        // For now, estimate or poll until playback ends
-        setDuration(180); // Default 3 minutes, will be updated
+        // Get actual duration from Rust
+        const actualDuration = await getMultiChannelPlaybackDuration();
+        console.log("[Multi-channel] Duration:", actualDuration, "seconds");
+        setDuration(actualDuration);
         setIsReady(true);
         setIsPlaying(true);
 
