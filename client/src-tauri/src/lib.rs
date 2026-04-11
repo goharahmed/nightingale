@@ -20,7 +20,11 @@ use cache::{
     calculate_cache_stats, clear_all, clear_models_command, clear_videos_command,
 };
 use config::{load_config, save_config};
-use microphones::{list_microphones, start_mic_capture, stop_mic_capture};
+use microphones::{
+    list_microphones, list_input_devices,
+    start_mic_capture, stop_mic_capture,
+    start_mic_slot, stop_mic_slot, stop_all_mic_slots, get_mic_slot_status,
+};
 use playback::{
     ensure_mp3_stems, ensure_playable_source_video, fetch_pixabay_videos, get_audio_paths,
     load_transcript, save_transcript,
@@ -124,8 +128,13 @@ pub fn run() {
             fetch_pixabay_videos,
             get_media_port,
             list_microphones,
+            list_input_devices,
             start_mic_capture,
             stop_mic_capture,
+            start_mic_slot,
+            stop_mic_slot,
+            stop_all_mic_slots,
+            get_mic_slot_status,
             // Multi-channel audio
             multi_channel_audio::get_audio_output_devices,
             multi_channel_audio::start_multi_channel_playback,

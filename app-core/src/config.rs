@@ -6,6 +6,23 @@ use ts_rs::TS;
 
 use crate::cache::config_path;
 
+/// Persisted configuration for one microphone input slot.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct MicSlotSetting {
+    /// Display name of the input device (None = default).
+    pub device_name: Option<String>,
+    /// 0-indexed mono input channel to capture (None = down-mix all).
+    pub input_channel: Option<usize>,
+    /// Whether this slot is enabled.
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct AppConfig {
@@ -19,6 +36,8 @@ pub struct AppConfig {
     pub mic_active: Option<bool>,
     pub mic_mirroring: Option<bool>,
     pub preferred_mic: Option<String>,
+    /// 0-indexed mono input channel for the single-mic path (None = down-mix all).
+    pub preferred_mic_channel: Option<usize>,
     pub whisper_model: Option<String>,
     pub beam_size: Option<u32>,
     pub batch_size: Option<u32>,
@@ -33,6 +52,11 @@ pub struct AppConfig {
     pub vocals_start_channel: Option<usize>,
     pub instrumental_device_name: Option<String>,
     pub instrumental_start_channel: Option<usize>,
+    // Multi-mic input slots (up to 4)
+    /// How many mic slots are active (1–4). `None` or `1` = legacy single-mic.
+    pub mic_slot_count: Option<usize>,
+    /// Per-slot settings, indexed 0..3.
+    pub mic_slots: Option<Vec<MicSlotSetting>>,
 }
 
 fn default_data_path_option() -> Option<PathBuf> {
@@ -51,6 +75,7 @@ impl Default for AppConfig {
             mic_active: None,
             mic_mirroring: None,
             preferred_mic: None,
+            preferred_mic_channel: None,
             whisper_model: None,
             beam_size: None,
             batch_size: None,
@@ -64,6 +89,8 @@ impl Default for AppConfig {
             vocals_start_channel: None,
             instrumental_device_name: None,
             instrumental_start_channel: None,
+            mic_slot_count: None,
+            mic_slots: None,
         }
     }
 }

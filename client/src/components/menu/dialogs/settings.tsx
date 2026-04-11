@@ -26,6 +26,9 @@ import { useDialog } from "@/hooks/use-dialog";
 import { useConfig } from "@/queries/use-config";
 import { useConfigMutation } from "@/mutations/use-config-mutation";
 import { useMicDevices } from "@/hooks/use-mic-pitch";
+import { useInputDevices } from "@/hooks/use-multi-mic";
+import { useMicTest } from "@/hooks/use-mic-test";
+import { LevelMeter } from "@/components/shared/level-meter";
 import { cn } from "@/lib/utils";
 import {
   getAudioOutputDevices,
@@ -33,6 +36,8 @@ import {
   getAvailableChannelPairs,
   type AudioOutputDevice,
 } from "@/tauri-bridge/multi-channel-audio";
+import { formatInputChannel, getAvailableInputChannels } from "@/tauri-bridge/multi-mic";
+import type { MicSlotSetting } from "@/types/MicSlotSetting";
 
 const SEPARATORS = [
   { value: "karaoke", label: "UVR Karaoke" },
@@ -53,6 +58,8 @@ const NO_FOCUS_RING = "focus-visible:ring-0 focus-visible:border-transparent";
 
 export const SettingsDialog = () => {
   const micDevices = useMicDevices();
+  const { devices: inputDevices } = useInputDevices();
+  const micTest = useMicTest();
   const { mode, close } = useDialog();
   const { data: config } = useConfig();
   const { mutate } = useConfigMutation();
@@ -62,6 +69,13 @@ export const SettingsDialog = () => {
   const [multiChannelDevices, setMultiChannelDevices] = useState<AudioOutputDevice[]>([]);
 
   const open = mode === "settings";
+
+  // Stop mic test when settings dialog closes
+  useEffect(() => {
+    if (!open && micTest.testing) {
+      void micTest.stop();
+    }
+  }, [open, micTest]);
 
   const { isFocused } = useDialogNav({
     open,
@@ -157,6 +171,7 @@ export const SettingsDialog = () => {
                 onValueChange={(value) =>
                   mutate({
                     preferred_mic: value === "__default__" ? null : value,
+                    preferred_mic_channel: null,
                   })
                 }
                 value={config?.preferred_mic ?? "__default__"}
@@ -177,6 +192,189 @@ export const SettingsDialog = () => {
                 </SelectContent>
               </Select>
             </Field>
+            {(() => {
+              const selectedInputDev = inputDevices.find((d) => d.name === config?.preferred_mic);
+              if (!selectedInputDev || selectedInputDev.max_channels <= 1) return null;
+              return (
+                <Field>
+                  <Label>Input Channel</Label>
+                  <FieldDescription>
+                    Pick which physical input channel to capture from this device. "All (downmix)"
+                    mixes every channel together — not recommended for multi-channel mixers.
+                  </FieldDescription>
+                  <Select
+                    onValueChange={(value) =>
+                      mutate({
+                        preferred_mic_channel: value === "__mix__" ? null : Number(value),
+                      })
+                    }
+                    value={
+                      config?.preferred_mic_channel != null
+                        ? String(config.preferred_mic_channel)
+                        : "__mix__"
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All channels (downmix)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectLabel>Input Channel</SelectLabel>
+                        <SelectItem value="__mix__">All (downmix)</SelectItem>
+                        {getAvailableInputChannels(selectedInputDev.max_channels).map((ch) => (
+                          <SelectItem key={ch} value={String(ch)}>
+                            {formatInputChannel(ch)}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              );
+            })()}
+            <Field>
+              <Label>Test Input</Label>
+              <FieldDescription>
+                Verify your microphone is working. The level bar should move when you speak or sing.
+              </FieldDescription>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant={micTest.testing ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    if (micTest.testing) {
+                      void micTest.stop();
+                    } else {
+                      void micTest.start(
+                        config?.preferred_mic ?? null,
+                        config?.preferred_mic_channel ?? null,
+                      );
+                    }
+                  }}
+                >
+                  {micTest.testing ? "■ Stop" : "▶ Test Mic"}
+                </Button>
+                <div className="flex-1">
+                  <LevelMeter level={micTest.rms} height="10px" showDb />
+                </div>
+              </div>
+            </Field>
+            <Field>
+              <Label>Multi-Mic Input</Label>
+              <FieldDescription>
+                Enable multiple microphone inputs for multi-vocalist scoring. Select how many mic
+                slots to use and configure each one with a specific device and input channel.
+              </FieldDescription>
+              <ButtonGroup>
+                {[1, 2, 3, 4].map((n) => (
+                  <Button
+                    key={n}
+                    variant={(config?.mic_slot_count ?? 1) === n ? "default" : "outline"}
+                    onClick={() => {
+                      const existing = config?.mic_slots ?? [];
+                      const slots: MicSlotSetting[] = Array.from({ length: n }, (_, i) => ({
+                        device_name: existing[i]?.device_name ?? null,
+                        input_channel: existing[i]?.input_channel ?? null,
+                        enabled: existing[i]?.enabled ?? true,
+                      }));
+                      mutate({ mic_slot_count: n, mic_slots: slots });
+                    }}
+                  >
+                    {n} {n === 1 ? "mic" : "mics"}
+                  </Button>
+                ))}
+              </ButtonGroup>
+            </Field>
+            {(config?.mic_slot_count ?? 1) > 1 &&
+              Array.from({ length: config?.mic_slot_count ?? 1 }, (_, slotIdx) => {
+                const slotSetting = config?.mic_slots?.[slotIdx];
+                const selectedDevice = inputDevices.find(
+                  (d) => d.name === slotSetting?.device_name,
+                );
+                return (
+                  <div key={slotIdx} className="rounded-md border p-3 space-y-3">
+                    <Label className="text-sm font-semibold">Mic Slot {slotIdx + 1}</Label>
+                    <Field>
+                      <Label>Input Device</Label>
+                      <Select
+                        onValueChange={(value) => {
+                          const slots = [...(config?.mic_slots ?? [])];
+                          while (slots.length <= slotIdx) {
+                            slots.push({ device_name: null, input_channel: null, enabled: true });
+                          }
+                          slots[slotIdx] = {
+                            ...slots[slotIdx],
+                            device_name: value === "__default__" ? null : value,
+                            input_channel: null,
+                          };
+                          mutate({ mic_slots: slots });
+                        }}
+                        value={slotSetting?.device_name ?? "__default__"}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Default input device" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            <SelectLabel>Input Device</SelectLabel>
+                            <SelectItem value="__default__">Default</SelectItem>
+                            {inputDevices.map((dev) => (
+                              <SelectItem key={dev.name} value={dev.name}>
+                                {dev.name} ({dev.max_channels} ch)
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    {selectedDevice && selectedDevice.max_channels > 1 && (
+                      <Field>
+                        <Label>Input Channel</Label>
+                        <FieldDescription>
+                          Pick which physical input channel this vocalist is on
+                        </FieldDescription>
+                        <Select
+                          onValueChange={(value) => {
+                            const slots = [...(config?.mic_slots ?? [])];
+                            while (slots.length <= slotIdx) {
+                              slots.push({
+                                device_name: null,
+                                input_channel: null,
+                                enabled: true,
+                              });
+                            }
+                            slots[slotIdx] = {
+                              ...slots[slotIdx],
+                              input_channel: value === "__mix__" ? null : Number(value),
+                            };
+                            mutate({ mic_slots: slots });
+                          }}
+                          value={
+                            slotSetting?.input_channel != null
+                              ? String(slotSetting.input_channel)
+                              : "__mix__"
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="All channels (downmix)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              <SelectLabel>Input Channel</SelectLabel>
+                              <SelectItem value="__mix__">All (downmix)</SelectItem>
+                              {getAvailableInputChannels(selectedDevice.max_channels).map((ch) => (
+                                <SelectItem key={ch} value={String(ch)}>
+                                  {formatInputChannel(ch)}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    )}
+                  </div>
+                );
+              })}
             <Field>
               <Label>Multi-Channel Audio Routing</Label>
               <FieldDescription>

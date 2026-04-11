@@ -1,4 +1,5 @@
 import type { TimeSubscriber } from "@/hooks/use-audio-player";
+import { LevelMeter } from "@/components/shared/level-meter";
 import { forwardRef, memo, useEffect, useRef } from "react";
 import type { VideoFlavor } from "./video-background";
 import { isPixabayTheme, themeName } from "./background";
@@ -38,6 +39,9 @@ function HintText({ children, fontSize = "sm" }: { children: React.ReactNode; fo
 
 const FOOTER_NOTE_CLASS = `pointer-events-none absolute bottom-2 z-20 text-[0.6rem] text-white/30`;
 
+/** Color palette for multi-mic vocalist slots */
+const VOCALIST_COLORS = ["#60a5fa", "#f472b6", "#34d399", "#fbbf24"] as const;
+
 function Disclaimer({ source }: { source: string }) {
   const text =
     source === "lyrics"
@@ -72,6 +76,14 @@ interface PlaybackHudProps {
   micOn: boolean;
   micName: string;
   micMirrorOn: boolean;
+  /** Per-slot scores for multi-mic mode. null when not in multi-mic mode. */
+  slotScores?: (number | null)[] | null;
+  /** How many mic slots are active (1 = legacy single-mic). */
+  micSlotCount?: number;
+  /** RMS level for single-mic mode (0.0–1.0). */
+  micRms?: number;
+  /** Per-slot RMS levels for multi-mic mode. */
+  slotRms?: number[] | null;
 }
 
 function PlaybackHudImpl({
@@ -93,6 +105,10 @@ function PlaybackHudImpl({
   micOn,
   micName,
   micMirrorOn,
+  slotScores,
+  micSlotCount = 1,
+  micRms = 0,
+  slotRms,
 }: PlaybackHudProps) {
   const lastSecondRef = useRef(-1);
   const timerRef = useRef<HTMLParagraphElement>(null);
@@ -143,11 +159,38 @@ function PlaybackHudImpl({
         </div>
 
         <div className="flex flex-col items-end">
-          <div className={`text-lg text-white${pitchScore ? "" : "/50"}`}>
-            Score: {pitchScore ?? "--"}
-          </div>
+          {micSlotCount > 1 && slotScores ? (
+            <div className="flex flex-col items-end gap-0.5">
+              {slotScores.slice(0, micSlotCount).map((s, i) => (
+                <div
+                  key={i}
+                  className="text-sm"
+                  style={{ color: s != null ? VOCALIST_COLORS[i] : "rgba(255,255,255,0.35)" }}
+                >
+                  Mic {i + 1}: {s ?? "--"}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className={`text-lg text-white${pitchScore ? "" : "/50"}`}>
+              Score: {pitchScore ?? "--"}
+            </div>
+          )}
           <HintText>{formatGuideText(guideVolume)}</HintText>
           <HintText>Mic: {micOn ? micName : "OFF"} [M/N]</HintText>
+          {micOn &&
+            (micSlotCount > 1 && slotRms ? (
+              <div className="flex flex-col items-end gap-0.5 w-28">
+                {slotRms.slice(0, micSlotCount).map((r, i) => (
+                  <div key={i} className="flex items-center gap-1 w-full">
+                    <span className="text-[0.6rem] text-white/40 w-5">{i + 1}</span>
+                    <LevelMeter level={r} height="4px" variant="overlay" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <LevelMeter level={micRms} width="7rem" height="4px" variant="overlay" />
+            ))}
           <HintText>Mirror: {micMirrorOn ? "ON" : "OFF"} [R]</HintText>
           <HintText>{formatThemeText(themeIndex, videoFlavor)}</HintText>
           <HintText>[ESC] Back</HintText>

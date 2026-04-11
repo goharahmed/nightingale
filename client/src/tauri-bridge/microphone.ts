@@ -12,9 +12,11 @@ export const listMicrophones = async (): Promise<MicrophoneInfo[]> => {
 export const startMicCapture = async (
   preferred: string | null,
   options: MicCaptureOptions,
+  inputChannel?: number | null,
 ): Promise<string> => {
   return await invoke<string>("start_mic_capture", {
     preferred,
+    inputChannel: inputChannel ?? null,
     options,
   });
 };
@@ -23,8 +25,15 @@ export const stopMicCapture = async (): Promise<void> => {
   await invoke("stop_mic_capture");
 };
 
-export const onMicPitch = async (cb: (pitch: number | null) => void): Promise<UnlistenFn> => {
-  return await listen<{ pitch: number | null }>("mic-pitch", (event) => {
-    cb(event.payload.pitch);
+export interface MicPitchEvent {
+  pitch: number | null;
+  rms: number;
+}
+
+export const onMicPitch = async (
+  cb: (pitch: number | null, rms: number) => void,
+): Promise<UnlistenFn> => {
+  return await listen<MicPitchEvent>("mic-pitch", (event) => {
+    cb(event.payload.pitch, event.payload.rms);
   });
 };

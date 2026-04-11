@@ -17,7 +17,9 @@ import {
 import { useAudioPlayer } from "@/hooks/use-audio-player";
 import { useMultiChannelAudioPlayer } from "@/hooks/use-multi-channel-audio-player";
 import { useMicCapture, useMicDevices, useMicPitch } from "@/hooks/use-mic-pitch";
+import { useMultiMic } from "@/hooks/use-multi-mic";
 import { usePitchScoring } from "@/hooks/use-pitch-scoring";
+import { useMultiPitchScoring } from "@/hooks/use-multi-pitch-scoring";
 import { PROFILES } from "@/queries/keys";
 import { useProfiles } from "@/queries/use-profiles";
 import { addScore } from "@/tauri-bridge/profile";
@@ -179,21 +181,67 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
   const [selectedMicId, setSelectedMicId] = useState<string | null>(config?.preferred_mic ?? null);
   const micDevices = useMicDevices();
 
+  // ── Multi-mic configuration ──────────────────────────────────────────────
+  const micSlotCount = config?.mic_slot_count ?? 1;
+  const useMultiMicMode = micSlotCount > 1;
+
+  // Build per-slot configs from persisted settings
+  const multiMicSlotConfigs = useMemo(() => {
+    const slots = config?.mic_slots ?? [];
+    return Array.from({ length: micSlotCount }, (_, i) => ({
+      deviceName: slots[i]?.device_name ?? null,
+      inputChannel: slots[i]?.input_channel ?? null,
+    }));
+  }, [config?.mic_slots, micSlotCount]);
+
+  // ── Legacy single-mic hooks (active when micSlotCount == 1) ──────────────
   const micPitchEnabled = audio.isReady && audio.isPlaying && !paused && micUserEnabled;
   const micMirrorEnabled = audio.isReady && audio.isPlaying && !paused && micMirrorUserEnabled;
-  const { active: micCaptureActive, error: micCaptureError } = useMicCapture(selectedMicId, {
-    emit_pitch: micPitchEnabled,
-    emit_audio: micMirrorEnabled,
-  });
+  const { active: micCaptureActive, error: micCaptureError } = useMicCapture(
+    !useMultiMicMode ? selectedMicId : null,
+    {
+      emit_pitch: !useMultiMicMode && micPitchEnabled,
+      emit_audio: !useMultiMicMode && micMirrorEnabled,
+    },
+    !useMultiMicMode ? (config?.preferred_mic_channel ?? null) : null,
+  );
   const {
     latestPitch,
+    latestRms,
     active: micPitchActive,
     error: micPitchError,
-  } = useMicPitch(micPitchEnabled);
-  const { series, score } = usePitchScoring(audio, latestPitch);
+  } = useMicPitch(!useMultiMicMode && micPitchEnabled);
+  const { series, score } = usePitchScoring(audio, useMultiMicMode ? null : latestPitch);
+
+  // ── Multi-mic hooks (active when micSlotCount > 1) ───────────────────────
+  const multiMicEnabled =
+    useMultiMicMode && audio.isReady && audio.isPlaying && !paused && micUserEnabled;
+  const { slots: multiMicSlots, activeCount: multiMicActiveCount } = useMultiMic({
+    slotCount: useMultiMicMode ? micSlotCount : 0,
+    slotConfigs: multiMicSlotConfigs,
+    enabled: multiMicEnabled,
+    emitPitch: multiMicEnabled,
+    emitAudio: false,
+  });
+  const multiScoringResults = useMultiPitchScoring(
+    audio,
+    multiMicSlots,
+    useMultiMicMode ? multiMicActiveCount : 0,
+  );
+
+  // ── Unified score for saving ─────────────────────────────────────────────
+  // In multi-mic mode, save the highest slot score.
+  const effectiveScore = useMultiMicMode
+    ? Math.max(0, ...multiScoringResults.slice(0, micSlotCount).map((r) => r.score))
+    : score;
+  const slotScoresForHud = useMultiMicMode
+    ? multiScoringResults
+        .slice(0, micSlotCount)
+        .map((r, i) => (multiMicSlots[i]?.active ? r.score : null))
+    : null;
   const micErrorShown = useRef(false);
-  const scoreRef = useRef(score);
-  scoreRef.current = score;
+  const scoreRef = useRef(effectiveScore);
+  scoreRef.current = effectiveScore;
   const finishHandledRef = useRef(false);
   const [skipOutroPending, setSkipOutroPending] = useState(false);
 
@@ -207,6 +255,16 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
       micErrorShown.current = false;
     }
   }, [micCaptureError, micPitchError]);
+
+  // Show errors from multi-mic slots
+  useEffect(() => {
+    if (!useMultiMicMode) return;
+    for (const s of multiMicSlots) {
+      if (s.error) {
+        toast.error(`Mic slot ${s.slot + 1}: ${s.error}`);
+      }
+    }
+  }, [useMultiMicMode, multiMicSlots]);
 
   const handleToggleMic = useCallback(() => {
     setMicUserEnabled((prev) => {
@@ -404,14 +462,28 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
             subscribe={audio.subscribe}
             getCurrentTime={audio.getCurrentTime}
             transcriptSource={transcriptSource}
-            pitchScore={micCaptureActive && micPitchActive && micUserEnabled ? score : null}
+            pitchScore={
+              !useMultiMicMode && micCaptureActive && micPitchActive && micUserEnabled
+                ? score
+                : null
+            }
             micOn={micUserEnabled}
             micName={selectedMicId ?? "Default"}
             micMirrorOn={micMirrorUserEnabled}
+            slotScores={slotScoresForHud}
+            micSlotCount={micSlotCount}
+            micRms={!useMultiMicMode && micCaptureActive ? latestRms : 0}
+            slotRms={
+              useMultiMicMode ? multiMicSlots.slice(0, micSlotCount).map((s) => s.rms) : null
+            }
           />
           <PitchGraph
-            series={series}
-            visible={micCaptureActive && micPitchActive && micUserEnabled}
+            series={useMultiMicMode ? (multiScoringResults[0]?.series ?? series) : series}
+            visible={
+              useMultiMicMode
+                ? multiMicSlots.some((s) => s.active) && micUserEnabled
+                : micCaptureActive && micPitchActive && micUserEnabled
+            }
           />
           <LyricsDisplay
             segments={segments}

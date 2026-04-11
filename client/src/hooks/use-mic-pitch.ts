@@ -40,12 +40,14 @@ export function useMicDevices(adapter: MicrophoneAdapter = defaultAdapter) {
 
 export function useMicPitch(enabled: boolean, adapter: MicrophoneAdapter = defaultAdapter) {
   const [latestPitch, setLatestPitch] = useState<number | null>(null);
+  const [latestRms, setLatestRms] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState(false);
 
   useEffect(() => {
     if (!enabled) {
       setLatestPitch(null);
+      setLatestRms(0);
       setError(null);
       setActive(false);
       return;
@@ -56,8 +58,11 @@ export function useMicPitch(enabled: boolean, adapter: MicrophoneAdapter = defau
 
     const run = async () => {
       try {
-        stopListening = await adapter.onPitch((pitch) => {
-          if (!cancelled) setLatestPitch(pitch);
+        stopListening = await adapter.onPitch((pitch, rms) => {
+          if (!cancelled) {
+            setLatestPitch(pitch);
+            setLatestRms(rms);
+          }
         });
         if (cancelled) {
           stopListening();
@@ -69,6 +74,7 @@ export function useMicPitch(enabled: boolean, adapter: MicrophoneAdapter = defau
         if (!cancelled) {
           setError(e instanceof Error ? e.message : String(e));
           setLatestPitch(null);
+          setLatestRms(0);
           setActive(false);
         }
       }
@@ -80,16 +86,18 @@ export function useMicPitch(enabled: boolean, adapter: MicrophoneAdapter = defau
       cancelled = true;
       stopListening?.();
       setLatestPitch(null);
+      setLatestRms(0);
       setActive(false);
     };
   }, [enabled, adapter]);
 
-  return { latestPitch, active, error };
+  return { latestPitch, latestRms, active, error };
 }
 
 export function useMicCapture(
   deviceId: string | null,
   options: MicCaptureOptions,
+  inputChannel?: number | null,
   adapter: MicrophoneAdapter = defaultAdapter,
 ) {
   const [active, setActive] = useState(false);
@@ -112,7 +120,7 @@ export function useMicCapture(
 
     const run = async () => {
       try {
-        await adapter.startCapture(deviceId, options);
+        await adapter.startCapture(deviceId, options, inputChannel);
 
         if (cancelled) {
           await adapter.stopCapture().catch(() => {});
@@ -142,7 +150,7 @@ export function useMicCapture(
       }
       setActive(false);
     };
-  }, [enabled, options.emit_pitch, options.emit_audio, deviceId, adapter]);
+  }, [enabled, options.emit_pitch, options.emit_audio, deviceId, inputChannel, adapter]);
 
   return { active, error };
 }
