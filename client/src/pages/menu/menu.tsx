@@ -3,6 +3,8 @@ import { EditLyricsDialog } from "@/components/menu/dialogs/edit-lyrics";
 import { ExitDialog } from "@/components/menu/dialogs/exit";
 import { InfoDialog } from "@/components/menu/dialogs/info";
 import { SelectLanguageDialog } from "@/components/menu/dialogs/language";
+import { CreatePlaylistDialog } from "@/components/menu/dialogs/playlist/create";
+import { RenamePlaylistDialog } from "@/components/menu/dialogs/playlist/rename";
 import { CreateProfileDialog } from "@/components/menu/dialogs/profile/create";
 import { SelectProfileDialog } from "@/components/menu/dialogs/profile/select";
 import { SetThumbnailDialog } from "@/components/menu/dialogs/set-thumbnail";
@@ -64,6 +66,8 @@ const MenuInner = () => {
       <EditLyricsDialog />
       <SetThumbnailDialog />
       <YouTubeSearchDialog />
+      <CreatePlaylistDialog />
+      <RenamePlaylistDialog />
       <SidebarInset>{content}</SidebarInset>
     </Sidebar>
   );

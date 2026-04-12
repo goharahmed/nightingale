@@ -13,7 +13,7 @@ import { toast } from "sonner";
 
 export const useAnalysis = () => {
   const queryClient = useQueryClient();
-  const { artist, album, query, folder_path, folder_recursive } = useLibraryFilter();
+  const { artist, album, query, folder_path, folder_recursive, playlist_id } = useLibraryFilter();
 
   return useMemo(() => {
     const invalidateQueue = () => {
@@ -44,12 +44,12 @@ export const useAnalysis = () => {
     return {
       enqueueOne: wrap(enqueueOne, invalidateQueue),
       enqueueAll: wrap(
-        () => enqueueAll({ artist, album, query, folder_path, folder_recursive }),
+        () => enqueueAll({ artist, album, query, folder_path, folder_recursive, playlist_id }),
         invalidateQueue,
       ),
       deleteSongCache: wrap(deleteSongCache, invalidateSongs),
       reanalyzeTranscript: wrap(reanalyzeTranscript, invalidateSongs),
       reanalyzeFull: wrap(reanalyzeFull, invalidateSongs),
     };
-  }, [queryClient, artist, album, query, folder_path, folder_recursive]);
+  }, [queryClient, artist, album, query, folder_path, folder_recursive, playlist_id]);
 };

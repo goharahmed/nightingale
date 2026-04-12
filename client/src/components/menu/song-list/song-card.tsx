@@ -5,6 +5,9 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item";
@@ -19,6 +22,8 @@ import {
   LanguagesIcon,
   FileTextIcon,
   ImageIcon,
+  ListMusicIcon,
+  ListPlusIcon,
   LoaderCircleIcon,
   MenuIcon,
   MusicIcon,
@@ -27,6 +32,7 @@ import {
   PlayIcon,
   Trash2Icon,
   VideoIcon,
+  XIcon,
 } from "lucide-react";
 import { memo, MouseEvent, useState } from "react";
 import { useNavigate } from "react-router";
@@ -36,6 +42,13 @@ import { useDialog } from "@/hooks/use-dialog";
 import { Shifts, ShiftType } from "./shifts";
 import { useQueryClient } from "@tanstack/react-query";
 import { SONGS } from "@/queries/keys";
+import {
+  usePlaylists,
+  useAddSongToPlaylist,
+  useRemoveSongFromPlaylist,
+} from "@/queries/use-playlists";
+import { useCurrentProfile } from "@/hooks/use-current-profile";
+import { useLibraryFilter } from "@/hooks/use-library-filter";
 
 function formatSeconds(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
@@ -92,10 +105,12 @@ interface SongCardProps {
   bestScore?: number;
   index: number;
   isFocused: boolean;
+  /** When set, the Play button will navigate with playlist context */
+  onPlay?: (song: Song) => void;
 }
 
 export const SongCard = memo(
-  ({ song, queueStatus, bestScore, index, isFocused }: SongCardProps) => {
+  ({ song, queueStatus, bestScore, index, isFocused, onPlay }: SongCardProps) => {
     const [shifting, setShifting] = useState<Record<ShiftType, boolean>>({
       tempo: false,
       key: false,
@@ -105,6 +120,11 @@ export const SongCard = memo(
     const { setMode } = useDialog();
     const queryClient = useQueryClient();
     const { enqueueOne, deleteSongCache, reanalyzeFull } = useAnalysis();
+    const { playlist_id } = useLibraryFilter();
+    const profile = useCurrentProfile();
+    const { data: playlists } = usePlaylists();
+    const { mutate: addToPlaylist } = useAddSongToPlaylist();
+    const { mutate: removeFromPlaylist } = useRemoveSongFromPlaylist();
     const { label, variant, className, isAnalyzing, isReady } = getStatusInfo(
       song.is_analyzed,
       queueStatus,
@@ -169,7 +189,11 @@ export const SongCard = memo(
                 className="gap-1"
                 onClick={(e) => {
                   e.stopPropagation();
-                  navigate("/playback", { state: { song } });
+                  if (onPlay) {
+                    onPlay(song);
+                  } else {
+                    navigate("/playback", { state: { song } });
+                  }
                 }}
               >
                 <PlayIcon className="size-3" /> Play
@@ -292,6 +316,42 @@ export const SongCard = memo(
                   <ImageIcon />
                   Set thumbnail
                 </DropdownMenuItem>
+                {profile && playlists && playlists.length > 0 && (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <ListPlusIcon />
+                      Add to Playlist
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      {playlists.map((pl) => (
+                        <DropdownMenuItem
+                          key={pl.id}
+                          onClick={withMenuAction(async () => {
+                            addToPlaylist(
+                              { playlistId: pl.id, fileHash: song.file_hash },
+                              {
+                                onSuccess: () => toast.success(`Added to "${pl.name}"`),
+                              },
+                            );
+                          })}
+                        >
+                          <ListMusicIcon className="size-3.5" />
+                          {pl.name}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                )}
+                {playlist_id && (
+                  <DropdownMenuItem
+                    onClick={withMenuAction(async () => {
+                      removeFromPlaylist({ playlistId: playlist_id, fileHash: song.file_hash });
+                    })}
+                  >
+                    <XIcon />
+                    Remove from playlist
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>

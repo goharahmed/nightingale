@@ -7,10 +7,10 @@ use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::cache::{analysis_queue_path, nightingale_dir, songs_path};
 use crate::library_menu::{LibraryMenuItem, LibraryMenuItems};
-use crate::library_model::{FolderTreeNode, LibraryMenuFilters, LoadSongsParams, SongsMeta, SongsStore};
+use crate::library_model::{FolderTreeNode, LibraryMenuFilters, LoadSongsParams, Playlist, PlaylistPlayMode, SongsMeta, SongsStore};
 use crate::song::{Song, TranscriptSource};
 
-const SCHEMA_VERSION: i32 = 1;
+const SCHEMA_VERSION: i32 = 2;
 
 static LIBRARY_DB: OnceLock<Mutex<Connection>> = OnceLock::new();
 
@@ -94,6 +94,29 @@ fn run_migrations(conn: &Connection) -> rusqlite::Result<()> {
                 analyzing_pct INTEGER,
                 failed_message TEXT
             );
+        ",
+        )?;
+    }
+    if v < 2 {
+        conn.execute_batch(
+            "
+            CREATE TABLE IF NOT EXISTS playlists (
+                id INTEGER PRIMARY KEY,
+                profile TEXT NOT NULL,
+                name TEXT NOT NULL,
+                play_mode TEXT NOT NULL DEFAULT 'sequential',
+                created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_playlists_profile ON playlists(profile);
+
+            CREATE TABLE IF NOT EXISTS playlist_songs (
+                id INTEGER PRIMARY KEY,
+                playlist_id INTEGER NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+                file_hash TEXT NOT NULL,
+                position INTEGER NOT NULL,
+                UNIQUE(playlist_id, file_hash)
+            );
+            CREATE INDEX IF NOT EXISTS idx_playlist_songs_playlist ON playlist_songs(playlist_id, position);
         ",
         )?;
     }
@@ -743,6 +766,60 @@ pub fn load_songs_page(params: &LoadSongsParams) -> rusqlite::Result<SongsStore>
         )
     })?;
 
+    // Playlist mode: JOIN playlist_songs, order by position
+    if let Some(pid) = params.filters.playlist_id {
+        let search_words = params.search.as_deref().and_then(search_words_from_query);
+
+        let mut where_parts: Vec<String> = vec!["ps.playlist_id = ?".to_string()];
+        let mut bind_strings: Vec<String> = vec![pid.to_string()];
+
+        if let Some(words) = &search_words {
+            let (w, mut b) = songs_where_like_words(words);
+            where_parts.push(format!("({w})"));
+            bind_strings.append(&mut b);
+        }
+
+        let where_sql = where_parts.join(" AND ");
+
+        let sql = format!(
+            "SELECT s.payload FROM songs s \
+             INNER JOIN playlist_songs ps ON ps.file_hash = s.file_hash \
+             WHERE {where_sql} \
+             ORDER BY ps.position \
+             LIMIT {} OFFSET {}",
+            params.take as i64, params.skip as i64
+        );
+        let processed = with_conn(|c| {
+            let mut stmt = c.prepare(&sql)?;
+            let rows = stmt.query_map(
+                rusqlite::params_from_iter(bind_strings.iter().map(|s| s.as_str())),
+                load_song_from_payload_column,
+            )?;
+            rows.collect::<Result<Vec<_>, _>>()
+        })?;
+
+        let count_sql = format!(
+            "SELECT COUNT(*) FROM songs s \
+             INNER JOIN playlist_songs ps ON ps.file_hash = s.file_hash \
+             WHERE {where_sql}"
+        );
+        let processed_count = with_conn(|c| {
+            let n: i64 = c.query_row(
+                &count_sql,
+                rusqlite::params_from_iter(bind_strings.iter().map(|s| s.as_str())),
+                |r| r.get(0),
+            )?;
+            Ok(n as usize)
+        })?;
+
+        return Ok(SongsStore {
+            count: scan_count as usize,
+            folder,
+            processed,
+            processed_count,
+        });
+    }
+
     let search_words = params.search.as_deref().and_then(search_words_from_query);
     let (where_sql, bind_strings) =
         build_song_where_clause(search_words.as_deref(), &params.filters, &[]);
@@ -806,6 +883,20 @@ pub fn load_songs_page(params: &LoadSongsParams) -> rusqlite::Result<SongsStore>
 pub fn iter_file_hashes_filtered_not_analyzed(
     filters: &LibraryMenuFilters,
 ) -> rusqlite::Result<Vec<String>> {
+    // Playlist mode: JOIN playlist_songs so we only analyze songs in this playlist
+    if let Some(pid) = filters.playlist_id {
+        let sql =
+            "SELECT s.file_hash FROM songs s \
+             INNER JOIN playlist_songs ps ON ps.file_hash = s.file_hash \
+             WHERE ps.playlist_id = ? AND s.is_analyzed = 0 \
+             ORDER BY ps.position";
+        return with_conn(|c| {
+            let mut stmt = c.prepare(sql)?;
+            let rows = stmt.query_map([pid], |r| r.get(0))?;
+            rows.collect()
+        });
+    }
+
     let (where_sql, bind_strings) = build_song_where_clause(None, filters, &["s.is_analyzed = 0"]);
 
     if let Some(where_sql) = where_sql {
@@ -1184,5 +1275,127 @@ pub fn get_folder_tree() -> rusqlite::Result<Vec<FolderTreeNode>> {
     }
 
     Ok(root_node.into_tree_nodes(root_prefix))
+}
+
+// ---------------------------------------------------------------------------
+// Playlists CRUD
+// ---------------------------------------------------------------------------
+
+pub fn create_playlist(profile: &str, name: &str) -> rusqlite::Result<Playlist> {
+    with_conn_mut(|c| {
+        c.execute(
+            "INSERT INTO playlists (profile, name, play_mode) VALUES (?1, ?2, 'sequential')",
+            params![profile, name],
+        )?;
+        let id = c.last_insert_rowid();
+        Ok(Playlist {
+            id,
+            profile: profile.to_string(),
+            name: name.to_string(),
+            play_mode: PlaylistPlayMode::Sequential,
+            song_count: 0,
+        })
+    })
+}
+
+pub fn rename_playlist(playlist_id: i64, name: &str) -> rusqlite::Result<()> {
+    with_conn_mut(|c| {
+        c.execute(
+            "UPDATE playlists SET name = ?2 WHERE id = ?1",
+            params![playlist_id, name],
+        )?;
+        Ok(())
+    })
+}
+
+pub fn delete_playlist(playlist_id: i64) -> rusqlite::Result<()> {
+    with_conn_mut(|c| {
+        c.execute("DELETE FROM playlists WHERE id = ?1", [playlist_id])?;
+        Ok(())
+    })
+}
+
+pub fn set_playlist_play_mode(playlist_id: i64, mode: PlaylistPlayMode) -> rusqlite::Result<()> {
+    with_conn_mut(|c| {
+        c.execute(
+            "UPDATE playlists SET play_mode = ?2 WHERE id = ?1",
+            params![playlist_id, mode.as_str()],
+        )?;
+        Ok(())
+    })
+}
+
+pub fn get_playlists_for_profile(profile: &str) -> rusqlite::Result<Vec<Playlist>> {
+    with_conn(|c| {
+        let mut stmt = c.prepare(
+            "SELECT p.id, p.profile, p.name, p.play_mode,
+                    (SELECT COUNT(*) FROM playlist_songs ps WHERE ps.playlist_id = p.id) AS song_count
+             FROM playlists p
+             WHERE p.profile = ?1
+             ORDER BY p.name COLLATE NOCASE",
+        )?;
+        let rows = stmt.query_map([profile], |r| {
+            let mode_str: String = r.get(3)?;
+            Ok(Playlist {
+                id: r.get(0)?,
+                profile: r.get(1)?,
+                name: r.get(2)?,
+                play_mode: PlaylistPlayMode::from_str(&mode_str),
+                song_count: r.get::<_, i64>(4)? as usize,
+            })
+        })?;
+        rows.collect()
+    })
+}
+
+pub fn add_song_to_playlist(playlist_id: i64, file_hash: &str) -> rusqlite::Result<()> {
+    with_conn_mut(|c| {
+        let max_pos: i64 = c
+            .query_row(
+                "SELECT COALESCE(MAX(position), 0) FROM playlist_songs WHERE playlist_id = ?1",
+                [playlist_id],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
+        c.execute(
+            "INSERT OR IGNORE INTO playlist_songs (playlist_id, file_hash, position) VALUES (?1, ?2, ?3)",
+            params![playlist_id, file_hash, max_pos + 1],
+        )?;
+        Ok(())
+    })
+}
+
+pub fn remove_song_from_playlist(playlist_id: i64, file_hash: &str) -> rusqlite::Result<()> {
+    with_conn_mut(|c| {
+        c.execute(
+            "DELETE FROM playlist_songs WHERE playlist_id = ?1 AND file_hash = ?2",
+            params![playlist_id, file_hash],
+        )?;
+        Ok(())
+    })
+}
+
+pub fn reorder_playlist_songs(playlist_id: i64, file_hashes: &[String]) -> rusqlite::Result<()> {
+    with_conn_mut(|c| {
+        let tx = c.transaction()?;
+        for (i, hash) in file_hashes.iter().enumerate() {
+            tx.execute(
+                "UPDATE playlist_songs SET position = ?3 WHERE playlist_id = ?1 AND file_hash = ?2",
+                params![playlist_id, hash, (i + 1) as i64],
+            )?;
+        }
+        tx.commit()?;
+        Ok(())
+    })
+}
+
+pub fn get_playlist_song_hashes(playlist_id: i64) -> rusqlite::Result<Vec<String>> {
+    with_conn(|c| {
+        let mut stmt = c.prepare(
+            "SELECT file_hash FROM playlist_songs WHERE playlist_id = ?1 ORDER BY position",
+        )?;
+        let rows = stmt.query_map([playlist_id], |r| r.get(0))?;
+        rows.collect()
+    })
 }
 

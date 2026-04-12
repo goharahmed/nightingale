@@ -2,27 +2,38 @@ import { useBestScoresBySongForActiveProfile } from "@/hooks/use-best-scores-by-
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { SongCard } from "./song-card";
 import { FolderHeader } from "./folder-header";
+import { PlaylistHeader } from "./playlist-header";
 import { Filters } from "./filters";
 import { Progress } from "./progress";
 import { useAnalysisQueue, useSongs } from "@/queries/use-songs";
+import { usePlaylists } from "@/queries/use-playlists";
 import { useMenuFocus } from "@/contexts/menu-focus-context";
 import { useLibraryFilter } from "@/hooks/use-library-filter";
 import { useSearch } from "@/hooks/use-search";
 import { useNavigate } from "react-router";
+import type { Song } from "@/types/Song";
+import type { PlaylistContext } from "@/pages/playback/playback";
 
 export const SongList = () => {
   const navigate = useNavigate();
   const { data: queue } = useAnalysisQueue();
   const { focus, actionsRef, scrollRef, setFocus } = useMenuFocus();
   const { search } = useSearch();
-  const { artist, album, query, folder_path } = useLibraryFilter();
+  const { artist, album, query, folder_path, playlist_id } = useLibraryFilter();
   const bestBySong = useBestScoresBySongForActiveProfile();
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useSongs();
+  const { data: playlists } = usePlaylists();
+
+  // Active playlist (if any)
+  const activePlaylist = useMemo(
+    () => (playlist_id ? playlists?.find((p) => p.id === playlist_id) : undefined),
+    [playlist_id, playlists],
+  );
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
     setFocus((prev) => ({ ...prev, songIndex: 0 }));
-  }, [search, artist, album, query, folder_path, scrollRef, setFocus]);
+  }, [search, artist, album, query, folder_path, playlist_id, scrollRef, setFocus]);
 
   const songs = useMemo(() => data?.pages.flatMap((page) => page.processed) ?? [], [data]);
 
@@ -37,6 +48,34 @@ export const SongList = () => {
     actionsRef.current.songCount = songs.length;
   }, [songs.length, actionsRef]);
 
+  // Build playlist context for playback navigation
+  const buildPlaylistState = useCallback(
+    (targetSong: Song, index: number): { song: Song; playlistContext?: PlaylistContext } => {
+      if (!activePlaylist || !playlist_id) {
+        return { song: targetSong };
+      }
+      return {
+        song: targetSong,
+        playlistContext: {
+          playlistId: playlist_id,
+          playlistName: activePlaylist.name,
+          songs: songsRef.current,
+          currentIndex: index,
+          playMode: activePlaylist.play_mode,
+        },
+      };
+    },
+    [activePlaylist, playlist_id],
+  );
+
+  const onPlayFromPlaylist = useCallback(
+    (targetSong: Song) => {
+      const index = songsRef.current.findIndex((s) => s.file_hash === targetSong.file_hash);
+      navigate("/playback", { state: buildPlaylistState(targetSong, Math.max(0, index)) });
+    },
+    [navigate, buildPlaylistState],
+  );
+
   useEffect(() => {
     actionsRef.current.onConfirmSong = (index: number) => {
       const song = songsRef.current[index];
@@ -49,14 +88,14 @@ export const SongList = () => {
         (!queueStatus || (typeof queueStatus === "object" && "Failed" in queueStatus));
 
       if (isReady) {
-        navigate("/playback", { state: { song } });
+        navigate("/playback", { state: buildPlaylistState(song, index) });
       }
     };
 
     return () => {
       actionsRef.current.onConfirmSong = null;
     };
-  }, [actionsRef, navigate]);
+  }, [actionsRef, navigate, buildPlaylistState]);
 
   const setScrollContainer = useCallback(
     (el: HTMLDivElement | null) => {
@@ -105,6 +144,13 @@ export const SongList = () => {
           </div>
         </div>
       )}
+      {playlist_id && (
+        <div className="flex w-full justify-center px-4">
+          <div className="w-full md:w-11/12 lg:w-4/5 xl:w-3/5">
+            <PlaylistHeader />
+          </div>
+        </div>
+      )}
       <div
         ref={setScrollContainer}
         className="no-scrollbar flex min-h-0 flex-1 flex-col items-center gap-2 overflow-auto px-4 py-1"
@@ -119,6 +165,7 @@ export const SongList = () => {
               bestScore={bestBySong.get(song.file_hash)}
               index={index}
               isFocused={isSongListActive && !focus.analyzeAllFocused && focus.songIndex === index}
+              onPlay={playlist_id ? onPlayFromPlaylist : undefined}
             />
           ))}
           <div ref={sentinelRef} className="h-1 shrink-0" />

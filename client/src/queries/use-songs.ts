@@ -44,10 +44,10 @@ export const useSongsMeta = () => {
 
 export const useSongs = () => {
   const { search } = useSearch();
-  const { artist, album, query, folder_path, folder_recursive } = useLibraryFilter();
+  const { artist, album, query, folder_path, folder_recursive, playlist_id } = useLibraryFilter();
 
   return useInfiniteQuery({
-    queryKey: [...SONGS, search, artist, album, query, folder_path, folder_recursive],
+    queryKey: [...SONGS, search, artist, album, query, folder_path, folder_recursive, playlist_id],
     queryFn: ({ pageParam = 0 }) => {
       const params: LoadSongsParams = {
         search: search || null,
@@ -57,6 +57,7 @@ export const useSongs = () => {
           query: query ?? null,
           folder_path: folder_path ?? null,
           folder_recursive: folder_recursive ?? false,
+          playlist_id: playlist_id ?? null,
         },
         skip: pageParam,
         take: PAGE_SIZE,

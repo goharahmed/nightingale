@@ -13,6 +13,7 @@ export const useLibraryFilter = () => {
     query: filter.query,
     folder_path: filter.folder_path,
     folder_recursive: filter.folder_recursive,
+    playlist_id: filter.playlist_id,
     setLibraryFilter,
   };
 };

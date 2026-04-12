@@ -6,4 +6,5 @@ export type LibraryMenuFilters = {
   query: string | null;
   folder_path: string | null;
   folder_recursive: boolean;
+  playlist_id: number | null;
 };

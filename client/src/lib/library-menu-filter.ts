@@ -9,6 +9,7 @@ export const EMPTY_LIBRARY_FILTER: LibraryMenuFilters = {
   query: null,
   folder_path: null,
   folder_recursive: false,
+  playlist_id: null,
 };
 
 const HOT_FILTERS: Record<string, LibraryMenuFilters> = {
@@ -44,7 +45,8 @@ export function libraryFiltersEqual(a: LibraryMenuFilters, b: LibraryMenuFilters
     a.album === b.album &&
     a.query === b.query &&
     a.folder_path === b.folder_path &&
-    a.folder_recursive === b.folder_recursive
+    a.folder_recursive === b.folder_recursive &&
+    a.playlist_id === b.playlist_id
   );
 }
 

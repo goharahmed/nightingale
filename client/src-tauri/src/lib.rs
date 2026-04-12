@@ -30,7 +30,12 @@ use playback::{
     load_transcript, save_transcript,
 };
 use profile::{add_score, create_profile, delete_profile, load_profiles, switch_profile};
-use scanner::{get_folder_tree, load_analysis_queue, load_library_menu_items, load_songs, load_songs_meta, trigger_scan, update_song_metadata};
+use scanner::{
+    add_song_to_playlist, create_playlist, delete_playlist, get_folder_tree,
+    get_playlist_song_hashes, get_playlists, load_analysis_queue, load_library_menu_items,
+    load_songs, load_songs_meta, remove_song_from_playlist, rename_playlist,
+    reorder_playlist_songs, set_playlist_play_mode, trigger_scan, update_song_metadata,
+};
 use tauri::{Manager, RunEvent, WebviewWindowBuilder};
 use vendor::{is_ready, trigger_setup};
 use youtube::{download_youtube_video, get_youtube_video_info, search_youtube, set_song_thumbnail};
@@ -112,6 +117,16 @@ pub fn run() {
             load_library_menu_items,
             update_song_metadata,
             get_folder_tree,
+            // Playlists
+            get_playlists,
+            create_playlist,
+            rename_playlist,
+            delete_playlist,
+            set_playlist_play_mode,
+            add_song_to_playlist,
+            remove_song_from_playlist,
+            reorder_playlist_songs,
+            get_playlist_song_hashes,
             // Analyzer
             enqueue_one,
             enqueue_all,
