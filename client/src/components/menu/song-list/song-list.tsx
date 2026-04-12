@@ -6,13 +6,11 @@ import { Progress } from "./progress";
 import { useAnalysisQueue, useSongs } from "@/queries/use-songs";
 import { useMenuFocus } from "@/contexts/menu-focus-context";
 import { useLibraryFilter } from "@/hooks/use-library-filter";
-import { useAnalysis } from "@/hooks/use-analysis";
 import { useSearch } from "@/hooks/use-search";
 import { useNavigate } from "react-router";
 
 export const SongList = () => {
   const navigate = useNavigate();
-  const { enqueueOne } = useAnalysis();
   const { data: queue } = useAnalysisQueue();
   const { focus, actionsRef, scrollRef, setFocus } = useMenuFocus();
   const { search } = useSearch();
@@ -51,15 +49,13 @@ export const SongList = () => {
 
       if (isReady) {
         navigate("/playback", { state: { song } });
-      } else if (!queueStatus || queueStatus === "Queued") {
-        enqueueOne(song.file_hash);
       }
     };
 
     return () => {
       actionsRef.current.onConfirmSong = null;
     };
-  }, [actionsRef, navigate, enqueueOne]);
+  }, [actionsRef, navigate]);
 
   const setScrollContainer = useCallback(
     (el: HTMLDivElement | null) => {

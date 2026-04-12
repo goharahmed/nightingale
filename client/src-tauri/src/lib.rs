@@ -33,7 +33,7 @@ use profile::{add_score, create_profile, delete_profile, load_profiles, switch_p
 use scanner::{load_analysis_queue, load_library_menu_items, load_songs, load_songs_meta, trigger_scan, update_song_metadata};
 use tauri::{Manager, RunEvent, WebviewWindowBuilder};
 use vendor::{is_ready, trigger_setup};
-use youtube::{download_youtube_video, get_youtube_video_info, search_youtube};
+use youtube::{download_youtube_video, get_youtube_video_info, search_youtube, set_song_thumbnail};
 
 #[tauri::command]
 fn get_media_port() -> u16 {
@@ -149,7 +149,8 @@ pub fn run() {
             // YouTube
             search_youtube,
             download_youtube_video,
-            get_youtube_video_info
+            get_youtube_video_info,
+            set_song_thumbnail
         ])
         .setup(|app| {
             let _ = dotenvy::dotenv();

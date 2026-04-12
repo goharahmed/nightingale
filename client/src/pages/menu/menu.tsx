@@ -5,6 +5,7 @@ import { InfoDialog } from "@/components/menu/dialogs/info";
 import { SelectLanguageDialog } from "@/components/menu/dialogs/language";
 import { CreateProfileDialog } from "@/components/menu/dialogs/profile/create";
 import { SelectProfileDialog } from "@/components/menu/dialogs/profile/select";
+import { SetThumbnailDialog } from "@/components/menu/dialogs/set-thumbnail";
 import { SettingsDialog } from "@/components/menu/dialogs/settings";
 import { YouTubeSearchDialog } from "@/components/menu/dialogs/youtube";
 import { Sidebar } from "@/components/menu/sidebar/sidebar";
@@ -61,6 +62,7 @@ const MenuInner = () => {
       <SelectLanguageDialog />
       <EditMetadataDialog />
       <EditLyricsDialog />
+      <SetThumbnailDialog />
       <YouTubeSearchDialog />
       <SidebarInset>{content}</SidebarInset>
     </Sidebar>

@@ -42,3 +42,10 @@ export const downloadYouTubeVideo = async (
 export const getYouTubeVideoInfo = async (url: string) => {
   return await invoke("get_youtube_video_info", { url });
 };
+
+export const setSongThumbnail = async (
+  fileHash: string,
+  source: string,
+): Promise<import("@/types/Song").Song> => {
+  return await invoke("set_song_thumbnail", { fileHash, source });
+};
