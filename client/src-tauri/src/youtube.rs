@@ -108,7 +108,7 @@ pub async fn search_youtube(
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        let error_msg = if stderr.contains("yt-dlp") || stderr.contains("yt_dlp") {
+        let error_msg = if stderr.contains("No module named 'yt_dlp'") || stderr.contains("yt-dlp not installed") {
             format!("YouTube search failed: yt-dlp not installed. Please run Setup to install dependencies.\n\nDetails: {}", stderr)
         } else {
             format!("YouTube search failed: {}", stderr)
@@ -160,7 +160,7 @@ pub async fn download_youtube_video(
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        let error_msg = if stderr.contains("yt-dlp") || stderr.contains("yt_dlp") {
+        let error_msg = if stderr.contains("No module named 'yt_dlp'") || stderr.contains("yt-dlp not installed") {
             format!("YouTube download failed: yt-dlp not installed. Please run Setup to install dependencies.\n\nDetails: {}", stderr)
         } else {
             format!("YouTube download failed: {}", stderr)

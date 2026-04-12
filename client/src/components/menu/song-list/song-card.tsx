@@ -214,13 +214,13 @@ export const SongCard = memo(
               >
                 {label}
               </Badge>
-            ) : (
+            ) : !isReady ? (
               <Badge variant={variant} className={className}>
                 {isAnalyzing && <LoaderCircleIcon className="size-3 animate-spin" />}
                 {label}
                 {displaySource}
               </Badge>
-            )}
+            ) : null}
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

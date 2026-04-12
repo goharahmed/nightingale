@@ -483,6 +483,7 @@ pub fn step_install_packages() -> Result<(), String> {
         "huggingface_hub>=0.27.0",
         audio_sep_pkg,
         "yt-dlp>=2024.0.0",
+        "mutagen>=1.47.0",
     ];
 
     if gpu.legacy_torch {

@@ -86,30 +86,34 @@ export const SongList = () => {
   const isSongListActive = focus.active && focus.panel === "songList";
 
   return (
-    <div className="flex min-h-0 w-full flex-1 justify-center">
-      <div className="flex min-h-0 w-full flex-col gap-4 p-4 md:w-11/12 lg:w-4/5 xl:w-3/5">
-        <Filters />
-        <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
+      <div className="flex w-full justify-center px-4 pt-4">
+        <div className="w-full md:w-11/12 lg:w-4/5 xl:w-3/5">
+          <Filters />
+        </div>
+      </div>
+      <div className="flex w-full justify-center px-4">
+        <div className="w-full md:w-11/12 lg:w-4/5 xl:w-3/5">
           <Progress />
-          <div
-            ref={setScrollContainer}
-            className="no-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-auto p-1"
-            role="list"
-          >
-            {songs.map((song, index) => (
-              <SongCard
-                key={song.file_hash}
-                song={song}
-                queueStatus={queue?.entries[song.file_hash]}
-                bestScore={bestBySong.get(song.file_hash)}
-                index={index}
-                isFocused={
-                  isSongListActive && !focus.analyzeAllFocused && focus.songIndex === index
-                }
-              />
-            ))}
-            <div ref={sentinelRef} className="h-1 shrink-0" />
-          </div>
+        </div>
+      </div>
+      <div
+        ref={setScrollContainer}
+        className="no-scrollbar flex min-h-0 flex-1 flex-col items-center gap-2 overflow-auto px-4 py-1"
+        role="list"
+      >
+        <div className="flex w-full flex-col gap-2 md:w-11/12 lg:w-4/5 xl:w-3/5">
+          {songs.map((song, index) => (
+            <SongCard
+              key={song.file_hash}
+              song={song}
+              queueStatus={queue?.entries[song.file_hash]}
+              bestScore={bestBySong.get(song.file_hash)}
+              index={index}
+              isFocused={isSongListActive && !focus.analyzeAllFocused && focus.songIndex === index}
+            />
+          ))}
+          <div ref={sentinelRef} className="h-1 shrink-0" />
         </div>
       </div>
     </div>
