@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ANALYSIS_QUEUE, SONGS, SONGS_META, MENU } from "./keys";
+import { ANALYSIS_QUEUE, FOLDER_TREE, SONGS, SONGS_META, MENU } from "./keys";
 import {
   getPreloadedSongsMeta,
   loadAnalysisQueue,
@@ -30,10 +30,12 @@ export const useSongsMeta = () => {
       if (count !== processed_count) {
         setPrevMatched(false);
         queryClient.invalidateQueries({ queryKey: SONGS });
+        queryClient.invalidateQueries({ queryKey: FOLDER_TREE });
       } else {
         if (prevMatched === false) {
           setPrevMatched(true);
           queryClient.invalidateQueries({ queryKey: SONGS });
+          queryClient.invalidateQueries({ queryKey: FOLDER_TREE });
         }
       }
     },
@@ -42,10 +44,10 @@ export const useSongsMeta = () => {
 
 export const useSongs = () => {
   const { search } = useSearch();
-  const { artist, album, query } = useLibraryFilter();
+  const { artist, album, query, folder_path, folder_recursive, playlist_id } = useLibraryFilter();
 
   return useInfiniteQuery({
-    queryKey: [...SONGS, search, artist, album, query],
+    queryKey: [...SONGS, search, artist, album, query, folder_path, folder_recursive, playlist_id],
     queryFn: ({ pageParam = 0 }) => {
       const params: LoadSongsParams = {
         search: search || null,
@@ -53,6 +55,9 @@ export const useSongs = () => {
           artist: artist ?? null,
           album: album ?? null,
           query: query ?? null,
+          folder_path: folder_path ?? null,
+          folder_recursive: folder_recursive ?? false,
+          playlist_id: playlist_id ?? null,
         },
         skip: pageParam,
         take: PAGE_SIZE,
@@ -84,6 +89,7 @@ export const useAnalysisQueue = () => {
             queryClient.invalidateQueries({ queryKey: SONGS });
             queryClient.invalidateQueries({ queryKey: MENU });
             queryClient.invalidateQueries({ queryKey: SONGS_META });
+            queryClient.invalidateQueries({ queryKey: FOLDER_TREE });
             break;
           }
         }

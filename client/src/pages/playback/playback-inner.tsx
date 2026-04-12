@@ -42,13 +42,15 @@ import {
   onStemsReady,
 } from "@/tauri-bridge/playback";
 import { joinMediaUrl } from "@/adapters/playback";
+import type { PlaylistContext } from "./playback";
 
 export interface PlaybackInnerProps {
   song: Song;
   config: AppConfig | null;
+  playlistContext?: PlaylistContext;
 }
 
-export function PlaybackInner({ song, config }: PlaybackInnerProps) {
+export function PlaybackInner({ song, config, playlistContext }: PlaybackInnerProps) {
   const fileHash = song.file_hash;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -428,11 +430,77 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
     };
   }, [showResult]);
 
+  // ── Playlist: compute next song ────────────────────────────────────────
+  const nextSong = useMemo(() => {
+    if (!playlistContext) return null;
+    const { songs: plSongs, currentIndex, playMode } = playlistContext;
+    if (plSongs.length <= 1) return null;
+
+    if (playMode === "Random") {
+      let idx: number;
+      do {
+        idx = Math.floor(Math.random() * plSongs.length);
+      } while (idx === currentIndex && plSongs.length > 1);
+      return { song: plSongs[idx], index: idx };
+    }
+
+    // Sequential
+    const nextIdx = (currentIndex + 1) % plSongs.length;
+    return { song: plSongs[nextIdx], index: nextIdx };
+  }, [playlistContext]);
+
+  const [showNextSongPreview, setShowNextSongPreview] = useState(false);
+
+  // Show "Next Song" preview in last 15 seconds of playback
+  useEffect(() => {
+    if (!nextSong || !audio.duration || audio.duration <= 0) {
+      setShowNextSongPreview(false);
+      return;
+    }
+
+    const checkInterval = setInterval(() => {
+      const currentTime = audio.getCurrentTime();
+      const remaining = audio.duration - currentTime;
+      setShowNextSongPreview(remaining <= 15 && remaining > 0 && !showResult);
+    }, 500);
+
+    return () => clearInterval(checkInterval);
+  }, [nextSong, audio.duration, audio.getCurrentTime, showResult]);
+
+  const navigateToNextSong = useCallback(() => {
+    if (!nextSong || !playlistContext) return;
+    audio.cleanup();
+    navigate("/playback", {
+      replace: true,
+      state: {
+        song: nextSong.song,
+        playlistContext: {
+          ...playlistContext,
+          currentIndex: nextSong.index,
+        },
+      },
+    });
+  }, [nextSong, playlistContext, audio.cleanup, navigate]);
+
   const handleResultFinish = useCallback(() => {
     audio.cleanup();
     setShowResult(false);
-    navigate("/", { replace: true });
-  }, [audio.cleanup, navigate]);
+
+    if (nextSong && playlistContext) {
+      navigate("/playback", {
+        replace: true,
+        state: {
+          song: nextSong.song,
+          playlistContext: {
+            ...playlistContext,
+            currentIndex: nextSong.index,
+          },
+        },
+      });
+    } else {
+      navigate("/", { replace: true });
+    }
+  }, [audio.cleanup, navigate, nextSong, playlistContext]);
 
   useEffect(() => {
     if (audio.error) {
@@ -559,6 +627,25 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
       )}
 
       <PauseOverlay open={paused && !showResult} onContinue={handleContinue} onExit={handleExit} />
+
+      {/* Next Song preview card – shown in last 15 seconds of playlist playback */}
+      {showNextSongPreview && nextSong && (
+        <div className="pointer-events-auto fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-xl border border-white/20 bg-black/70 px-4 py-3 shadow-lg backdrop-blur-md animate-in slide-in-from-right-4 fade-in duration-500">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[0.65rem] font-semibold uppercase tracking-wider text-white/60">
+              Up Next
+            </span>
+            <span className="text-sm font-medium text-white">{nextSong.song.title}</span>
+            <span className="text-xs text-white/50">{nextSong.song.artist}</span>
+          </div>
+          <button
+            onClick={navigateToNextSong}
+            className="ml-2 rounded-lg bg-white/15 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-white/25"
+          >
+            Skip to next →
+          </button>
+        </div>
+      )}
 
       <ResultDialog
         open={showResult}

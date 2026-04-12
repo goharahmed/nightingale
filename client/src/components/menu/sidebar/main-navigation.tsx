@@ -15,20 +15,33 @@ import {
   FileQuestionMark,
   DiscIcon,
   UserIcon,
+  ListMusicIcon,
+  PlusIcon,
+  PencilIcon,
+  Trash2Icon,
   type LucideIcon,
 } from "lucide-react";
 import { useLibraryMenuItems } from "@/queries/use-library-menu-items";
+import { usePlaylists, useDeletePlaylist } from "@/queries/use-playlists";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+} from "@/components/ui/context-menu";
 import type { LibraryMenuItem } from "@/types/LibraryMenuItem";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   isLibraryMenuItemActive,
   libraryFilterFromMenuSelection,
+  EMPTY_LIBRARY_FILTER,
   type LibraryMenuSection,
 } from "@/lib/library-menu-filter";
 import type { LibraryMenuFilters } from "@/types/LibraryMenuFilters";
 import { useLibraryFilter } from "@/hooks/use-library-filter";
 import { useMenuFocus } from "@/contexts/menu-focus-context";
+import { useDialog } from "@/hooks/use-dialog";
 
 type NavSectionConfig = {
   section: LibraryMenuSection;
@@ -142,18 +155,25 @@ interface MainNavigationProps {
 
 type SidebarNavigationRow =
   | { kind: "collapse"; section: LibraryMenuSection }
-  | { kind: "item"; section: LibraryMenuSection; value: string };
+  | { kind: "item"; section: LibraryMenuSection; value: string }
+  | { kind: "playlist-collapse" }
+  | { kind: "playlist-create" }
+  | { kind: "playlist-item"; playlistId: number };
 
 export const MainNavigation = ({ registerCallbacks }: MainNavigationProps) => {
   const { data: menu } = useLibraryMenuItems();
+  const { data: playlists } = usePlaylists();
+  const { mutate: deletePlaylist } = useDeletePlaylist();
   const { setLibraryFilter, ...filter } = useLibraryFilter();
   const { focus } = useMenuFocus();
+  const { setMode } = useDialog();
   const [openBySection, setOpenBySection] = useState<Record<LibraryMenuSection, boolean>>(
     () =>
       Object.fromEntries(
         NAV_SECTIONS.map(({ section, defaultOpen }) => [section, defaultOpen]),
       ) as Record<LibraryMenuSection, boolean>,
   );
+  const [playlistsOpen, setPlaylistsOpen] = useState(true);
 
   const isSidebarActive = focus.active && focus.panel === "sidebar";
 
@@ -176,7 +196,7 @@ export const MainNavigation = ({ registerCallbacks }: MainNavigationProps) => {
   }, [menu]);
 
   const rows = useMemo<SidebarNavigationRow[]>(() => {
-    return visibleSections.flatMap(({ section, visibleItems }) => {
+    const menuRows = visibleSections.flatMap(({ section, visibleItems }) => {
       const sectionRows: SidebarNavigationRow[] = [{ kind: "collapse", section }];
       if (openBySection[section]) {
         sectionRows.push(
@@ -185,13 +205,47 @@ export const MainNavigation = ({ registerCallbacks }: MainNavigationProps) => {
       }
       return sectionRows;
     });
-  }, [visibleSections, openBySection]);
+
+    // Playlists section
+    const playlistRows: SidebarNavigationRow[] = [{ kind: "playlist-collapse" }];
+    if (playlistsOpen) {
+      playlistRows.push({ kind: "playlist-create" });
+      if (playlists) {
+        playlistRows.push(
+          ...playlists.map((pl) => ({ kind: "playlist-item" as const, playlistId: pl.id })),
+        );
+      }
+    }
+
+    return [...menuRows, ...playlistRows];
+  }, [visibleSections, openBySection, playlistsOpen, playlists]);
 
   useEffect(() => {
     const callbacks = rows.map((row) => {
       if (row.kind === "collapse") {
         return () => {
           setOpenBySection((prev) => ({ ...prev, [row.section]: !prev[row.section] }));
+        };
+      }
+
+      if (row.kind === "playlist-collapse") {
+        return () => {
+          setPlaylistsOpen((prev) => !prev);
+        };
+      }
+
+      if (row.kind === "playlist-create") {
+        return () => {
+          setMode("create-playlist");
+        };
+      }
+
+      if (row.kind === "playlist-item") {
+        return () => {
+          setLibraryFilter({
+            ...EMPTY_LIBRARY_FILTER,
+            playlist_id: row.playlistId,
+          });
         };
       }
 
@@ -209,7 +263,7 @@ export const MainNavigation = ({ registerCallbacks }: MainNavigationProps) => {
     return () => {
       registerCallbacks([]);
     };
-  }, [rows, menu, selectMenuItem, registerCallbacks]);
+  }, [rows, menu, playlists, selectMenuItem, setLibraryFilter, setMode, registerCallbacks]);
 
   const collapseIndexBySection = useMemo(() => {
     const indexMap = new Map<LibraryMenuSection, number>();
@@ -252,6 +306,27 @@ export const MainNavigation = ({ registerCallbacks }: MainNavigationProps) => {
 
     return itemMap;
   }, [rows, focus.sidebarIndex]);
+
+  // Playlist section indices for focus highlighting
+  const playlistCollapseIndex = useMemo(
+    () => rows.findIndex((r) => r.kind === "playlist-collapse"),
+    [rows],
+  );
+
+  const playlistCreateIndex = useMemo(
+    () => rows.findIndex((r) => r.kind === "playlist-create"),
+    [rows],
+  );
+
+  const playlistItemIndices = useMemo(() => {
+    const map = new Map<number, number>();
+    rows.forEach((row, index) => {
+      if (row.kind === "playlist-item") {
+        map.set(row.playlistId, index);
+      }
+    });
+    return map;
+  }, [rows]);
 
   useEffect(() => {
     if (!isSidebarActive) {
@@ -308,6 +383,109 @@ export const MainNavigation = ({ registerCallbacks }: MainNavigationProps) => {
               />
             ))
           )}
+
+          {/* ── Playlists section ────────────────────────────── */}
+          <Collapsible
+            open={playlistsOpen}
+            onOpenChange={setPlaylistsOpen}
+            className="group/collapsible"
+          >
+            <SidebarMenuItem>
+              <CollapsibleTrigger asChild>
+                <SidebarMenuButton
+                  data-sidebar-nav-index={
+                    playlistCollapseIndex >= 0 ? playlistCollapseIndex : undefined
+                  }
+                  className={`flex w-full justify-between ${
+                    isSidebarActive && playlistCollapseIndex === focus.sidebarIndex
+                      ? "ring-2 ring-primary bg-sidebar-accent"
+                      : ""
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <ListMusicIcon className="size-4 shrink-0" />
+                    Playlists
+                  </span>
+                  <ChevronDown className="transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                </SidebarMenuButton>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <SidebarMenuSub className="mr-0 pr-0">
+                  <SidebarMenuSubItem>
+                    <SidebarMenuButton
+                      data-sidebar-nav-index={
+                        playlistCreateIndex >= 0 ? playlistCreateIndex : undefined
+                      }
+                      className={`flex items-center gap-2 px-2 py-1.5 text-muted-foreground hover:text-foreground ${
+                        isSidebarActive && playlistCreateIndex === focus.sidebarIndex
+                          ? "ring-2 ring-primary bg-sidebar-accent"
+                          : ""
+                      }`}
+                      onClick={() => setMode("create-playlist")}
+                    >
+                      <PlusIcon className="size-3.5" />
+                      New playlist
+                    </SidebarMenuButton>
+                  </SidebarMenuSubItem>
+                  {playlists?.map((pl) => (
+                    <SidebarMenuSubItem key={pl.id}>
+                      <ContextMenu>
+                        <ContextMenuTrigger asChild>
+                          <SidebarMenuButton
+                            data-sidebar-nav-index={playlistItemIndices.get(pl.id)}
+                            isActive={filter.playlist_id === pl.id}
+                            className={`flex h-fit items-center justify-between gap-2 px-2 py-1.5 ${
+                              isSidebarActive &&
+                              playlistItemIndices.get(pl.id) === focus.sidebarIndex
+                                ? "ring-2 ring-primary bg-sidebar-accent"
+                                : ""
+                            }`}
+                            onClick={() =>
+                              setLibraryFilter({
+                                ...EMPTY_LIBRARY_FILTER,
+                                playlist_id: pl.id,
+                              })
+                            }
+                          >
+                            {pl.name}
+                            <Badge className="h-5 border-0 bg-muted px-1.5 text-[0.65rem] font-medium text-muted-foreground">
+                              {pl.song_count}
+                            </Badge>
+                          </SidebarMenuButton>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          <ContextMenuItem
+                            onClick={() =>
+                              setMode({
+                                mode: "rename-playlist",
+                                playlistId: pl.id,
+                                currentName: pl.name,
+                              })
+                            }
+                          >
+                            <PencilIcon className="size-3.5" />
+                            Rename
+                          </ContextMenuItem>
+                          <ContextMenuItem
+                            variant="destructive"
+                            onClick={() => {
+                              deletePlaylist(pl.id);
+                              if (filter.playlist_id === pl.id) {
+                                setLibraryFilter(EMPTY_LIBRARY_FILTER);
+                              }
+                            }}
+                          >
+                            <Trash2Icon className="size-3.5" />
+                            Delete
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
+                    </SidebarMenuSubItem>
+                  ))}
+                </SidebarMenuSub>
+              </CollapsibleContent>
+            </SidebarMenuItem>
+          </Collapsible>
         </SidebarMenu>
       </SidebarGroup>
     </SidebarContent>

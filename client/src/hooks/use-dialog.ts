@@ -8,11 +8,13 @@ export type DialogMode =
   | "settings"
   | "about"
   | "youtube"
+  | "create-playlist"
   | { mode: "language"; song: Song }
   | { mode: "reanalyze-language"; song: Song }
   | { mode: "edit-metadata"; song: Song }
   | { mode: "edit-lyrics"; song: Song }
   | { mode: "set-thumbnail"; song: Song }
+  | { mode: "rename-playlist"; playlistId: number; currentName: string }
   | null;
 
 const dialogAtom = atom<DialogMode>(null);

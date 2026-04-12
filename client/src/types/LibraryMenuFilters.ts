@@ -4,4 +4,7 @@ export type LibraryMenuFilters = {
   artist: string | null;
   album: string | null;
   query: string | null;
+  folder_path: string | null;
+  folder_recursive: boolean;
+  playlist_id: number | null;
 };

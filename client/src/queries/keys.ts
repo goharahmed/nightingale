@@ -5,3 +5,5 @@ export const SONGS = ["songs"];
 export const SONGS_META = ["songs-meta"];
 export const ANALYSIS_QUEUE = ["analysis-queue"];
 export const MENU = ["menu"];
+export const FOLDER_TREE = ["folder-tree"];
+export const PLAYLISTS = ["playlists"];
