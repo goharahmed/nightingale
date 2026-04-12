@@ -14,6 +14,11 @@ export interface PitchSeries {
   similarities: number[];
 }
 
+/** Extended series that includes lookahead ref pitches for the visual headstart. */
+export interface PitchSeriesWithLookahead extends PitchSeries {
+  lookaheadRefPitches: (number | null)[];
+}
+
 export function freqToSemitone(hz: number): number {
   return 12 * Math.log2(hz / 440) + 69;
 }
@@ -158,4 +163,33 @@ export function sampleVocalsWindow(
   }
   out.set(ch.subarray(start, start + out.length));
   return true;
+}
+
+/**
+ * Pre-compute the full reference pitch contour for the vocal track at
+ * PUSH_INTERVAL_SEC intervals. This allows the pitch graph to show a
+ * spatial lookahead without expensive per-frame detection.
+ */
+export function precomputeRefContour(vocals: AudioBuffer): (number | null)[] {
+  const sr = vocals.sampleRate;
+  const ch = vocals.numberOfChannels > 0 ? vocals.getChannelData(0) : null;
+  if (!ch) return [];
+
+  const detector = createPitchDetector();
+  const buf = new Float32Array(PITCH_WINDOW_SAMPLES);
+  const totalEntries = Math.ceil(vocals.duration / PUSH_INTERVAL_SEC) + 1;
+  const contour: (number | null)[] = [];
+
+  for (let i = 0; i < totalEntries; i++) {
+    const timeSec = i * PUSH_INTERVAL_SEC;
+    const start = Math.floor(Math.max(0, timeSec - MIC_LATENCY_COMPENSATION_SEC) * sr);
+    if (start + PITCH_WINDOW_SAMPLES > ch.length) {
+      contour.push(null);
+    } else {
+      buf.set(ch.subarray(start, start + PITCH_WINDOW_SAMPLES));
+      contour.push(detectPitchFromSamplesRef(detector, buf, sr));
+    }
+  }
+
+  return contour;
 }

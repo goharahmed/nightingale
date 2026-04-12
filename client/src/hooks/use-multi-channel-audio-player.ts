@@ -13,7 +13,8 @@ import {
   isMultiChannelPlaybackActive,
   type MultiChannelConfig,
 } from "@/tauri-bridge/multi-channel-audio";
-import { getAudioPaths } from "@/tauri-bridge/playback";
+import { getAudioPaths, getMediaPort } from "@/tauri-bridge/playback";
+import { joinMediaUrl } from "@/adapters/playback";
 import type { TimeSubscriber } from "./use-audio-player";
 import { toast } from "sonner";
 
@@ -54,6 +55,8 @@ export function useMultiChannelAudioPlayer(
   const subscribersRef = useRef<Set<TimeSubscriber>>(new Set());
   const positionPollIntervalRef = useRef<number>(0);
   const cancelledRef = useRef(false);
+  /** Decoded vocals AudioBuffer used for pitch analysis / scoring (not for playback). */
+  const vocalsBufRef = useRef<AudioBuffer | null>(null);
 
   // Stringify config to use as dependency (avoids object reference issues)
   const configStr = JSON.stringify(config);
@@ -121,6 +124,26 @@ export function useMultiChannelAudioPlayer(
         }
 
         console.log("[Multi-channel] Playback started successfully!");
+
+        // Decode vocals in background for pitch analysis / scoring
+        (async () => {
+          try {
+            const port = await getMediaPort();
+            const baseUrl = `http://127.0.0.1:${port}`;
+            const vocUrl = joinMediaUrl(baseUrl, paths.vocals);
+            const resp = await fetch(vocUrl);
+            if (!resp.ok) throw new Error(`fetch vocals: ${resp.status}`);
+            const audioCtx = new AudioContext();
+            const buf = await audioCtx.decodeAudioData(await resp.arrayBuffer());
+            if (!cancelled && !cancelledRef.current) {
+              vocalsBufRef.current = buf;
+              console.log("[Multi-channel] Vocals buffer decoded for analysis");
+            }
+            await audioCtx.close();
+          } catch (e) {
+            console.warn("[Multi-channel] Could not decode vocals for analysis:", e);
+          }
+        })();
 
         // Get actual duration from Rust
         const actualDuration = await getMultiChannelPlaybackDuration();
@@ -213,7 +236,7 @@ export function useMultiChannelAudioPlayer(
   }, []);
 
   // Stub methods for compatibility with AudioPlayer interface
-  const getVocalsBuffer = useCallback(() => null, []);
+  const getVocalsBuffer = useCallback(() => vocalsBufRef.current, []);
   const getAudioContext = useCallback(() => null, []);
   const setVocalsOutputDevice = useCallback(async () => {}, []);
   const setInstrumentalOutputDevice = useCallback(async () => {}, []);

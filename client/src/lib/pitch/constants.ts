@@ -19,6 +19,12 @@ export const SEMITONE_TOLERANCE = 6;
 
 export const MIC_LATENCY_COMPENSATION_SEC = 0.08;
 
+/** How far ahead (in seconds) the reference vocal line leads the singer's line in the pitch graph. */
+export const REF_LOOKAHEAD_SEC = 1.5;
+
+/** Number of display entries the reference line extends ahead of the user line. */
+export const REF_LOOKAHEAD_ENTRIES = Math.round(REF_LOOKAHEAD_SEC / PUSH_INTERVAL_SEC);
+
 export const BASE_DISPLAY_WIDTH = 400;
 export const BASE_DISPLAY_HEIGHT = 44;
 export const REFERENCE_HEIGHT = 1080;

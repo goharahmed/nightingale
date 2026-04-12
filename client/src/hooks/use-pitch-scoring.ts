@@ -1,12 +1,17 @@
 import type { AudioPlayer } from "@/hooks/use-audio-player";
-import { PITCH_WINDOW_SAMPLES } from "@/lib/pitch/constants";
+import {
+  PITCH_WINDOW_SAMPLES,
+  PUSH_INTERVAL_SEC,
+  REF_LOOKAHEAD_ENTRIES,
+} from "@/lib/pitch/constants";
 import { createPitchDetector, detectPitchFromSamplesRef } from "@/lib/pitch/detect";
 import {
   computeSingableTime,
   PitchScoring,
-  PitchSeries,
+  type PitchSeriesWithLookahead,
   PitchStateBuffer,
   pitchSimilarity,
+  precomputeRefContour,
   sampleVocalsWindow,
 } from "@/lib/pitch/state";
 import { useEffect, useRef, useState } from "react";
@@ -18,10 +23,12 @@ export function usePitchScoring(audio: AudioPlayer, micPitch: number | null) {
   const scoringRef = useRef(new PitchScoring(1));
   const micPitchRef = useRef(micPitch);
   const singableRef = useRef<number | null>(null);
-  const [series, setSeries] = useState<PitchSeries>({
+  const contourRef = useRef<(number | null)[] | null>(null);
+  const [series, setSeries] = useState<PitchSeriesWithLookahead>({
     refPitches: [],
     userPitches: [],
     similarities: [],
+    lookaheadRefPitches: [],
   });
   const [score, setScore] = useState(0);
 
@@ -37,8 +44,9 @@ export function usePitchScoring(audio: AudioPlayer, micPitch: number | null) {
     const singable = vocals ? computeSingableTime(vocals) : audio.duration;
     singableRef.current = singable;
     scoringRef.current = new PitchScoring(singable);
+    contourRef.current = vocals ? precomputeRefContour(vocals) : null;
 
-    setSeries(bufferRef.current.snapshot());
+    setSeries({ ...bufferRef.current.snapshot(), lookaheadRefPitches: [] });
     setScore(0);
   }, [audio.isReady, audio.duration]);
 
@@ -55,6 +63,14 @@ export function usePitchScoring(audio: AudioPlayer, micPitch: number | null) {
       const vocals = audio.getVocalsBuffer();
       const mp = micPitchRef.current;
 
+      // Lazily compute contour + singable time when vocals buffer first becomes available
+      if (vocals && !contourRef.current) {
+        contourRef.current = precomputeRefContour(vocals);
+        const singable = computeSingableTime(vocals);
+        singableRef.current = singable;
+        scoringRef.current = new PitchScoring(singable);
+      }
+
       if (!vocals || !sampleVocalsWindow(vocals, t, scratchRef.current)) {
         bufferRef.current.tryPush(null, mp, 0, t);
       } else {
@@ -68,7 +84,18 @@ export function usePitchScoring(audio: AudioPlayer, micPitch: number | null) {
         scoringRef.current.accumulate(t, refHz, mp, sim);
       }
 
-      setSeries(bufferRef.current.snapshot());
+      // Build lookahead ref pitches from pre-computed contour
+      const contour = contourRef.current;
+      const lookaheadRefPitches: (number | null)[] = [];
+      if (contour) {
+        const baseIdx = Math.round(t / PUSH_INTERVAL_SEC);
+        for (let j = 1; j <= REF_LOOKAHEAD_ENTRIES; j++) {
+          const idx = baseIdx + j;
+          lookaheadRefPitches.push(idx < contour.length ? contour[idx] : null);
+        }
+      }
+
+      setSeries({ ...bufferRef.current.snapshot(), lookaheadRefPitches });
       setScore(scoringRef.current.score());
     };
 

@@ -2,9 +2,10 @@ import {
   BASE_DISPLAY_HEIGHT,
   BASE_DISPLAY_WIDTH,
   PITCH_BUFFER_SIZE,
+  REF_LOOKAHEAD_ENTRIES,
   REFERENCE_HEIGHT,
 } from "@/lib/pitch/constants";
-import type { PitchSeries } from "@/lib/pitch/state";
+import type { PitchSeriesWithLookahead } from "@/lib/pitch/state";
 import { freqToSemitone, snapToRefOctave } from "@/lib/pitch/state";
 import { useEffect, useRef, useState } from "react";
 
@@ -12,43 +13,11 @@ function displayScale(windowHeight: number): number {
   return Math.max(0.85, windowHeight / REFERENCE_HEIGHT);
 }
 
-function similarityToRgb(sim: number): { r: number; g: number; b: number } {
-  const good = { r: 0.2, g: 0.9, b: 0.3 };
-  const ok = { r: 0.95, g: 0.8, b: 0.1 };
-  const bad = { r: 0.9, g: 0.2, b: 0.2 };
-
-  if (sim >= 0.7) {
-    const t = (sim - 0.7) / 0.3;
-    return {
-      r: ok.r + (good.r - ok.r) * t,
-      g: ok.g + (good.g - ok.g) * t,
-      b: ok.b + (good.b - ok.b) * t,
-    };
-  }
-
-  const t = Math.max(0, sim / 0.7);
-
-  return {
-    r: bad.r + (ok.r - bad.r) * t,
-    g: bad.g + (ok.g - bad.g) * t,
-    b: bad.b + (ok.b - bad.b) * t,
-  };
-}
-
-function lerpRgb(
-  a: { r: number; g: number; b: number },
-  b: { r: number; g: number; b: number },
-  t: number,
-) {
-  return {
-    r: a.r + (b.r - a.r) * t,
-    g: a.g + (b.g - a.g) * t,
-    b: a.b + (b.b - a.b) * t,
-  };
-}
+/** Total display slots: past buffer + future lookahead. */
+const TOTAL_ENTRIES = PITCH_BUFFER_SIZE + REF_LOOKAHEAD_ENTRIES;
 
 interface PitchGraphProps {
-  series: PitchSeries;
+  series: PitchSeriesWithLookahead;
   visible: boolean;
 }
 
@@ -99,62 +68,87 @@ export function PitchGraph({ series, visible }: PitchGraphProps) {
       return centerY + plotH / 2 - normalized * plotH;
     };
 
-    const len = series.refPitches.length;
-    if (len < 2) {
+    // Buffer data (shared between ref and user)
+    const bufLen = series.refPitches.length;
+    const lookaheadLen = series.lookaheadRefPitches.length;
+    const totalRefLen = bufLen + lookaheadLen;
+
+    if (totalRefLen < 2 && bufLen < 2) {
       return;
     }
 
-    const xStep = plotW / (PITCH_BUFFER_SIZE - 1);
+    // X-axis spans TOTAL_ENTRIES positions.
+    // User data occupies positions 0..PITCH_BUFFER_SIZE-1 (left portion).
+    // Lookahead extends to positions PITCH_BUFFER_SIZE..TOTAL_ENTRIES-1 (right portion).
+    const xStep = plotW / (TOTAL_ENTRIES - 1);
     const xStart = padX;
-    const bufOffset = PITCH_BUFFER_SIZE - len;
-    const xFor = (i: number) => xStart + (bufOffset + i) * xStep;
-    const ageAlpha = (i: number) => 0.25 + 0.75 * (i / Math.max(1, len - 1));
 
-    const refColor = { r: 0.5, g: 0.7, b: 1.0 };
+    // Buffer entries are right-aligned within the user portion (0..PITCH_BUFFER_SIZE-1)
+    const bufOffset = PITCH_BUFFER_SIZE - bufLen;
+    const bufXFor = (i: number) => xStart + (bufOffset + i) * xStep;
 
-    const flushRun = (run: { x: number; y: number; a: number }[]) => {
-      if (run.length < 2) {
-        run.length = 0;
+    // Lookahead entries start at position PITCH_BUFFER_SIZE
+    const lookaheadXFor = (j: number) => xStart + (PITCH_BUFFER_SIZE + j) * xStep;
+
+    // --- Reference pitch line (green, extends into lookahead) ---
+    const refColor = { r: 51, g: 217, b: 89 };
+    const refAgeAlpha = (k: number) => 0.25 + 0.75 * (k / Math.max(1, totalRefLen - 1));
+
+    const refRun: { x: number; y: number; a: number }[] = [];
+
+    const flushRef = () => {
+      if (refRun.length < 2) {
+        refRun.length = 0;
         return;
       }
       ctx.beginPath();
-      ctx.moveTo(run[0].x, run[0].y);
-      for (let k = 1; k < run.length; k++) {
-        ctx.lineTo(run[k].x, run[k].y);
+      ctx.moveTo(refRun[0].x, refRun[0].y);
+      for (let k = 1; k < refRun.length; k++) {
+        ctx.lineTo(refRun[k].x, refRun[k].y);
       }
-      ctx.strokeStyle = `rgba(${Math.round(refColor.r * 255)},${Math.round(refColor.g * 255)},${Math.round(refColor.b * 255)},${run[0].a})`;
+      const grad = ctx.createLinearGradient(refRun[0].x, 0, refRun[refRun.length - 1].x, 0);
+      for (let k = 0; k < refRun.length; k++) {
+        grad.addColorStop(
+          k / (refRun.length - 1),
+          `rgba(${refColor.r},${refColor.g},${refColor.b},${0.75 * refRun[k].a})`,
+        );
+      }
+      ctx.strokeStyle = grad;
       ctx.lineWidth = lineWidth;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.stroke();
-      run.length = 0;
+      refRun.length = 0;
     };
 
-    const refRun: { x: number; y: number; a: number }[] = [];
-    for (let i = 0; i < len; i++) {
+    // Buffer portion of ref line
+    for (let i = 0; i < bufLen; i++) {
       const hz = series.refPitches[i];
       if (hz != null) {
-        const a = 0.55 * ageAlpha(i);
-        refRun.push({
-          x: xFor(i),
-          y: semiToY(freqToSemitone(hz)),
-          a,
-        });
+        refRun.push({ x: bufXFor(i), y: semiToY(freqToSemitone(hz)), a: refAgeAlpha(i) });
       } else {
-        flushRun(refRun);
+        flushRef();
       }
     }
-    flushRun(refRun);
+    // Lookahead portion of ref line (continues seamlessly)
+    for (let j = 0; j < lookaheadLen; j++) {
+      const hz = series.lookaheadRefPitches[j];
+      if (hz != null) {
+        refRun.push({
+          x: lookaheadXFor(j),
+          y: semiToY(freqToSemitone(hz)),
+          a: refAgeAlpha(bufLen + j),
+        });
+      } else {
+        flushRef();
+      }
+    }
+    flushRef();
 
-    const userBase = { r: 0.85, g: 0.85, b: 1.0 };
-    const userRun: {
-      x: number;
-      y: number;
-      r: number;
-      g: number;
-      b: number;
-      a: number;
-    }[] = [];
+    // --- User pitch line (steady light grey, buffer portion only) ---
+    const userColor = { r: 217, g: 217, b: 217 };
+    const userAgeAlpha = (i: number) => 0.25 + 0.75 * (i / Math.max(1, bufLen - 1));
+    const userRun: { x: number; y: number; a: number }[] = [];
 
     const flushUser = () => {
       if (userRun.length < 2) {
@@ -166,14 +160,14 @@ export function PitchGraph({ series, visible }: PitchGraphProps) {
       for (let k = 1; k < userRun.length; k++) {
         ctx.lineTo(userRun[k].x, userRun[k].y);
       }
-      const g = ctx.createLinearGradient(userRun[0].x, 0, userRun[userRun.length - 1].x, 0);
+      const grad = ctx.createLinearGradient(userRun[0].x, 0, userRun[userRun.length - 1].x, 0);
       for (let k = 0; k < userRun.length; k++) {
-        g.addColorStop(
+        grad.addColorStop(
           k / (userRun.length - 1),
-          `rgba(${Math.round(userRun[k].r * 255)},${Math.round(userRun[k].g * 255)},${Math.round(userRun[k].b * 255)},${userRun[k].a})`,
+          `rgba(${userColor.r},${userColor.g},${userColor.b},${0.7 * userRun[k].a})`,
         );
       }
-      ctx.strokeStyle = g;
+      ctx.strokeStyle = grad;
       ctx.lineWidth = lineWidth;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -181,27 +175,14 @@ export function PitchGraph({ series, visible }: PitchGraphProps) {
       userRun.length = 0;
     };
 
-    for (let i = 0; i < len; i++) {
+    for (let i = 0; i < bufLen; i++) {
       const userHz = series.userPitches[i];
       if (userHz != null) {
         const userSemi = freqToSemitone(userHz);
         const refHz = series.refPitches[i];
         const displaySemi =
           refHz != null ? snapToRefOctave(freqToSemitone(refHz), userSemi) : userSemi;
-        const sim = series.similarities[i] ?? 0;
-        const hasRef = refHz != null;
-        const age = ageAlpha(i);
-        const prox = similarityToRgb(sim);
-        const base = hasRef ? lerpRgb(userBase, prox, sim) : userBase;
-        const alpha = hasRef ? (0.35 + sim * 0.65) * age : 0.55 * age;
-        userRun.push({
-          x: xFor(i),
-          y: semiToY(displaySemi),
-          r: base.r,
-          g: base.g,
-          b: base.b,
-          a: alpha,
-        });
+        userRun.push({ x: bufXFor(i), y: semiToY(displaySemi), a: userAgeAlpha(i) });
       } else {
         flushUser();
       }
