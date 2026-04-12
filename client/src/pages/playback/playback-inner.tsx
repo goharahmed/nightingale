@@ -34,7 +34,14 @@ import { INTRO_SKIP_LEAD_SEC } from "@/utils/playback/transcript-segments";
 
 import successSoundUrl from "@/assets/sounds/success.mp3";
 import { ResultDialog } from "@/components/playback/dialogs/result";
-import { ensureMp3Stems, ensurePlayableSourceVideo, onStemsReady } from "@/tauri-bridge/playback";
+import {
+  ensureMp3Stems,
+  ensurePlayableSourceVideo,
+  getAudioPaths,
+  getMediaPort,
+  onStemsReady,
+} from "@/tauri-bridge/playback";
+import { joinMediaUrl } from "@/adapters/playback";
 
 export interface PlaybackInnerProps {
   song: Song;
@@ -110,6 +117,58 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
       cancelled = true;
     };
   }, [fileHash, song.is_video, song.path]);
+
+  // ── Decode vocals buffer for pitch analysis (player-independent) ────────
+  // Fetched as soon as stems are ready so the green reference line is
+  // available regardless of whether the standard or multi-channel player is
+  // active.  Includes retry with back-off in case the media server is busy
+  // (e.g. streaming a large source video for video files).
+  const [vocalsBuffer, setVocalsBuffer] = useState<AudioBuffer | null>(null);
+  useEffect(() => {
+    if (!stemsReady) return;
+    let cancelled = false;
+    setVocalsBuffer(null);
+
+    (async () => {
+      const MAX_RETRIES = 6;
+      const BASE_DELAY_MS = 400;
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        if (cancelled) return;
+        try {
+          const [port, paths] = await Promise.all([getMediaPort(), getAudioPaths(fileHash)]);
+          const url = joinMediaUrl(`http://127.0.0.1:${port}`, paths.vocals);
+          const resp = await fetch(url);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          if (cancelled) return;
+          const ctx = new AudioContext();
+          const buf = await ctx.decodeAudioData(await resp.arrayBuffer());
+          await ctx.close();
+          if (!cancelled) {
+            setVocalsBuffer(buf);
+            console.log(
+              `[PlaybackInner] Vocals buffer decoded for analysis (attempt ${attempt + 1})`,
+            );
+          }
+          return;
+        } catch (e) {
+          if (attempt < MAX_RETRIES - 1) {
+            const delay = BASE_DELAY_MS * 2 ** attempt;
+            console.warn(
+              `[PlaybackInner] Vocals decode attempt ${attempt + 1} failed, retrying in ${delay}ms:`,
+              e,
+            );
+            await new Promise((r) => setTimeout(r, delay));
+          } else {
+            console.warn("[PlaybackInner] Failed to decode vocals after all retries:", e);
+          }
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [stemsReady, fileHash]);
 
   // Channel routing configuration from global config
   const channelRoutingConfig = useMemo<MultiChannelConfig | null>(() => {
@@ -211,7 +270,11 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
     active: micPitchActive,
     error: micPitchError,
   } = useMicPitch(!useMultiMicMode && micPitchEnabled);
-  const { series, score } = usePitchScoring(audio, useMultiMicMode ? null : latestPitch);
+  const { series, score } = usePitchScoring(
+    audio,
+    useMultiMicMode ? null : latestPitch,
+    vocalsBuffer,
+  );
 
   // ── Multi-mic hooks (active when micSlotCount > 1) ───────────────────────
   const multiMicEnabled =
@@ -227,6 +290,7 @@ export function PlaybackInner({ song, config }: PlaybackInnerProps) {
     audio,
     multiMicSlots,
     useMultiMicMode ? multiMicActiveCount : 0,
+    vocalsBuffer,
   );
 
   // ── Unified score for saving ─────────────────────────────────────────────

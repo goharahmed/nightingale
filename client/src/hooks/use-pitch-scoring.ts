@@ -16,7 +16,18 @@ import {
 } from "@/lib/pitch/state";
 import { useEffect, useRef, useState } from "react";
 
-export function usePitchScoring(audio: AudioPlayer, micPitch: number | null) {
+/**
+ * Pitch scoring for a single microphone.
+ *
+ * `vocalsBuffer` is decoded by the caller (PlaybackInner) independently of
+ * whichever audio player is active so the green reference line works for
+ * both regular and multi-channel playback as well as for video files.
+ */
+export function usePitchScoring(
+  audio: AudioPlayer,
+  micPitch: number | null,
+  vocalsBuffer: AudioBuffer | null,
+) {
   const refDetector = useRef(createPitchDetector());
   const scratchRef = useRef(new Float32Array(PITCH_WINDOW_SAMPLES));
   const bufferRef = useRef(new PitchStateBuffer());
@@ -24,6 +35,8 @@ export function usePitchScoring(audio: AudioPlayer, micPitch: number | null) {
   const micPitchRef = useRef(micPitch);
   const singableRef = useRef<number | null>(null);
   const contourRef = useRef<(number | null)[] | null>(null);
+  const vocalsRef = useRef(vocalsBuffer);
+  vocalsRef.current = vocalsBuffer;
   const [series, setSeries] = useState<PitchSeriesWithLookahead>({
     refPitches: [],
     userPitches: [],
@@ -34,42 +47,37 @@ export function usePitchScoring(audio: AudioPlayer, micPitch: number | null) {
 
   micPitchRef.current = micPitch;
 
+  // --- Reset buffer & scoring when the player becomes ready ---
   useEffect(() => {
-    if (!audio.isReady || audio.duration <= 0) {
-      return;
-    }
+    if (!audio.isReady || audio.duration <= 0) return;
     bufferRef.current.reset();
-
-    const vocals = audio.getVocalsBuffer();
-    const singable = vocals ? computeSingableTime(vocals) : audio.duration;
-    singableRef.current = singable;
-    scoringRef.current = new PitchScoring(singable);
-    contourRef.current = vocals ? precomputeRefContour(vocals) : null;
-
+    contourRef.current = null;
+    singableRef.current = null;
+    scoringRef.current = new PitchScoring(audio.duration);
     setSeries({ ...bufferRef.current.snapshot(), lookaheadRefPitches: [] });
     setScore(0);
   }, [audio.isReady, audio.duration]);
 
+  // --- Compute contour when the vocals buffer arrives ---
   useEffect(() => {
-    if (!audio.isReady) {
-      return;
-    }
+    if (!vocalsBuffer) return;
+    console.log("[PitchScoring] Vocals buffer received – computing contour");
+    contourRef.current = precomputeRefContour(vocalsBuffer);
+    const singable = computeSingableTime(vocalsBuffer);
+    singableRef.current = singable;
+    scoringRef.current = new PitchScoring(singable);
+  }, [vocalsBuffer]);
+
+  // --- Scoring subscriber: runs on each time-tick from the audio player ---
+  const subscribe = audio.subscribe;
+  useEffect(() => {
+    if (!audio.isReady) return;
 
     const run = (t: number) => {
-      if (t <= 0) {
-        return;
-      }
+      if (t <= 0) return;
 
-      const vocals = audio.getVocalsBuffer();
+      const vocals = vocalsRef.current;
       const mp = micPitchRef.current;
-
-      // Lazily compute contour + singable time when vocals buffer first becomes available
-      if (vocals && !contourRef.current) {
-        contourRef.current = precomputeRefContour(vocals);
-        const singable = computeSingableTime(vocals);
-        singableRef.current = singable;
-        scoringRef.current = new PitchScoring(singable);
-      }
 
       if (!vocals || !sampleVocalsWindow(vocals, t, scratchRef.current)) {
         bufferRef.current.tryPush(null, mp, 0, t);
@@ -99,8 +107,8 @@ export function usePitchScoring(audio: AudioPlayer, micPitch: number | null) {
       setScore(scoringRef.current.score());
     };
 
-    return audio.subscribe(run);
-  }, [audio, audio.isReady]);
+    return subscribe(run);
+  }, [audio.isReady, subscribe]);
 
   return { series, score };
 }

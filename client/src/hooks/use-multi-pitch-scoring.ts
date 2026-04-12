@@ -48,8 +48,8 @@ export function useMultiPitchScoring(
   audio: AudioPlayer,
   slots: MicSlotState[],
   activeSlotCount: number,
+  vocalsBuffer: AudioBuffer | null,
 ) {
-  // Per-slot pitch detection + scoring state
   const detectorsRef = useRef(Array.from({ length: MAX_SLOTS }, () => createPitchDetector()));
   const scratchRef = useRef(
     Array.from({ length: MAX_SLOTS }, () => new Float32Array(PITCH_WINDOW_SAMPLES)),
@@ -58,15 +58,15 @@ export function useMultiPitchScoring(
   const scoringRef = useRef(Array.from({ length: MAX_SLOTS }, () => new PitchScoring(1)));
   const singableRef = useRef<number | null>(null);
   const contourRef = useRef<(number | null)[] | null>(null);
+  const vocalsRef = useRef(vocalsBuffer);
+  vocalsRef.current = vocalsBuffer;
 
   const [results, setResults] = useState<SlotScoringResult[]>(() =>
     Array.from({ length: MAX_SLOTS }, makeEmpty),
   );
 
-  // Store latest pitches in refs to avoid re-renders from the pitch subscription
   const pitchesRef = useRef<(number | null)[]>(Array.from({ length: MAX_SLOTS }, () => null));
 
-  // Keep pitchesRef in sync with slot state
   useEffect(() => {
     for (let i = 0; i < MAX_SLOTS; i++) {
       pitchesRef.current[i] = slots[i]?.pitch ?? null;
@@ -76,39 +76,37 @@ export function useMultiPitchScoring(
   // Reset when audio changes
   useEffect(() => {
     if (!audio.isReady || audio.duration <= 0) return;
-
-    const vocals = audio.getVocalsBuffer();
-    const singable = vocals ? computeSingableTime(vocals) : audio.duration;
-    singableRef.current = singable;
-    contourRef.current = vocals ? precomputeRefContour(vocals) : null;
-
+    contourRef.current = null;
+    singableRef.current = null;
     for (let i = 0; i < MAX_SLOTS; i++) {
       buffersRef.current[i].reset();
-      scoringRef.current[i] = new PitchScoring(singable);
+      scoringRef.current[i] = new PitchScoring(audio.duration);
     }
-
     setResults(Array.from({ length: MAX_SLOTS }, makeEmpty));
   }, [audio.isReady, audio.duration]);
 
+  // Compute contour when vocals buffer arrives
+  useEffect(() => {
+    if (!vocalsBuffer) return;
+    console.log("[MultiPitchScoring] Vocals buffer received – computing contour");
+    contourRef.current = precomputeRefContour(vocalsBuffer);
+    const singable = computeSingableTime(vocalsBuffer);
+    singableRef.current = singable;
+    for (let i = 0; i < MAX_SLOTS; i++) {
+      scoringRef.current[i] = new PitchScoring(singable);
+    }
+  }, [vocalsBuffer]);
+
   // Scoring loop
+  const subscribe = audio.subscribe;
   useEffect(() => {
     if (!audio.isReady) return;
 
     const run = (t: number) => {
       if (t <= 0) return;
 
-      const vocals = audio.getVocalsBuffer();
+      const vocals = vocalsRef.current;
       let changed = false;
-
-      // Lazily compute contour + singable time when vocals buffer first becomes available
-      if (vocals && !contourRef.current) {
-        contourRef.current = precomputeRefContour(vocals);
-        const singable = computeSingableTime(vocals);
-        singableRef.current = singable;
-        for (let i = 0; i < MAX_SLOTS; i++) {
-          scoringRef.current[i] = new PitchScoring(singable);
-        }
-      }
 
       for (let i = 0; i < activeSlotCount; i++) {
         const mp = pitchesRef.current[i];
@@ -129,7 +127,6 @@ export function useMultiPitchScoring(
       }
 
       if (changed) {
-        // Build lookahead ref pitches from pre-computed contour
         const contour = contourRef.current;
         const lookaheadRefPitches: (number | null)[] = [];
         if (contour) {
@@ -149,8 +146,8 @@ export function useMultiPitchScoring(
       }
     };
 
-    return audio.subscribe(run);
-  }, [audio, audio.isReady, activeSlotCount]);
+    return subscribe(run);
+  }, [audio.isReady, subscribe, activeSlotCount]);
 
   return results;
 }
