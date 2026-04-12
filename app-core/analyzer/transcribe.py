@@ -86,8 +86,10 @@ def transcribe_vocals(
 
     owns_model = whisper_model is None
 
+    language_confidence = None
     if language_override:
         language = language_override
+        language_confidence = 1.0  # user-specified → full confidence
         print(f"[nightingale:LOG] Using language override: '{language}'", flush=True)
         progress(59, f"Language override: {language}")
         if whisper_model is None:
@@ -103,8 +105,8 @@ def transcribe_vocals(
                 model_name, device, compute_type=compute_type,
                 task="transcribe", asr_options=no_vad_asr,
             )
-        language = detect_language_multiwindow(whisper_model, full_audio)
-        print(f"[nightingale:LOG] Final detected language: '{language}'", flush=True)
+        language, language_confidence = detect_language_multiwindow(whisper_model, full_audio)
+        print(f"[nightingale:LOG] Final detected language: '{language}' (confidence={language_confidence:.2f})", flush=True)
         progress(59, f"Detected language: {language}")
 
     model = whisper_model
@@ -140,6 +142,8 @@ def transcribe_vocals(
     progress(75, f"Language: {language}")
     result = _align_and_build(raw_segments, full_audio, language, device, pre_align_cleanup)
     result["source"] = "generated"
+    if language_confidence is not None:
+        result["language_confidence"] = round(language_confidence, 3)
     return result
 
 

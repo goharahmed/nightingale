@@ -179,4 +179,10 @@ impl AppConfig {
             .get_or_insert_with(HashMap::new)
             .insert(file_hash, lang);
     }
+
+    pub fn clear_language_override(&mut self, file_hash: &str) {
+        if let Some(map) = self.language_overrides.as_mut() {
+            map.remove(file_hash);
+        }
+    }
 }

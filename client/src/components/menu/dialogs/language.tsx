@@ -3,6 +3,7 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -25,31 +26,56 @@ import { cn } from "@/lib/utils";
 import { reanalyzeTranscript } from "@/tauri-bridge/analysis";
 import { Song } from "@/types/Song";
 
+/** Sentinel value for the "Auto-detect" option. */
+const AUTO_DETECT = "__auto__";
+
+/** Confidence threshold below which we show a warning to the user. */
+const LOW_CONFIDENCE_THRESHOLD = 0.7;
+
 const LANGUAGES = [
+  ["ar", "Arabic"],
+  ["bn", "Bengali"],
+  ["zh", "Chinese"],
+  ["cs", "Czech"],
+  ["nl", "Dutch"],
   ["en", "English"],
-  ["es", "Spanish"],
+  ["fil", "Filipino"],
   ["fr", "French"],
   ["de", "German"],
+  ["hi", "Hindi"],
+  ["hu", "Hungarian"],
+  ["id", "Indonesian"],
   ["it", "Italian"],
-  ["pt", "Portuguese"],
-  ["ru", "Russian"],
   ["ja", "Japanese"],
   ["ko", "Korean"],
-  ["zh", "Chinese"],
-  ["ar", "Arabic"],
-  ["hi", "Hindi"],
-  ["nl", "Dutch"],
+  ["ms", "Malay"],
+  ["fa", "Persian"],
   ["pl", "Polish"],
+  ["pt", "Portuguese"],
+  ["pa", "Punjabi"],
+  ["ro", "Romanian"],
+  ["ru", "Russian"],
+  ["es", "Spanish"],
   ["sv", "Swedish"],
+  ["ta", "Tamil"],
+  ["te", "Telugu"],
+  ["th", "Thai"],
   ["tr", "Turkish"],
   ["uk", "Ukrainian"],
-  ["cs", "Czech"],
-  ["ro", "Romanian"],
-  ["hu", "Hungarian"],
+  ["ur", "Urdu"],
+  ["vi", "Vietnamese"],
 ];
 
-export function isLanguageDialogMode(mode: DialogMode): mode is { mode: "language"; song: Song } {
-  return mode !== null && typeof mode === "object" && mode.mode === "language";
+export type LanguageDialogMode =
+  | { mode: "language"; song: Song }
+  | { mode: "reanalyze-language"; song: Song };
+
+export function isLanguageDialogMode(mode: DialogMode): mode is LanguageDialogMode {
+  return (
+    mode !== null &&
+    typeof mode === "object" &&
+    (mode.mode === "language" || mode.mode === "reanalyze-language")
+  );
 }
 
 export const SelectLanguageDialog = () => {
@@ -58,9 +84,15 @@ export const SelectLanguageDialog = () => {
 
   const languageDialog = isLanguageDialogMode(mode) ? mode : null;
   const open = languageDialog !== null;
-  const currentLanguage = languageDialog?.song.language;
+  const isReanalyze = languageDialog?.mode === "reanalyze-language";
+  const song = languageDialog?.song;
+  const currentLanguage = song?.language;
 
-  const [language, setLanguage] = useState(currentLanguage);
+  const defaultValue = isReanalyze ? AUTO_DETECT : (currentLanguage ?? AUTO_DETECT);
+  const [language, setLanguage] = useState(defaultValue);
+
+  const isLowConfidence =
+    song?.language_confidence != null && song.language_confidence < LOW_CONFIDENCE_THRESHOLD;
 
   const { focusedIndex } = useDialogNav({
     open,
@@ -69,44 +101,53 @@ export const SelectLanguageDialog = () => {
     containerRef,
   });
 
-  if (!languageDialog) {
+  if (!languageDialog || !song) {
     return null;
   }
 
-  const { song } = languageDialog;
+  const title = isReanalyze ? "Reanalyze Transcript" : "Select Language";
+  const description = isReanalyze
+    ? "Choose a language for re-analysis, or use auto-detect."
+    : isLowConfidence
+      ? `Language was auto-detected as "${currentLanguage?.toUpperCase()}" with low confidence (${Math.round((song.language_confidence ?? 0) * 100)}%). You may want to select the correct language.`
+      : undefined;
 
-  if (!song.language) {
-    return null;
-  }
+  const isAutoDetect = language === AUTO_DETECT;
+  const unchanged = !isReanalyze && language === currentLanguage;
 
   return (
     <Dialog open={open} onOpenChange={close}>
       <DialogContent className="sm:max-w-sm">
         <div ref={containerRef} className="contents">
           <DialogHeader>
-            <DialogTitle>Select Language</DialogTitle>
+            <DialogTitle>{title}</DialogTitle>
+            {description && (
+              <DialogDescription className={cn(isLowConfidence && "text-yellow-500")}>
+                {description}
+              </DialogDescription>
+            )}
           </DialogHeader>
           <FieldGroup>
             <Field>
-              <Label htmlFor="model-1">Language</Label>
-              <Select
-                onValueChange={(language) => setLanguage(language)}
-                defaultValue={song.language}
-              >
+              <Label htmlFor="language-select">Language</Label>
+              <Select onValueChange={(value) => setLanguage(value)} defaultValue={defaultValue}>
                 <SelectTrigger
-                  id="model-1"
+                  id="language-select"
                   className={cn(
                     "focus-visible:ring-0 focus-visible:border-transparent",
                     focusedIndex === 0 && "ring-2 ring-primary",
                   )}
                 >
-                  <SelectValue placeholder="Select a profile" />
+                  <SelectValue placeholder="Select a language" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectLabel>Profile</SelectLabel>
+                    <SelectLabel>Language</SelectLabel>
+                    <SelectItem value={AUTO_DETECT}>Auto-detect</SelectItem>
                     {LANGUAGES.map(([value, label]) => (
-                      <SelectItem value={value}>{label}</SelectItem>
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
                     ))}
                   </SelectGroup>
                 </SelectContent>
@@ -127,12 +168,13 @@ export const SelectLanguageDialog = () => {
               </Button>
             </DialogClose>
             <Button
-              disabled={language === song.language}
+              disabled={unchanged}
               onClick={() => {
-                if (language) {
+                if (isAutoDetect) {
+                  reanalyzeTranscript(song.file_hash);
+                } else {
                   reanalyzeTranscript(song.file_hash, language);
                 }
-
                 close();
               }}
               className={cn(
@@ -140,7 +182,7 @@ export const SelectLanguageDialog = () => {
                 focusedIndex === 2 && "ring-2 ring-primary",
               )}
             >
-              Select
+              {isReanalyze ? "Reanalyze" : "Select"}
             </Button>
           </DialogFooter>
         </div>

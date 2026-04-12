@@ -11,6 +11,7 @@ export type Song = {
   album_art_path: string | null;
   is_analyzed: boolean;
   language: string | null;
+  language_confidence: number | null;
   transcript_source: TranscriptSource | null;
   key: string | null;
   override_key: string | null;

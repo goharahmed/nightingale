@@ -42,17 +42,60 @@ fn get_youtube_script() -> PathBuf {
     app_core::analyzer_dir().join("youtube.py")
 }
 
+/// Build a Command for the vendored Python with the correct environment.
+/// In a bundled macOS .app the process inherits a minimal PATH that does
+/// not include the vendor directory, so yt-dlp cannot find ffmpeg.
+/// Mirror the environment setup from analyzer.rs.
+fn python_command() -> Command {
+    let python = get_python_path();
+    let ffmpeg = app_core::ffmpeg_path();
+    let ffmpeg_dir = ffmpeg
+        .parent()
+        .unwrap_or(std::path::Path::new("."))
+        .to_path_buf();
+
+    // Prepend ffmpeg dir (and venv bin dir) to PATH so yt-dlp can find ffmpeg
+    let path_env = if let Some(existing) = std::env::var_os("PATH") {
+        let mut paths = std::env::split_paths(&existing).collect::<Vec<_>>();
+        // Also add the venv bin directory so any venv scripts are reachable
+        if let Some(venv_bin) = python.parent() {
+            if !paths.contains(&venv_bin.to_path_buf()) {
+                paths.insert(0, venv_bin.to_path_buf());
+            }
+        }
+        if !paths.contains(&ffmpeg_dir) {
+            paths.insert(0, ffmpeg_dir.clone());
+        }
+        std::env::join_paths(paths).unwrap_or_else(|_| ffmpeg_dir.as_os_str().to_os_string())
+    } else {
+        let mut paths = vec![ffmpeg_dir.clone()];
+        if let Some(venv_bin) = python.parent() {
+            paths.push(venv_bin.to_path_buf());
+        }
+        // Include basic system paths as fallback
+        paths.push(PathBuf::from("/usr/local/bin"));
+        paths.push(PathBuf::from("/usr/bin"));
+        paths.push(PathBuf::from("/bin"));
+        std::env::join_paths(paths).unwrap_or_else(|_| ffmpeg_dir.as_os_str().to_os_string())
+    };
+
+    let mut cmd = app_core::silent_command(&python);
+    cmd.env("PATH", &path_env)
+        .env("FFMPEG_PATH", &ffmpeg)
+        .env("PYTHONIOENCODING", "utf-8");
+    cmd
+}
+
 /// Search YouTube for videos
 #[tauri::command]
 pub async fn search_youtube(
     query: String,
     max_results: Option<u32>,
 ) -> Result<Vec<YouTubeSearchResult>, String> {
-    let python = get_python_path();
     let script = get_youtube_script();
     let max = max_results.unwrap_or(20);
 
-    let output = Command::new(&python)
+    let output = python_command()
         .arg(&script)
         .arg("search")
         .arg(&query)
@@ -86,7 +129,6 @@ pub async fn download_youtube_video(
     url: String,
     audio_only: bool,
 ) -> Result<YouTubeDownloadResult, String> {
-    let python = get_python_path();
     let script = get_youtube_script();
     
     // Get the library folder from the database (where songs are stored)
@@ -99,7 +141,7 @@ pub async fn download_youtube_video(
     
     let output_dir = std::path::PathBuf::from(&folder);
 
-    let mut cmd = Command::new(&python);
+    let mut cmd = python_command();
     cmd.arg(&script)
         .arg("download")
         .arg(&url)
@@ -142,10 +184,9 @@ pub async fn download_youtube_video(
 /// Get information about a YouTube video without downloading
 #[tauri::command]
 pub async fn get_youtube_video_info(url: String) -> Result<YouTubeVideoInfo, String> {
-    let python = get_python_path();
     let script = get_youtube_script();
 
-    let output = Command::new(&python)
+    let output = python_command()
         .arg(&script)
         .arg("info")
         .arg(&url)

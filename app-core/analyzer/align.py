@@ -52,8 +52,10 @@ def align_lyrics(
     a_device = align_device_for(device)
     c_type = compute_type_for(device)
 
+    language_confidence = None
     if language_override:
         language = language_override
+        language_confidence = 1.0  # user-specified → full confidence
         print(f"[nightingale:LOG] Using language override: '{language}'", flush=True)
         progress(59, f"Language override: {language}")
     else:
@@ -63,10 +65,10 @@ def align_lyrics(
             whisper_model = whisperx.load_model(
                 model_name, a_device, compute_type=c_type, task="transcribe",
             )
-        language = detect_language_multiwindow(whisper_model, audio)
+        language, language_confidence = detect_language_multiwindow(whisper_model, audio)
         if owns_model:
             del whisper_model
-        print(f"[nightingale:LOG] Detected language: '{language}'", flush=True)
+        print(f"[nightingale:LOG] Detected language: '{language}' (confidence={language_confidence:.2f})", flush=True)
         progress(59, f"Detected language: {language}")
 
     progress(80, f"Final alignment from {vocal_start:.1f}s...")
@@ -82,7 +84,10 @@ def align_lyrics(
         print(f"[nightingale:LOG] First segment: '{segments[0]['text'][:100]}'", flush=True)
         print(f"[nightingale:LOG] Last segment: '{segments[-1]['text'][:100]}'", flush=True)
 
-    return {"language": language, "segments": segments, "source": "lyrics"}
+    result = {"language": language, "segments": segments, "source": "lyrics"}
+    if language_confidence is not None:
+        result["language_confidence"] = round(language_confidence, 3)
+    return result
 
 def _collect_words(align_result: dict) -> list[dict]:
     """Extract all words with timestamps from alignment result."""

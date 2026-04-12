@@ -15,6 +15,14 @@ except ImportError:
     sys.exit(1)
 
 
+def _ffmpeg_location() -> Optional[str]:
+    """Return the ffmpeg directory from the FFMPEG_PATH env var, if set."""
+    ffmpeg_path = os.environ.get("FFMPEG_PATH")
+    if ffmpeg_path and os.path.isfile(ffmpeg_path):
+        return os.path.dirname(ffmpeg_path)
+    return None
+
+
 def search_youtube(query: str, max_results: int = 20) -> list[dict]:
     """
     Search YouTube and return a list of video results.
@@ -32,6 +40,9 @@ def search_youtube(query: str, max_results: int = 20) -> list[dict]:
         'extract_flat': True,
         'force_generic_extractor': False,
     }
+    ffmpeg_dir = _ffmpeg_location()
+    if ffmpeg_dir:
+        ydl_opts['ffmpeg_location'] = ffmpeg_dir
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -99,6 +110,8 @@ def download_video(
     output_dir.mkdir(parents=True, exist_ok=True)
     
     # Determine output template and format
+    ffmpeg_dir = _ffmpeg_location()
+
     if audio_only:
         # Download best audio and convert to m4a (better compatibility than opus)
         output_template = str(output_dir / "%(title)s.%(ext)s")
@@ -129,6 +142,9 @@ def download_video(
             'progress_hooks': [],
             'merge_output_format': 'mp4',
         }
+
+    if ffmpeg_dir:
+        ydl_opts['ffmpeg_location'] = ffmpeg_dir
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -178,6 +194,9 @@ def get_video_info(url: str) -> Optional[dict]:
         'quiet': True,
         'no_warnings': True,
     }
+    ffmpeg_dir = _ffmpeg_location()
+    if ffmpeg_dir:
+        ydl_opts['ffmpeg_location'] = ffmpeg_dir
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:

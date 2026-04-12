@@ -1,8 +1,16 @@
 """Multi-window language detection using WhisperX."""
 
+# Minimum average per-window confidence to consider the detection reliable.
+# Below this threshold the UI will suggest the user verify/change the language.
+CONFIDENCE_THRESHOLD = 0.7
 
-def detect_language_multiwindow(model, audio, sample_rate=16000, window_secs=30) -> str:
-    """Detect language by sampling multiple 30s windows and voting."""
+
+def detect_language_multiwindow(model, audio, sample_rate=16000, window_secs=30) -> tuple[str, float]:
+    """Detect language by sampling multiple 30s windows and voting.
+
+    Returns (language_code, confidence) where confidence is the average
+    per-window probability for the winning language (0.0 – 1.0).
+    """
     from whisperx.audio import log_mel_spectrogram
 
     window_samples = window_secs * sample_rate
@@ -34,5 +42,13 @@ def detect_language_multiwindow(model, audio, sample_rate=16000, window_secs=30)
         lang_scores[lang] = lang_scores.get(lang, 0.0) + prob
 
     best_lang = max(lang_scores, key=lambda l: lang_scores[l])
-    print(f"[nightingale:LOG] Language scores: {lang_scores} -> '{best_lang}'", flush=True)
-    return best_lang
+    num_windows = len(votes)
+    confidence = lang_scores[best_lang] / num_windows if num_windows > 0 else 0.0
+
+    confident = "yes" if confidence >= CONFIDENCE_THRESHOLD else "LOW"
+    print(
+        f"[nightingale:LOG] Language scores: {lang_scores} -> '{best_lang}' "
+        f"(confidence={confidence:.2f}, threshold={CONFIDENCE_THRESHOLD}, confident={confident})",
+        flush=True,
+    )
+    return best_lang, confidence

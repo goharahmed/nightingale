@@ -35,6 +35,8 @@ pub struct Song {
     pub is_analyzed: bool,
     pub language: Option<String>,
     #[serde(default)]
+    pub language_confidence: Option<f64>,
+    #[serde(default)]
     pub transcript_source: Option<TranscriptSource>,
     #[serde(default)]
     pub key: Option<String>,
@@ -55,6 +57,7 @@ fn default_tempo() -> f64 {
 pub struct TranscriptMetaInfo {
     pub source: TranscriptSource,
     pub language: Option<String>,
+    pub language_confidence: Option<f64>,
     pub key: Option<String>,
     pub tempo: f64,
 }
@@ -66,6 +69,7 @@ impl Song {
         cache: &CacheDir,
         is_analyzed: bool,
         language: Option<String>,
+        language_confidence: Option<f64>,
         transcript_source: Option<TranscriptSource>,
         key: Option<String>,
         override_key: Option<String>,
@@ -112,6 +116,7 @@ impl Song {
             album_art_path,
             is_analyzed,
             language,
+            language_confidence,
             transcript_source,
             key,
             override_key,
@@ -144,11 +149,11 @@ pub fn build_song(path: &Path, cache: &CacheDir, is_video: bool) -> Result<Song,
     let file_hash = compute_file_hash(path)?;
 
     let is_analyzed = cache.transcript_exists(&file_hash);
-    let (transcript_source, language, key, tempo) = if is_analyzed {
+    let (transcript_source, language, language_confidence, key, tempo) = if is_analyzed {
         let meta = read_transcript_meta(cache, &file_hash);
-        (Some(meta.source), meta.language, meta.key, meta.tempo)
+        (Some(meta.source), meta.language, meta.language_confidence, meta.key, meta.tempo)
     } else {
-        (None, None, None, default_tempo())
+        (None, None, None, None, default_tempo())
     };
 
     Ok(Song::from_path(
@@ -157,6 +162,7 @@ pub fn build_song(path: &Path, cache: &CacheDir, is_video: bool) -> Result<Song,
         cache,
         is_analyzed,
         language,
+        language_confidence,
         transcript_source,
         key,
         None,
@@ -174,6 +180,8 @@ pub fn read_transcript_meta(cache: &CacheDir, hash: &str) -> TranscriptMetaInfo 
         #[serde(default)]
         language: Option<String>,
         #[serde(default)]
+        language_confidence: Option<f64>,
+        #[serde(default)]
         key: Option<String>,
         #[serde(default = "default_tempo")]
         tempo: f64,
@@ -189,6 +197,7 @@ pub fn read_transcript_meta(cache: &CacheDir, hash: &str) -> TranscriptMetaInfo 
             return TranscriptMetaInfo {
                 source: src,
                 language: parsed.language,
+                language_confidence: parsed.language_confidence,
                 key: parsed.key,
                 tempo: parsed.tempo,
             };
@@ -197,6 +206,7 @@ pub fn read_transcript_meta(cache: &CacheDir, hash: &str) -> TranscriptMetaInfo 
     TranscriptMetaInfo {
         source: TranscriptSource::Generated,
         language: None,
+        language_confidence: None,
         key: None,
         tempo: default_tempo(),
     }

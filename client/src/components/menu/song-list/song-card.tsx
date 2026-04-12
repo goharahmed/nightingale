@@ -14,6 +14,7 @@ import type { QueuedStatus } from "@/types/QueuedStatus";
 import type { Song } from "@/types/Song";
 import { convertFileSrc } from "@/tauri-bridge/media";
 import {
+  AlertTriangleIcon,
   AudioLinesIcon,
   LanguagesIcon,
   FileTextIcon,
@@ -101,7 +102,7 @@ export const SongCard = memo(
     const navigate = useNavigate();
     const { setMode } = useDialog();
     const queryClient = useQueryClient();
-    const { enqueueOne, deleteSongCache, reanalyzeFull, reanalyzeTranscript } = useAnalysis();
+    const { enqueueOne, deleteSongCache, reanalyzeFull } = useAnalysis();
     const { label, variant, className, isAnalyzing, isReady } = getStatusInfo(
       song.is_analyzed,
       queueStatus,
@@ -169,7 +170,19 @@ export const SongCard = memo(
           </ItemTitle>
           <ItemDescription>
             {song.artist} &bull; {song.album} &bull; {formatSeconds(song.duration_secs)}
-            {song.language ? ` • ${song.language.toUpperCase()}` : ""}
+            {song.language ? (
+              <>
+                {" • "}
+                {song.language.toUpperCase()}
+                {song.language_confidence != null && song.language_confidence < 0.7 && (
+                  <span title="Low language confidence — consider changing language">
+                    <AlertTriangleIcon className="inline size-3 ml-0.5 text-yellow-500" />
+                  </span>
+                )}
+              </>
+            ) : (
+              ""
+            )}
           </ItemDescription>
         </ItemContent>
 
@@ -200,8 +213,7 @@ export const SongCard = memo(
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={withMenuAction(async () => {
-                    reanalyzeTranscript(song.file_hash);
-                    toast.info(`Reanalyzing transcript for "${song.title}"`);
+                    setMode({ mode: "reanalyze-language", song });
                   })}
                 >
                   <FileTextIcon />

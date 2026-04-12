@@ -34,7 +34,7 @@ pub use scanner::start_scan;
 pub use song::Song;
 pub use library_db::{init_library, library_db_path, read_library_meta, update_song_metadata};
 pub use vendor::{
-    clear_vendor_dir, is_ready, mark_ready, step_create_venv, step_download_ffmpeg,
-    step_download_uv, step_extract_scripts, step_install_packages, step_install_python,
-    analyzer_dir, python_path,
+    clear_vendor_dir, ffmpeg_path, is_ready, mark_ready, silent_command, step_create_venv,
+    step_download_ffmpeg, step_download_uv, step_extract_scripts, step_install_packages,
+    step_install_python, analyzer_dir, python_path,
 };

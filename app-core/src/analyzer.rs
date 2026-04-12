@@ -206,6 +206,7 @@ fn update_song_analyzed(
     file_hash: &str,
     is_analyzed: bool,
     language: Option<String>,
+    language_confidence: Option<f64>,
     transcript_source: Option<TranscriptSource>,
     key: Option<String>,
     tempo: Option<f64>,
@@ -215,6 +216,7 @@ fn update_song_analyzed(
     };
     song.is_analyzed = is_analyzed;
     song.language = language;
+    song.language_confidence = language_confidence;
     song.transcript_source = transcript_source;
     if is_analyzed {
         song.key = key;
@@ -299,17 +301,22 @@ pub fn shutdown_server() {
 pub fn delete_cache(file_hash: &str) {
     let cache = CacheDir::new();
     cache.delete_song_cache(file_hash);
-    update_song_analyzed(file_hash, false, None, None, None, None);
+    update_song_analyzed(file_hash, false, None, None, None, None, None);
 }
 
 pub fn reanalyze_transcript(file_hash: &str, language: Option<String>) {
-    if let Some(lang) = language {
-        if !lang.is_empty() {
-            let mut config = AppConfig::load();
-            config.set_language_override(file_hash.to_string(), lang);
-            config.save();
+    let mut config = AppConfig::load();
+    match language {
+        Some(ref lang) if !lang.is_empty() => {
+            config.set_language_override(file_hash.to_string(), lang.clone());
+        }
+        _ => {
+            // Auto-detect: clear any previous override so the pipeline
+            // will run language detection from scratch.
+            config.clear_language_override(file_hash);
         }
     }
+    config.save();
     reanalyze(file_hash, false);
 }
 
@@ -326,7 +333,7 @@ fn reanalyze(file_hash: &str, full: bool) {
         cache.delete_transcript_variants(file_hash);
         let _ = std::fs::remove_file(cache.lyrics_path(file_hash));
     }
-    update_song_analyzed(file_hash, false, None, None, None, None);
+    update_song_analyzed(file_hash, false, None, None, None, None, None);
     enqueue_one(file_hash);
 }
 
@@ -464,6 +471,7 @@ fn finalize_song(file_hash: &str, cache: &CacheDir) {
             file_hash,
             true,
             meta.language,
+            meta.language_confidence,
             Some(meta.source),
             meta.key,
             Some(meta.tempo),
