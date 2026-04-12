@@ -1,20 +1,19 @@
 import { useLibraryFilter } from "@/hooks/use-library-filter";
-import {
-  usePlaylists,
-  useDeletePlaylist,
-  useRemoveSongFromPlaylist,
-} from "@/queries/use-playlists";
-import { useDialog } from "@/hooks/use-dialog";
+import { usePlaylists, useSetPlaylistPlayMode } from "@/queries/use-playlists";
 import { EMPTY_LIBRARY_FILTER } from "@/lib/library-menu-filter";
-import { ListMusicIcon, PencilIcon, Trash2Icon, XIcon } from "lucide-react";
+import { ListMusicIcon, PlayIcon, ShuffleIcon, ListOrderedIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMemo } from "react";
 
-export const PlaylistHeader = () => {
+interface PlaylistHeaderProps {
+  /** Called when "Play All" is clicked – parent (SongList) owns the song list and navigation. */
+  onPlayAll?: () => void;
+}
+
+export const PlaylistHeader = ({ onPlayAll }: PlaylistHeaderProps) => {
   const { playlist_id, setLibraryFilter } = useLibraryFilter();
   const { data: playlists } = usePlaylists();
-  const { mutate: deletePlaylist } = useDeletePlaylist();
-  const { setMode } = useDialog();
+  const { mutate: setPlayMode } = useSetPlaylistPlayMode();
 
   const playlist = useMemo(
     () => playlists?.find((p) => p.id === playlist_id),
@@ -22,6 +21,8 @@ export const PlaylistHeader = () => {
   );
 
   if (!playlist) return null;
+
+  const isSequential = playlist.play_mode === "Sequential";
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border bg-card p-3">
@@ -34,33 +35,36 @@ export const PlaylistHeader = () => {
           </span>
         </div>
         <div className="flex items-center gap-1">
+          {/* Sequential / Random toggle */}
           <Button
-            variant="ghost"
-            size="icon"
-            className="size-7"
-            title="Rename playlist"
+            variant="outline"
+            size="xs"
+            className="gap-1.5"
+            title={isSequential ? "Switch to Random" : "Switch to Sequential"}
             onClick={() =>
-              setMode({
-                mode: "rename-playlist",
+              setPlayMode({
                 playlistId: playlist.id,
-                currentName: playlist.name,
+                mode: isSequential ? "Random" : "Sequential",
               })
             }
           >
-            <PencilIcon className="size-3.5" />
+            {isSequential ? (
+              <>
+                <ListOrderedIcon className="size-3.5" /> Sequential
+              </>
+            ) : (
+              <>
+                <ShuffleIcon className="size-3.5" /> Random
+              </>
+            )}
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7"
-            title="Delete playlist"
-            onClick={() => {
-              deletePlaylist(playlist.id);
-              setLibraryFilter(EMPTY_LIBRARY_FILTER);
-            }}
-          >
-            <Trash2Icon className="size-3.5" />
-          </Button>
+          {/* Play All */}
+          {playlist.song_count > 0 && (
+            <Button variant="default" size="xs" className="gap-1" onClick={onPlayAll}>
+              <PlayIcon className="size-3" /> Play All
+            </Button>
+          )}
+          {/* Close playlist */}
           <Button
             variant="ghost"
             size="icon"
@@ -73,28 +77,5 @@ export const PlaylistHeader = () => {
         </div>
       </div>
     </div>
-  );
-};
-
-/** Per-song button to remove it from the active playlist */
-export const RemoveFromPlaylistButton = ({ fileHash }: { fileHash: string }) => {
-  const { playlist_id } = useLibraryFilter();
-  const { mutate: removeSong } = useRemoveSongFromPlaylist();
-
-  if (!playlist_id) return null;
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="size-7"
-      title="Remove from playlist"
-      onClick={(e) => {
-        e.stopPropagation();
-        removeSong({ playlistId: playlist_id, fileHash });
-      }}
-    >
-      <XIcon className="size-3.5" />
-    </Button>
   );
 };

@@ -17,10 +17,18 @@ import {
   UserIcon,
   ListMusicIcon,
   PlusIcon,
+  PencilIcon,
+  Trash2Icon,
   type LucideIcon,
 } from "lucide-react";
 import { useLibraryMenuItems } from "@/queries/use-library-menu-items";
-import { usePlaylists } from "@/queries/use-playlists";
+import { usePlaylists, useDeletePlaylist } from "@/queries/use-playlists";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+} from "@/components/ui/context-menu";
 import type { LibraryMenuItem } from "@/types/LibraryMenuItem";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -155,6 +163,7 @@ type SidebarNavigationRow =
 export const MainNavigation = ({ registerCallbacks }: MainNavigationProps) => {
   const { data: menu } = useLibraryMenuItems();
   const { data: playlists } = usePlaylists();
+  const { mutate: deletePlaylist } = useDeletePlaylist();
   const { setLibraryFilter, ...filter } = useLibraryFilter();
   const { focus } = useMenuFocus();
   const { setMode } = useDialog();
@@ -420,26 +429,57 @@ export const MainNavigation = ({ registerCallbacks }: MainNavigationProps) => {
                   </SidebarMenuSubItem>
                   {playlists?.map((pl) => (
                     <SidebarMenuSubItem key={pl.id}>
-                      <SidebarMenuButton
-                        data-sidebar-nav-index={playlistItemIndices.get(pl.id)}
-                        isActive={filter.playlist_id === pl.id}
-                        className={`flex h-fit items-center justify-between gap-2 px-2 py-1.5 ${
-                          isSidebarActive && playlistItemIndices.get(pl.id) === focus.sidebarIndex
-                            ? "ring-2 ring-primary bg-sidebar-accent"
-                            : ""
-                        }`}
-                        onClick={() =>
-                          setLibraryFilter({
-                            ...EMPTY_LIBRARY_FILTER,
-                            playlist_id: pl.id,
-                          })
-                        }
-                      >
-                        {pl.name}
-                        <Badge className="h-5 border-0 bg-muted px-1.5 text-[0.65rem] font-medium text-muted-foreground">
-                          {pl.song_count}
-                        </Badge>
-                      </SidebarMenuButton>
+                      <ContextMenu>
+                        <ContextMenuTrigger asChild>
+                          <SidebarMenuButton
+                            data-sidebar-nav-index={playlistItemIndices.get(pl.id)}
+                            isActive={filter.playlist_id === pl.id}
+                            className={`flex h-fit items-center justify-between gap-2 px-2 py-1.5 ${
+                              isSidebarActive &&
+                              playlistItemIndices.get(pl.id) === focus.sidebarIndex
+                                ? "ring-2 ring-primary bg-sidebar-accent"
+                                : ""
+                            }`}
+                            onClick={() =>
+                              setLibraryFilter({
+                                ...EMPTY_LIBRARY_FILTER,
+                                playlist_id: pl.id,
+                              })
+                            }
+                          >
+                            {pl.name}
+                            <Badge className="h-5 border-0 bg-muted px-1.5 text-[0.65rem] font-medium text-muted-foreground">
+                              {pl.song_count}
+                            </Badge>
+                          </SidebarMenuButton>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          <ContextMenuItem
+                            onClick={() =>
+                              setMode({
+                                mode: "rename-playlist",
+                                playlistId: pl.id,
+                                currentName: pl.name,
+                              })
+                            }
+                          >
+                            <PencilIcon className="size-3.5" />
+                            Rename
+                          </ContextMenuItem>
+                          <ContextMenuItem
+                            variant="destructive"
+                            onClick={() => {
+                              deletePlaylist(pl.id);
+                              if (filter.playlist_id === pl.id) {
+                                setLibraryFilter(EMPTY_LIBRARY_FILTER);
+                              }
+                            }}
+                          >
+                            <Trash2Icon className="size-3.5" />
+                            Delete
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
                     </SidebarMenuSubItem>
                   ))}
                 </SidebarMenuSub>

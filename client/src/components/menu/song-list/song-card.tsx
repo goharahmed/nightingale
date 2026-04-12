@@ -19,6 +19,7 @@ import { convertFileSrc } from "@/tauri-bridge/media";
 import {
   AlertTriangleIcon,
   AudioLinesIcon,
+  GripVerticalIcon,
   LanguagesIcon,
   FileTextIcon,
   ImageIcon,
@@ -34,7 +35,7 @@ import {
   VideoIcon,
   XIcon,
 } from "lucide-react";
-import { memo, MouseEvent, useState } from "react";
+import { memo, MouseEvent, useState, PointerEvent as ReactPointerEvent } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -107,10 +108,24 @@ interface SongCardProps {
   isFocused: boolean;
   /** When set, the Play button will navigate with playlist context */
   onPlay?: (song: Song) => void;
+  /** Pointer-based drag reordering for playlist view */
+  isDraggable?: boolean;
+  isDragOver?: "above" | "below" | false;
+  onGripPointerDown?: (e: ReactPointerEvent<HTMLDivElement>, index: number) => void;
 }
 
 export const SongCard = memo(
-  ({ song, queueStatus, bestScore, index, isFocused, onPlay }: SongCardProps) => {
+  ({
+    song,
+    queueStatus,
+    bestScore,
+    index,
+    isFocused,
+    onPlay,
+    isDraggable,
+    isDragOver,
+    onGripPointerDown,
+  }: SongCardProps) => {
     const [shifting, setShifting] = useState<Record<ShiftType, boolean>>({
       tempo: false,
       key: false,
@@ -151,11 +166,26 @@ export const SongCard = memo(
         role="listitem"
         data-song-index={index}
         className={cn(
-          "flex gap-2 transition-colors hover:bg-muted focus-visible:ring-0 focus-visible:border-border",
+          "relative flex gap-2 transition-colors hover:bg-muted focus-visible:ring-0 focus-visible:border-border",
           isFocused && "ring-2 ring-primary bg-muted",
           disabled && "bd-muted",
         )}
       >
+        {/* Drop indicator line */}
+        {isDragOver === "above" && (
+          <div className="absolute -top-[5px] left-0 right-0 h-[2px] bg-primary rounded-full z-10" />
+        )}
+        {isDragOver === "below" && (
+          <div className="absolute -bottom-[5px] left-0 right-0 h-[2px] bg-primary rounded-full z-10" />
+        )}
+        {isDraggable && (
+          <div
+            className="flex items-center cursor-grab active:cursor-grabbing px-1 text-muted-foreground hover:text-foreground touch-none select-none"
+            onPointerDown={onGripPointerDown ? (e) => onGripPointerDown(e, index) : undefined}
+          >
+            <GripVerticalIcon className="size-4" />
+          </div>
+        )}
         <ItemMedia variant="image" className="size-16">
           {song.album_art_path ? (
             <img
