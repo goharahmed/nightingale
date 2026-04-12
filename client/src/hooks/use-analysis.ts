@@ -1,4 +1,4 @@
-import { ANALYSIS_QUEUE, MENU, SONGS, SONGS_META } from "@/queries/keys";
+import { ANALYSIS_QUEUE, FOLDER_TREE, MENU, SONGS, SONGS_META } from "@/queries/keys";
 import { useLibraryFilter } from "@/hooks/use-library-filter";
 import {
   deleteSongCache,
@@ -13,7 +13,7 @@ import { toast } from "sonner";
 
 export const useAnalysis = () => {
   const queryClient = useQueryClient();
-  const { artist, album, query } = useLibraryFilter();
+  const { artist, album, query, folder_path, folder_recursive } = useLibraryFilter();
 
   return useMemo(() => {
     const invalidateQueue = () => {
@@ -25,6 +25,7 @@ export const useAnalysis = () => {
       queryClient.invalidateQueries({ queryKey: SONGS });
       queryClient.invalidateQueries({ queryKey: SONGS_META });
       queryClient.invalidateQueries({ queryKey: ANALYSIS_QUEUE });
+      queryClient.invalidateQueries({ queryKey: FOLDER_TREE });
     };
 
     const wrap =
@@ -42,10 +43,13 @@ export const useAnalysis = () => {
 
     return {
       enqueueOne: wrap(enqueueOne, invalidateQueue),
-      enqueueAll: wrap(() => enqueueAll({ artist, album, query }), invalidateQueue),
+      enqueueAll: wrap(
+        () => enqueueAll({ artist, album, query, folder_path, folder_recursive }),
+        invalidateQueue,
+      ),
       deleteSongCache: wrap(deleteSongCache, invalidateSongs),
       reanalyzeTranscript: wrap(reanalyzeTranscript, invalidateSongs),
       reanalyzeFull: wrap(reanalyzeFull, invalidateSongs),
     };
-  }, [queryClient, artist, album, query]);
+  }, [queryClient, artist, album, query, folder_path, folder_recursive]);
 };

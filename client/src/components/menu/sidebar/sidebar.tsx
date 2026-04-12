@@ -7,12 +7,50 @@ import {
 import { Stats } from "./stats";
 import { Header } from "./header";
 import { MainNavigation } from "./main-navigation";
+import { FolderNavigation } from "./folder-navigation";
 import { Actions } from "./actions";
 import { useMenuFocus } from "@/contexts/menu-focus-context";
+import { FolderTreeIcon, ListFilterIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type PropsWithChildren } from "react";
+
+type SidebarTab = "browse" | "library";
+
+const SidebarTabs = ({
+  activeTab,
+  onTabChange,
+}: {
+  activeTab: SidebarTab;
+  onTabChange: (tab: SidebarTab) => void;
+}) => (
+  <div className="flex gap-1 px-3 py-2">
+    <button
+      className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+        activeTab === "browse"
+          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+          : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
+      }`}
+      onClick={() => onTabChange("browse")}
+    >
+      <ListFilterIcon className="size-3.5" />
+      Browse
+    </button>
+    <button
+      className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+        activeTab === "library"
+          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+          : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
+      }`}
+      onClick={() => onTabChange("library")}
+    >
+      <FolderTreeIcon className="size-3.5" />
+      Library
+    </button>
+  </div>
+);
 
 export const Sidebar = ({ children }: PropsWithChildren<{}>) => {
   const { actionsRef, setFocus } = useMenuFocus();
+  const [activeTab, setActiveTab] = useState<SidebarTab>("browse");
   const [mainNavigationCallbacks, setMainNavigationCallbacks] = useState<(() => void)[]>([]);
   const [actionsCallback, setActionsCallback] = useState<(() => void) | null>(null);
 
@@ -56,7 +94,13 @@ export const Sidebar = ({ children }: PropsWithChildren<{}>) => {
       <ShadCnSidebar>
         <Header />
 
-        <MainNavigation registerCallbacks={registerMainNavigationCallbacks} />
+        <SidebarTabs activeTab={activeTab} onTabChange={setActiveTab} />
+
+        {activeTab === "browse" ? (
+          <MainNavigation registerCallbacks={registerMainNavigationCallbacks} />
+        ) : (
+          <FolderNavigation registerCallbacks={registerMainNavigationCallbacks} />
+        )}
 
         <SidebarFooter>
           <Stats />

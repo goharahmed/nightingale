@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Mutex, OnceLock};
@@ -6,7 +7,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::cache::{analysis_queue_path, nightingale_dir, songs_path};
 use crate::library_menu::{LibraryMenuItem, LibraryMenuItems};
-use crate::library_model::{LibraryMenuFilters, LoadSongsParams, SongsMeta, SongsStore};
+use crate::library_model::{FolderTreeNode, LibraryMenuFilters, LoadSongsParams, SongsMeta, SongsStore};
 use crate::song::{Song, TranscriptSource};
 
 const SCHEMA_VERSION: i32 = 1;
@@ -694,6 +695,19 @@ fn append_structural_filters(
             _ => {}
         }
     }
+
+    if let Some(fp) = filters.folder_path.as_deref().filter(|s| !s.is_empty()) {
+        let fp = fp.trim_end_matches('/');
+        let escaped = escape_like_pattern(fp);
+        if filters.folder_recursive {
+            where_parts.push("s.path LIKE ? ESCAPE '\\'".to_string());
+            bind_strings.push(format!("{}/%", escaped));
+        } else {
+            where_parts.push("(s.path LIKE ? ESCAPE '\\' AND s.path NOT LIKE ? ESCAPE '\\')".to_string());
+            bind_strings.push(format!("{}/%", escaped));
+            bind_strings.push(format!("{}/%/%", escaped));
+        }
+    }
 }
 
 fn build_song_where_clause(
@@ -1081,5 +1095,94 @@ pub fn rebase_song_album_art_paths(old_root: &Path, new_root: &Path) -> Result<(
     tx.commit()
         .map_err(|e| format!("failed committing songs path rewrite: {e}"))?;
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Folder tree
+// ---------------------------------------------------------------------------
+
+struct FolderNode {
+    song_count: usize,
+    children: BTreeMap<String, FolderNode>,
+}
+
+impl FolderNode {
+    fn new() -> Self {
+        Self {
+            song_count: 0,
+            children: BTreeMap::new(),
+        }
+    }
+
+    fn insert_dir_parts(&mut self, parts: &[&str]) {
+        if parts.is_empty() {
+            return;
+        }
+        let child = self
+            .children
+            .entry(parts[0].to_string())
+            .or_insert_with(FolderNode::new);
+        if parts.len() == 1 {
+            child.song_count += 1;
+        } else {
+            child.insert_dir_parts(&parts[1..]);
+        }
+    }
+
+    fn into_tree_nodes(self, parent_path: &str) -> Vec<FolderTreeNode> {
+        self.children
+            .into_iter()
+            .map(|(name, child)| {
+                let path = format!("{}/{}", parent_path, name);
+                let song_count = child.song_count;
+                let children = child.into_tree_nodes(&path);
+                let child_total: usize = children.iter().map(|c| c.total_song_count).sum();
+                FolderTreeNode {
+                    name,
+                    path,
+                    song_count,
+                    total_song_count: song_count + child_total,
+                    children,
+                }
+            })
+            .collect()
+    }
+}
+
+pub fn get_folder_tree() -> rusqlite::Result<Vec<FolderTreeNode>> {
+    let (root_folder, _) = read_library_meta()?;
+    if root_folder.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let root_prefix = root_folder.trim_end_matches('/');
+    let prefix_len = root_prefix.len() + 1; // +1 for trailing '/'
+
+    let paths: Vec<String> = with_conn(|c| {
+        let mut stmt = c.prepare("SELECT path FROM songs")?;
+        let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+        rows.collect()
+    })?;
+
+    let mut root_node = FolderNode::new();
+
+    for path in &paths {
+        if path.len() <= prefix_len {
+            // Song is directly in root — count it on the root node itself
+            root_node.song_count += 1;
+            continue;
+        }
+        let relative = &path[prefix_len..];
+        if let Some(last_slash) = relative.rfind('/') {
+            let dir_path = &relative[..last_slash];
+            let parts: Vec<&str> = dir_path.split('/').collect();
+            root_node.insert_dir_parts(&parts);
+        } else {
+            // File directly in root
+            root_node.song_count += 1;
+        }
+    }
+
+    Ok(root_node.into_tree_nodes(root_prefix))
 }
 

@@ -1,6 +1,7 @@
 import { useBestScoresBySongForActiveProfile } from "@/hooks/use-best-scores-by-song";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { SongCard } from "./song-card";
+import { FolderHeader } from "./folder-header";
 import { Filters } from "./filters";
 import { Progress } from "./progress";
 import { useAnalysisQueue, useSongs } from "@/queries/use-songs";
@@ -14,14 +15,14 @@ export const SongList = () => {
   const { data: queue } = useAnalysisQueue();
   const { focus, actionsRef, scrollRef, setFocus } = useMenuFocus();
   const { search } = useSearch();
-  const { artist, album, query } = useLibraryFilter();
+  const { artist, album, query, folder_path } = useLibraryFilter();
   const bestBySong = useBestScoresBySongForActiveProfile();
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useSongs();
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
     setFocus((prev) => ({ ...prev, songIndex: 0 }));
-  }, [search, artist, album, query, scrollRef, setFocus]);
+  }, [search, artist, album, query, folder_path, scrollRef, setFocus]);
 
   const songs = useMemo(() => data?.pages.flatMap((page) => page.processed) ?? [], [data]);
 
@@ -97,6 +98,13 @@ export const SongList = () => {
           <Progress />
         </div>
       </div>
+      {folder_path && (
+        <div className="flex w-full justify-center px-4">
+          <div className="w-full md:w-11/12 lg:w-4/5 xl:w-3/5">
+            <FolderHeader />
+          </div>
+        </div>
+      )}
       <div
         ref={setScrollContainer}
         className="no-scrollbar flex min-h-0 flex-1 flex-col items-center gap-2 overflow-auto px-4 py-1"

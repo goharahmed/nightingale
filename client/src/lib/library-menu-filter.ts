@@ -7,6 +7,8 @@ export const EMPTY_LIBRARY_FILTER: LibraryMenuFilters = {
   artist: null,
   album: null,
   query: null,
+  folder_path: null,
+  folder_recursive: false,
 };
 
 const HOT_FILTERS: Record<string, LibraryMenuFilters> = {
@@ -30,14 +32,20 @@ export function libraryFilterFromMenuSelection(
     case "no_metadata":
       return NO_METADATA_FILTERS[item.value] ?? EMPTY_LIBRARY_FILTER;
     case "artists":
-      return { artist: item.value, album: null, query: null };
+      return { ...EMPTY_LIBRARY_FILTER, artist: item.value };
     case "albums":
-      return { artist: null, album: item.value, query: null };
+      return { ...EMPTY_LIBRARY_FILTER, album: item.value };
   }
 }
 
 export function libraryFiltersEqual(a: LibraryMenuFilters, b: LibraryMenuFilters): boolean {
-  return a.artist === b.artist && a.album === b.album && a.query === b.query;
+  return (
+    a.artist === b.artist &&
+    a.album === b.album &&
+    a.query === b.query &&
+    a.folder_path === b.folder_path &&
+    a.folder_recursive === b.folder_recursive
+  );
 }
 
 export function isLibraryMenuItemActive(

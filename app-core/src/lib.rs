@@ -28,11 +28,11 @@ pub use playback::{
 };
 pub use config::AppConfig;
 pub use profile::ProfileStore;
-pub use library_model::{LibraryMenuFilters, LoadSongsParams, SongsMeta, SongsStore};
+pub use library_model::{FolderTreeNode, LibraryMenuFilters, LoadSongsParams, SongsMeta, SongsStore};
 pub use library_menu::{LibraryMenuItem, LibraryMenuItems, load_library_menu_items};
 pub use scanner::start_scan;
 pub use song::Song;
-pub use library_db::{init_library, library_db_path, read_library_meta, set_song_album_art, update_song_metadata};
+pub use library_db::{get_folder_tree, init_library, library_db_path, read_library_meta, set_song_album_art, update_song_metadata};
 pub use vendor::{
     clear_vendor_dir, ffmpeg_path, is_ready, mark_ready, silent_command, step_create_venv,
     step_download_ffmpeg, step_download_uv, step_extract_scripts, step_install_packages,

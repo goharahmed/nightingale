@@ -30,7 +30,7 @@ use playback::{
     load_transcript, save_transcript,
 };
 use profile::{add_score, create_profile, delete_profile, load_profiles, switch_profile};
-use scanner::{load_analysis_queue, load_library_menu_items, load_songs, load_songs_meta, trigger_scan, update_song_metadata};
+use scanner::{get_folder_tree, load_analysis_queue, load_library_menu_items, load_songs, load_songs_meta, trigger_scan, update_song_metadata};
 use tauri::{Manager, RunEvent, WebviewWindowBuilder};
 use vendor::{is_ready, trigger_setup};
 use youtube::{download_youtube_video, get_youtube_video_info, search_youtube, set_song_thumbnail};
@@ -111,6 +111,7 @@ pub fn run() {
             load_analysis_queue,
             load_library_menu_items,
             update_song_metadata,
+            get_folder_tree,
             // Analyzer
             enqueue_one,
             enqueue_all,

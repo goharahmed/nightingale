@@ -9,6 +9,20 @@ pub struct LibraryMenuFilters {
     pub artist: Option<String>,
     pub album: Option<String>,
     pub query: Option<String>,
+    #[serde(default)]
+    pub folder_path: Option<String>,
+    #[serde(default)]
+    pub folder_recursive: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct FolderTreeNode {
+    pub name: String,
+    pub path: String,
+    pub song_count: usize,
+    pub total_song_count: usize,
+    pub children: Vec<FolderTreeNode>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
