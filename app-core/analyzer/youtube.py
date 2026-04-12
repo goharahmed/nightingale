@@ -123,11 +123,17 @@ def download_video(
             'no_warnings': False,
             'noprogress': True,
             'progress_hooks': [],
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'm4a',
-                'preferredquality': '192',
-            }],
+            'writethumbnail': True,
+            'postprocessors': [
+                {
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': 'm4a',
+                    'preferredquality': '192',
+                },
+                {
+                    'key': 'EmbedThumbnail',
+                },
+            ],
         }
     else:
         # Download video with audio
@@ -219,6 +225,60 @@ def get_video_info(url: str) -> Optional[dict]:
         return None
 
 
+def fetch_thumbnail(url: str, output_path: str) -> Optional[str]:
+    """
+    Fetch the thumbnail image for a YouTube video and save it to a file.
+
+    Args:
+        url: YouTube URL or video ID
+        output_path: Full path where the JPEG thumbnail should be saved
+
+    Returns:
+        The output path on success, or None on error
+    """
+    import urllib.request
+
+    ydl_opts = {
+        'quiet': True,
+        'no_warnings': True,
+    }
+    ffmpeg_dir = _ffmpeg_location()
+    if ffmpeg_dir:
+        ydl_opts['ffmpeg_location'] = ffmpeg_dir
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            if info is None:
+                print("ERROR: Could not extract info", file=sys.stderr)
+                return None
+
+            thumb_url = info.get('thumbnail', '')
+            if not thumb_url:
+                thumbnails = info.get('thumbnails', [])
+                if thumbnails:
+                    thumb_url = thumbnails[-1].get('url', '')
+            if not thumb_url:
+                vid_id = info.get('id', '')
+                if vid_id:
+                    thumb_url = f"https://i.ytimg.com/vi/{vid_id}/maxresdefault.jpg"
+
+            if not thumb_url:
+                print("ERROR: No thumbnail URL found", file=sys.stderr)
+                return None
+
+            output_dir = os.path.dirname(output_path)
+            if output_dir:
+                os.makedirs(output_dir, exist_ok=True)
+
+            urllib.request.urlretrieve(thumb_url, output_path)
+            return output_path
+
+    except Exception as e:
+        print(f"ERROR fetching thumbnail: {e}", file=sys.stderr)
+        return None
+
+
 if __name__ == "__main__":
     # CLI interface for testing and use from Rust
     import argparse
@@ -241,6 +301,11 @@ if __name__ == "__main__":
     info_parser = subparsers.add_parser('info', help='Get video information')
     info_parser.add_argument('url', help='YouTube URL or video ID')
     
+    # Fetch thumbnail command
+    thumb_parser = subparsers.add_parser('fetch-thumbnail', help='Fetch YouTube video thumbnail')
+    thumb_parser.add_argument('url', help='YouTube URL or video ID')
+    thumb_parser.add_argument('--output', required=True, help='Output file path for the thumbnail')
+    
     args = parser.parse_args()
     
     if args.command == 'search':
@@ -258,6 +323,13 @@ if __name__ == "__main__":
         info = get_video_info(args.url)
         if info:
             print(json.dumps(info, indent=2))
+        else:
+            sys.exit(1)
+
+    elif args.command == 'fetch-thumbnail':
+        result = fetch_thumbnail(args.url, args.output)
+        if result:
+            print(json.dumps({'path': result}))
         else:
             sys.exit(1)
             

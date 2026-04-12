@@ -539,6 +539,16 @@ pub fn update_song_metadata(
     Ok(song)
 }
 
+pub fn set_song_album_art(file_hash: &str, cover_path: &std::path::Path) -> Result<Song, String> {
+    let mut song = load_song_by_hash(file_hash)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("song not found for hash {file_hash}"))?;
+
+    song.album_art_path = Some(cover_path.to_path_buf());
+    update_song_fields(file_hash, &song).map_err(|e| e.to_string())?;
+    Ok(song)
+}
+
 pub fn load_meta_sql() -> rusqlite::Result<SongsMeta> {
     if MIGRATING.load(Ordering::Acquire) {
         return with_conn(|c| {

@@ -18,11 +18,13 @@ import {
   AudioLinesIcon,
   LanguagesIcon,
   FileTextIcon,
+  ImageIcon,
   LoaderCircleIcon,
   MenuIcon,
   MusicIcon,
   PencilIcon,
   PencilLineIcon,
+  PlayIcon,
   Trash2Icon,
   VideoIcon,
 } from "lucide-react";
@@ -129,21 +131,10 @@ export const SongCard = memo(
         role="listitem"
         data-song-index={index}
         className={cn(
-          "flex gap-2 cursor-pointer transition-colors hover:bg-muted focus-visible:ring-0 focus-visible:border-border",
+          "flex gap-2 transition-colors hover:bg-muted focus-visible:ring-0 focus-visible:border-border",
           isFocused && "ring-2 ring-primary bg-muted",
           disabled && "bd-muted",
         )}
-        onClick={() => {
-          if (disabled) {
-            return;
-          }
-
-          if (isReady) {
-            return navigate("/playback", { state: { song } });
-          }
-
-          enqueueOne(song.file_hash);
-        }}
       >
         <ItemMedia variant="image" className="size-16">
           {song.album_art_path ? (
@@ -159,11 +150,32 @@ export const SongCard = memo(
         </ItemMedia>
 
         <ItemContent>
-          {song.is_video && (
+          <div className="flex items-center gap-1">
             <Badge variant="outline">
-              <VideoIcon /> Video
+              {song.is_video ? (
+                <>
+                  <VideoIcon /> Video
+                </>
+              ) : (
+                <>
+                  <MusicIcon className="size-3" /> Audio
+                </>
+              )}
             </Badge>
-          )}
+            {isReady && !disabled && (
+              <Button
+                variant="default"
+                size="xs"
+                className="gap-1"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate("/playback", { state: { song } });
+                }}
+              >
+                <PlayIcon className="size-3" /> Play
+              </Button>
+            )}
+          </div>
           <ItemTitle className="flex min-w-0 flex-row flex-wrap items-center gap-2">
             <span className="line-clamp-1 min-w-0">{song.title}</span>
             {bestScore != null ? <Stars score={bestScore} size="sm" className="shrink-0" /> : null}
@@ -188,69 +200,97 @@ export const SongCard = memo(
 
         <ItemContent className="flex flex-col items-end gap-1">
           <div className="flex items-center gap-1">
-            <Badge variant={variant} className={className}>
-              {isAnalyzing && <LoaderCircleIcon className="size-3 animate-spin" />}
-              {label}
-              {displaySource}
-            </Badge>
+            {!isReady && !isAnalyzing && !queueStatus ? (
+              <Badge
+                variant={variant}
+                className={cn(
+                  className,
+                  "cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors",
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  enqueueOne(song.file_hash);
+                }}
+              >
+                {label}
+              </Badge>
+            ) : !isReady ? (
+              <Badge variant={variant} className={className}>
+                {isAnalyzing && <LoaderCircleIcon className="size-3 animate-spin" />}
+                {label}
+                {displaySource}
+              </Badge>
+            ) : null}
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="xs" disabled={!isReady || disabled}>
+              <Button variant="outline" size="xs" disabled={disabled}>
                 <MenuIcon /> Actions
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent side="bottom" align="start" className="min-w-56">
               <DropdownMenuGroup>
+                {isReady && (
+                  <>
+                    <DropdownMenuItem
+                      onClick={withMenuAction(async () => {
+                        await deleteSongCache(song.file_hash);
+                        toast.info(`Cache deleted for "${song.title}"`);
+                      })}
+                    >
+                      <Trash2Icon />
+                      Delete cache
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={withMenuAction(async () => {
+                        setMode({ mode: "reanalyze-language", song });
+                      })}
+                    >
+                      <FileTextIcon />
+                      Reanalyze transcript
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={withMenuAction(async () => {
+                        reanalyzeFull(song.file_hash);
+                        toast.info(`Reanalyzing full (with stems) for "${song.title}"`);
+                      })}
+                    >
+                      <AudioLinesIcon />
+                      Reanalyze full (with stems)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={withMenuAction(async () => {
+                        setMode({ mode: "language", song });
+                      })}
+                    >
+                      <LanguagesIcon />
+                      Change language
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={withMenuAction(async () => {
+                        setMode({ mode: "edit-metadata", song });
+                      })}
+                    >
+                      <PencilIcon />
+                      Edit metadata
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={withMenuAction(async () => {
+                        setMode({ mode: "edit-lyrics", song });
+                      })}
+                    >
+                      <PencilLineIcon />
+                      Edit lyrics
+                    </DropdownMenuItem>
+                  </>
+                )}
                 <DropdownMenuItem
                   onClick={withMenuAction(async () => {
-                    await deleteSongCache(song.file_hash);
-                    toast.info(`Cache deleted for "${song.title}"`);
+                    setMode({ mode: "set-thumbnail", song });
                   })}
                 >
-                  <Trash2Icon />
-                  Delete cache
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={withMenuAction(async () => {
-                    setMode({ mode: "reanalyze-language", song });
-                  })}
-                >
-                  <FileTextIcon />
-                  Reanalyze transcript
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={withMenuAction(async () => {
-                    reanalyzeFull(song.file_hash);
-                    toast.info(`Reanalyzing full (with stems) for "${song.title}"`);
-                  })}
-                >
-                  <AudioLinesIcon />
-                  Reanalyze full (with stems)
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={withMenuAction(async () => {
-                    setMode({ mode: "language", song });
-                  })}
-                >
-                  <LanguagesIcon />
-                  Change language
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={withMenuAction(async () => {
-                    setMode({ mode: "edit-metadata", song });
-                  })}
-                >
-                  <PencilIcon />
-                  Edit metadata
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={withMenuAction(async () => {
-                    setMode({ mode: "edit-lyrics", song });
-                  })}
-                >
-                  <PencilLineIcon />
-                  Edit lyrics
+                  <ImageIcon />
+                  Set thumbnail
                 </DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>

@@ -6,13 +6,11 @@ import { Progress } from "./progress";
 import { useAnalysisQueue, useSongs } from "@/queries/use-songs";
 import { useMenuFocus } from "@/contexts/menu-focus-context";
 import { useLibraryFilter } from "@/hooks/use-library-filter";
-import { useAnalysis } from "@/hooks/use-analysis";
 import { useSearch } from "@/hooks/use-search";
 import { useNavigate } from "react-router";
 
 export const SongList = () => {
   const navigate = useNavigate();
-  const { enqueueOne } = useAnalysis();
   const { data: queue } = useAnalysisQueue();
   const { focus, actionsRef, scrollRef, setFocus } = useMenuFocus();
   const { search } = useSearch();
@@ -51,15 +49,13 @@ export const SongList = () => {
 
       if (isReady) {
         navigate("/playback", { state: { song } });
-      } else if (!queueStatus || queueStatus === "Queued") {
-        enqueueOne(song.file_hash);
       }
     };
 
     return () => {
       actionsRef.current.onConfirmSong = null;
     };
-  }, [actionsRef, navigate, enqueueOne]);
+  }, [actionsRef, navigate]);
 
   const setScrollContainer = useCallback(
     (el: HTMLDivElement | null) => {
@@ -90,30 +86,34 @@ export const SongList = () => {
   const isSongListActive = focus.active && focus.panel === "songList";
 
   return (
-    <div className="flex min-h-0 w-full flex-1 justify-center">
-      <div className="flex min-h-0 w-full flex-col gap-4 p-4 md:w-11/12 lg:w-4/5 xl:w-3/5">
-        <Filters />
-        <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
+      <div className="flex w-full justify-center px-4 pt-4">
+        <div className="w-full md:w-11/12 lg:w-4/5 xl:w-3/5">
+          <Filters />
+        </div>
+      </div>
+      <div className="flex w-full justify-center px-4">
+        <div className="w-full md:w-11/12 lg:w-4/5 xl:w-3/5">
           <Progress />
-          <div
-            ref={setScrollContainer}
-            className="no-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-auto p-1"
-            role="list"
-          >
-            {songs.map((song, index) => (
-              <SongCard
-                key={song.file_hash}
-                song={song}
-                queueStatus={queue?.entries[song.file_hash]}
-                bestScore={bestBySong.get(song.file_hash)}
-                index={index}
-                isFocused={
-                  isSongListActive && !focus.analyzeAllFocused && focus.songIndex === index
-                }
-              />
-            ))}
-            <div ref={sentinelRef} className="h-1 shrink-0" />
-          </div>
+        </div>
+      </div>
+      <div
+        ref={setScrollContainer}
+        className="no-scrollbar flex min-h-0 flex-1 flex-col items-center gap-2 overflow-auto px-4 py-1"
+        role="list"
+      >
+        <div className="flex w-full flex-col gap-2 md:w-11/12 lg:w-4/5 xl:w-3/5">
+          {songs.map((song, index) => (
+            <SongCard
+              key={song.file_hash}
+              song={song}
+              queueStatus={queue?.entries[song.file_hash]}
+              bestScore={bestBySong.get(song.file_hash)}
+              index={index}
+              isFocused={isSongListActive && !focus.analyzeAllFocused && focus.songIndex === index}
+            />
+          ))}
+          <div ref={sentinelRef} className="h-1 shrink-0" />
         </div>
       </div>
     </div>

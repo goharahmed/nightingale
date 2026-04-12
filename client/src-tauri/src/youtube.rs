@@ -108,7 +108,7 @@ pub async fn search_youtube(
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        let error_msg = if stderr.contains("yt-dlp") || stderr.contains("yt_dlp") {
+        let error_msg = if stderr.contains("No module named 'yt_dlp'") || stderr.contains("yt-dlp not installed") {
             format!("YouTube search failed: yt-dlp not installed. Please run Setup to install dependencies.\n\nDetails: {}", stderr)
         } else {
             format!("YouTube search failed: {}", stderr)
@@ -160,7 +160,7 @@ pub async fn download_youtube_video(
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        let error_msg = if stderr.contains("yt-dlp") || stderr.contains("yt_dlp") {
+        let error_msg = if stderr.contains("No module named 'yt_dlp'") || stderr.contains("yt-dlp not installed") {
             format!("YouTube download failed: yt-dlp not installed. Please run Setup to install dependencies.\n\nDetails: {}", stderr)
         } else {
             format!("YouTube download failed: {}", stderr)
@@ -205,4 +205,76 @@ pub async fn get_youtube_video_info(url: String) -> Result<YouTubeVideoInfo, Str
         serde_json::from_str(&stdout).map_err(|e| format!("Failed to parse video info: {}", e))?;
 
     Ok(info)
+}
+
+/// Set the thumbnail for a song.
+/// `source` can be:
+///   - A YouTube URL (starts with http and contains youtube.com or youtu.be)
+///   - An image URL (starts with http)
+///   - A local file path
+#[tauri::command]
+pub async fn set_song_thumbnail(
+    file_hash: String,
+    source: String,
+) -> Result<app_core::Song, String> {
+    let cache = app_core::CacheDir::new();
+
+    let image_bytes = if source.starts_with("http://") || source.starts_with("https://") {
+        // Check if this is a YouTube URL — use yt-dlp to fetch the thumbnail
+        let is_youtube = source.contains("youtube.com") || source.contains("youtu.be");
+
+        if is_youtube {
+            // Use the python script to fetch the thumbnail
+            let tmp_path = cache.cover_path(&format!("{file_hash}_tmp"));
+            let script = get_youtube_script();
+            let output = python_command()
+                .arg(&script)
+                .arg("fetch-thumbnail")
+                .arg(&source)
+                .arg("--output")
+                .arg(&tmp_path)
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .output()
+                .map_err(|e| format!("Failed to fetch YouTube thumbnail: {}", e))?;
+
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                return Err(format!("Failed to fetch YouTube thumbnail: {}", stderr));
+            }
+
+            std::fs::read(&tmp_path)
+                .map_err(|e| format!("Failed to read fetched thumbnail: {}", e))?
+        } else {
+            // Direct image URL — fetch with a simple HTTP GET
+            let resp = std::process::Command::new("curl")
+                .args(["-fsSL", "-o", "-", &source])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .output()
+                .map_err(|e| format!("Failed to download image: {}", e))?;
+
+            if !resp.status.success() {
+                let stderr = String::from_utf8_lossy(&resp.stderr);
+                return Err(format!("Failed to download image: {}", stderr));
+            }
+
+            resp.stdout
+        }
+    } else {
+        // Local file path
+        std::fs::read(&source)
+            .map_err(|e| format!("Failed to read local image file: {}", e))?
+    };
+
+    if image_bytes.is_empty() {
+        return Err("Downloaded image is empty".to_string());
+    }
+
+    // Hash the image and save as cover using CacheDir
+    let cover_path = cache.save_cover(&image_bytes)
+        .ok_or_else(|| "Failed to save cover image".to_string())?;
+
+    // Update the song record in the database
+    app_core::set_song_album_art(&file_hash, &cover_path)
 }

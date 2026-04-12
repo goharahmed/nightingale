@@ -12,6 +12,7 @@ export type DialogMode =
   | { mode: "reanalyze-language"; song: Song }
   | { mode: "edit-metadata"; song: Song }
   | { mode: "edit-lyrics"; song: Song }
+  | { mode: "set-thumbnail"; song: Song }
   | null;
 
 const dialogAtom = atom<DialogMode>(null);

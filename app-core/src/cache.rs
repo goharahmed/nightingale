@@ -94,6 +94,20 @@ impl CacheDir {
         dir.join(format!("{hash}.mp4"))
     }
 
+    /// Save image bytes as a cover image and return the path.
+    /// The image is hashed with blake3 and stored with a content-addressed filename.
+    pub fn save_cover(&self, image_bytes: &[u8]) -> Option<PathBuf> {
+        if image_bytes.is_empty() {
+            return None;
+        }
+        let cover_hash = blake3::hash(image_bytes).to_hex()[..32].to_string();
+        let cover_path = self.cover_path(&cover_hash);
+        if !cover_path.exists() {
+            std::fs::write(&cover_path, image_bytes).ok()?;
+        }
+        Some(cover_path)
+    }
+
     pub fn transcript_exists(&self, hash: &str) -> bool {
         self.transcript_path(hash).is_file() && self.stems_exist(hash)
     }
