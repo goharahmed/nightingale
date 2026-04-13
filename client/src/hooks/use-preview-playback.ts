@@ -17,8 +17,6 @@ import type { Song } from "@/types/Song";
 
 /** Minimum seek offset from the start of the song (seconds). */
 const MIN_SEEK = 5;
-/** Maximum seek offset from the start of the song (seconds). */
-const MAX_SEEK = 35;
 /** Duration of the preview snippet (seconds). */
 export const PREVIEW_DURATION = 15;
 /** Volume fade-in / fade-out duration (seconds). */
@@ -33,10 +31,10 @@ const TARGET_VOLUME = 0.8;
 /* ------------------------------------------------------------------ */
 
 function randomSeekOffset(songDurationSecs: number): number {
-  // If the song is shorter than our max seek, clamp to a safe range
-  const upper = Math.min(MAX_SEEK, Math.max(MIN_SEEK, songDurationSecs - PREVIEW_DURATION - 2));
-  const lower = Math.min(MIN_SEEK, upper);
-  return lower + Math.random() * (upper - lower);
+  // Pick a random point anywhere in the song, leaving enough room for the
+  // full preview snippet plus fades, and skipping the first few seconds.
+  const safeEnd = Math.max(MIN_SEEK, songDurationSecs - PREVIEW_DURATION - 2);
+  return MIN_SEEK + Math.random() * (safeEnd - MIN_SEEK);
 }
 
 /* ------------------------------------------------------------------ */
@@ -127,8 +125,23 @@ export function PreviewProvider({ children }: { children: ReactNode }) {
           const base = await getBaseUrl();
           const url = `${base}/${encodeURIComponent(song.path)}`;
           audio.src = url;
-          audio.currentTime = seekOffset;
 
+          // Wait until the browser has enough metadata to allow seeking,
+          // otherwise setting currentTime is silently ignored / reset to 0.
+          await new Promise<void>((resolve) => {
+            const onReady = () => {
+              audio.removeEventListener("loadedmetadata", onReady);
+              resolve();
+            };
+            // If metadata is already loaded (cached), readyState >= 1
+            if (audio.readyState >= 1) {
+              resolve();
+            } else {
+              audio.addEventListener("loadedmetadata", onReady);
+            }
+          });
+
+          audio.currentTime = seekOffset;
           await audio.play();
           setState((s) => ({ ...s, isPlaying: true }));
 
