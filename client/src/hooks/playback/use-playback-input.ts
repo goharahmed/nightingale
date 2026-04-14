@@ -28,6 +28,7 @@ export interface UsePlaybackInputParams {
   onToggleMic: () => void;
   onCycleMic: () => void;
   onToggleMicMirror: () => void;
+  onToggleScript?: () => void;
 }
 
 export function usePlaybackInput({
@@ -50,6 +51,7 @@ export function usePlaybackInput({
   onToggleMic,
   onCycleMic,
   onToggleMicMirror,
+  onToggleScript,
 }: UsePlaybackInputParams) {
   const pausedRef = useRef(paused);
   pausedRef.current = paused;
@@ -166,6 +168,11 @@ export function usePlaybackInput({
         case "R":
           onToggleMicMirror();
           break;
+
+        case "l":
+        case "L":
+          onToggleScript?.();
+          break;
       }
     };
 
@@ -184,5 +191,6 @@ export function usePlaybackInput({
     onToggleMic,
     onCycleMic,
     onToggleMicMirror,
+    onToggleScript,
   ]);
 }

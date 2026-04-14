@@ -15,6 +15,19 @@ pub fn load_transcript(file_hash: String) -> Result<serde_json::Value, String> {
 }
 
 #[tauri::command]
+pub fn load_transcript_variant(
+    file_hash: String,
+    script: String,
+) -> Result<serde_json::Value, String> {
+    app_core::load_transcript_variant(&file_hash, &script).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_transcript_variants(file_hash: String) -> Vec<String> {
+    app_core::get_transcript_variants(&file_hash)
+}
+
+#[tauri::command]
 pub fn save_transcript(file_hash: String, transcript: serde_json::Value) -> Result<(), String> {
     app_core::save_transcript(&file_hash, transcript).map_err(|e| e.to_string())
 }

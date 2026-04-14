@@ -46,9 +46,20 @@ export const useSongs = () => {
   const { search } = useSearch();
   const { artist, album, query, folder_path, folder_recursive, playlist_id } = useLibraryFilter();
 
+  const queryKey = [
+    ...SONGS,
+    search,
+    artist,
+    album,
+    query,
+    folder_path,
+    folder_recursive,
+    playlist_id,
+  ];
+
   return useInfiniteQuery({
-    queryKey: [...SONGS, search, artist, album, query, folder_path, folder_recursive, playlist_id],
-    queryFn: ({ pageParam = 0 }) => {
+    queryKey,
+    queryFn: async ({ pageParam = 0 }) => {
       const params: LoadSongsParams = {
         search: search || null,
         filters: {
@@ -62,7 +73,12 @@ export const useSongs = () => {
         skip: pageParam,
         take: PAGE_SIZE,
       };
-      return loadSongs(params);
+      const result = await loadSongs(params);
+      console.log(
+        `[useSongs:queryFn] folder=${folder_path ?? "none"} playlist=${playlist_id ?? "none"} skip=${pageParam} returned=${result.processed.length} total=${result.processed_count}`,
+        result.processed.slice(0, 3).map((s) => s.title),
+      );
+      return result;
     },
     getNextPageParam: (lastPage, allPages) => {
       const loaded = allPages.reduce((sum, page) => sum + page.processed.length, 0);

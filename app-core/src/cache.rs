@@ -20,6 +20,11 @@ impl CacheDir {
         self.path.join(format!("{hash}_transcript.json"))
     }
 
+    pub fn script_variant_transcript_path(&self, hash: &str, script: &str) -> PathBuf {
+        self.path
+            .join(format!("{hash}_transcript_script_{script}.json"))
+    }
+
     pub fn variant_transcript_path(&self, hash: &str, tempo: f64) -> PathBuf {
         self.path
             .join(format!("{hash}_transcript_{}.json", format_tempo(tempo)))
@@ -84,6 +89,25 @@ impl CacheDir {
         self.path.join(format!("{hash}_lyrics.json"))
     }
 
+    /// List script variant names that have transliterated transcripts for this hash.
+    /// Returns e.g. ["roman"] if `{hash}_transcript_script_roman.json` exists.
+    pub fn list_script_variants(&self, hash: &str) -> Vec<String> {
+        let prefix = format!("{hash}_transcript_script_");
+        let Ok(entries) = std::fs::read_dir(&self.path) else {
+            return Vec::new();
+        };
+        let mut variants = Vec::new();
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if let Some(rest) = name.strip_prefix(&prefix) {
+                if let Some(variant) = rest.strip_suffix(".json") {
+                    variants.push(variant.to_string());
+                }
+            }
+        }
+        variants
+    }
+
     pub fn cover_path(&self, hash: &str) -> PathBuf {
         self.path.join(format!("{hash}_cover.jpg"))
     }
@@ -136,6 +160,7 @@ impl CacheDir {
                 if name.starts_with(&format!("{hash}_instrumental_"))
                     || name.starts_with(&format!("{hash}_vocals_"))
                     || is_variant_transcript_file(name, hash)
+                    || is_script_variant_transcript_file(name, hash)
                 {
                     let _ = std::fs::remove_file(&path);
                 }
@@ -150,7 +175,9 @@ impl CacheDir {
                 let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
                     continue;
                 };
-                if is_variant_transcript_file(name, hash) {
+                if is_variant_transcript_file(name, hash)
+                    || is_script_variant_transcript_file(name, hash)
+                {
                     let _ = std::fs::remove_file(&path);
                 }
             }
@@ -171,6 +198,11 @@ fn stem_suffix<'a>(name: &'a str, prefix: &str) -> Option<&'a str> {
 
 fn is_variant_transcript_file(name: &str, hash: &str) -> bool {
     name.starts_with(&format!("{hash}_transcript_")) && name.ends_with(".json")
+        && !name.contains("_script_")
+}
+
+fn is_script_variant_transcript_file(name: &str, hash: &str) -> bool {
+    name.starts_with(&format!("{hash}_transcript_script_")) && name.ends_with(".json")
 }
 
 pub fn sanitize_key(key: &str) -> String {

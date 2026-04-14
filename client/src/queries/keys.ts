@@ -7,3 +7,5 @@ export const ANALYSIS_QUEUE = ["analysis-queue"];
 export const MENU = ["menu"];
 export const FOLDER_TREE = ["folder-tree"];
 export const PLAYLISTS = ["playlists"];
+export const METADATA_CORRECTIONS = ["metadata-corrections"];
+export const METADATA_FIX_STATUS = ["metadata-fix-status"];

@@ -10,7 +10,7 @@ use crate::library_menu::{LibraryMenuItem, LibraryMenuItems};
 use crate::library_model::{FolderTreeNode, LibraryMenuFilters, LoadSongsParams, Playlist, PlaylistPlayMode, SongsMeta, SongsStore};
 use crate::song::{Song, TranscriptSource};
 
-const SCHEMA_VERSION: i32 = 2;
+const SCHEMA_VERSION: i32 = 3;
 
 static LIBRARY_DB: OnceLock<Mutex<Connection>> = OnceLock::new();
 
@@ -117,6 +117,31 @@ fn run_migrations(conn: &Connection) -> rusqlite::Result<()> {
                 UNIQUE(playlist_id, file_hash)
             );
             CREATE INDEX IF NOT EXISTS idx_playlist_songs_playlist ON playlist_songs(playlist_id, position);
+        ",
+        )?;
+    }
+    if v < 3 {
+        conn.execute_batch(
+            "
+            CREATE TABLE IF NOT EXISTS metadata_corrections (
+                id INTEGER PRIMARY KEY,
+                file_hash TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                original_title TEXT NOT NULL,
+                original_artist TEXT NOT NULL,
+                original_album TEXT NOT NULL,
+                suggested_title TEXT NOT NULL,
+                suggested_artist TEXT NOT NULL,
+                suggested_album TEXT NOT NULL,
+                suggested_album_art_url TEXT,
+                confirmed INTEGER NOT NULL DEFAULT 0,
+                applied_to_file INTEGER NOT NULL DEFAULT 0,
+                rejected INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_mc_file_hash ON metadata_corrections(file_hash);
+            CREATE INDEX IF NOT EXISTS idx_mc_confirmed ON metadata_corrections(confirmed);
+            CREATE INDEX IF NOT EXISTS idx_mc_rejected ON metadata_corrections(rejected);
         ",
         )?;
     }
@@ -824,6 +849,13 @@ pub fn load_songs_page(params: &LoadSongsParams) -> rusqlite::Result<SongsStore>
     let (where_sql, bind_strings) =
         build_song_where_clause(search_words.as_deref(), &params.filters, &[]);
 
+    if let Some(ref fp) = params.filters.folder_path {
+        tracing::info!(
+            "[load_songs_page] folder_path={:?} recursive={} where_sql={:?} binds={:?} skip={} take={}",
+            fp, params.filters.folder_recursive, where_sql, bind_strings, params.skip, params.take
+        );
+    }
+
     let processed = if let Some(ref where_sql) = where_sql {
         let sql = format!(
             "SELECT payload FROM songs s
@@ -871,6 +903,15 @@ pub fn load_songs_page(params: &LoadSongsParams) -> rusqlite::Result<SongsStore>
             Ok(n as usize)
         })?
     };
+
+    if params.filters.folder_path.is_some() {
+        tracing::info!(
+            "[load_songs_page] returned {} songs, processed_count={}, first_paths={:?}",
+            processed.len(),
+            processed_count,
+            processed.iter().take(5).map(|s| s.path.display().to_string()).collect::<Vec<_>>()
+        );
+    }
 
     Ok(SongsStore {
         count: scan_count as usize,
@@ -1399,3 +1440,159 @@ pub fn get_playlist_song_hashes(playlist_id: i64) -> rusqlite::Result<Vec<String
     })
 }
 
+// ─── Metadata corrections ───────────────────────────────────────────────
+
+use crate::metadata_fix::MetadataCorrection;
+
+pub fn insert_metadata_correction(c: &MetadataCorrection) -> rusqlite::Result<()> {
+    with_conn_mut(|conn| {
+        conn.execute(
+            "INSERT INTO metadata_corrections
+                (file_hash, file_path, original_title, original_artist, original_album,
+                 suggested_title, suggested_artist, suggested_album, suggested_album_art_url,
+                 confirmed, applied_to_file, rejected)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+             ON CONFLICT(file_hash) DO UPDATE SET
+                suggested_title = excluded.suggested_title,
+                suggested_artist = excluded.suggested_artist,
+                suggested_album = excluded.suggested_album,
+                suggested_album_art_url = excluded.suggested_album_art_url",
+            params![
+                c.file_hash,
+                c.file_path,
+                c.original_title,
+                c.original_artist,
+                c.original_album,
+                c.suggested_title,
+                c.suggested_artist,
+                c.suggested_album,
+                c.suggested_album_art_url,
+                c.confirmed as i32,
+                c.applied_to_file as i32,
+                c.rejected as i32,
+            ],
+        )?;
+        Ok(())
+    })
+}
+
+fn row_to_correction(r: &rusqlite::Row<'_>) -> rusqlite::Result<MetadataCorrection> {
+    Ok(MetadataCorrection {
+        id: r.get(0)?,
+        file_hash: r.get(1)?,
+        file_path: r.get(2)?,
+        original_title: r.get(3)?,
+        original_artist: r.get(4)?,
+        original_album: r.get(5)?,
+        suggested_title: r.get(6)?,
+        suggested_artist: r.get(7)?,
+        suggested_album: r.get(8)?,
+        suggested_album_art_url: r.get(9)?,
+        confirmed: r.get::<_, i32>(10)? != 0,
+        applied_to_file: r.get::<_, i32>(11)? != 0,
+        rejected: r.get::<_, i32>(12)? != 0,
+    })
+}
+
+const SELECT_CORRECTION_COLS: &str =
+    "id, file_hash, file_path, original_title, original_artist, original_album, \
+     suggested_title, suggested_artist, suggested_album, suggested_album_art_url, \
+     confirmed, applied_to_file, rejected";
+
+pub fn load_pending_corrections() -> rusqlite::Result<Vec<MetadataCorrection>> {
+    with_conn(|c| {
+        let sql = format!(
+            "SELECT {SELECT_CORRECTION_COLS} FROM metadata_corrections \
+             WHERE confirmed = 0 AND rejected = 0 ORDER BY id"
+        );
+        let mut stmt = c.prepare(&sql)?;
+        let rows = stmt.query_map([], row_to_correction)?;
+        rows.collect()
+    })
+}
+
+pub fn load_all_corrections() -> rusqlite::Result<Vec<MetadataCorrection>> {
+    with_conn(|c| {
+        let sql = format!(
+            "SELECT {SELECT_CORRECTION_COLS} FROM metadata_corrections ORDER BY id"
+        );
+        let mut stmt = c.prepare(&sql)?;
+        let rows = stmt.query_map([], row_to_correction)?;
+        rows.collect()
+    })
+}
+
+pub fn load_confirmed_unapplied_corrections() -> rusqlite::Result<Vec<MetadataCorrection>> {
+    with_conn(|c| {
+        let sql = format!(
+            "SELECT {SELECT_CORRECTION_COLS} FROM metadata_corrections \
+             WHERE confirmed = 1 AND applied_to_file = 0 ORDER BY id"
+        );
+        let mut stmt = c.prepare(&sql)?;
+        let rows = stmt.query_map([], row_to_correction)?;
+        rows.collect()
+    })
+}
+
+pub fn get_metadata_correction(id: i64) -> rusqlite::Result<Option<MetadataCorrection>> {
+    with_conn(|c| {
+        let sql = format!(
+            "SELECT {SELECT_CORRECTION_COLS} FROM metadata_corrections WHERE id = ?1"
+        );
+        c.query_row(&sql, [id], row_to_correction).optional()
+    })
+}
+
+pub fn metadata_correction_hashes() -> rusqlite::Result<std::collections::HashSet<String>> {
+    with_conn(|c| {
+        let mut stmt = c.prepare("SELECT file_hash FROM metadata_corrections")?;
+        let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+        let v: Vec<String> = rows.collect::<Result<Vec<_>, _>>()?;
+        Ok(v.into_iter().collect())
+    })
+}
+
+pub fn mark_correction_confirmed(id: i64) -> rusqlite::Result<()> {
+    with_conn_mut(|c| {
+        c.execute(
+            "UPDATE metadata_corrections SET confirmed = 1 WHERE id = ?1",
+            [id],
+        )?;
+        Ok(())
+    })
+}
+
+pub fn mark_correction_rejected(id: i64) -> rusqlite::Result<()> {
+    with_conn_mut(|c| {
+        c.execute(
+            "UPDATE metadata_corrections SET rejected = 1 WHERE id = ?1",
+            [id],
+        )?;
+        Ok(())
+    })
+}
+
+pub fn mark_correction_applied(id: i64) -> rusqlite::Result<()> {
+    with_conn_mut(|c| {
+        c.execute(
+            "UPDATE metadata_corrections SET applied_to_file = 1 WHERE id = ?1",
+            [id],
+        )?;
+        Ok(())
+    })
+}
+
+pub fn update_correction_suggestions(
+    id: i64,
+    title: &str,
+    artist: &str,
+    album: &str,
+) -> rusqlite::Result<()> {
+    with_conn_mut(|c| {
+        c.execute(
+            "UPDATE metadata_corrections SET suggested_title = ?2, suggested_artist = ?3, suggested_album = ?4 WHERE id = ?1",
+            params![id, title, artist, album],
+        )?;
+        Ok(())
+    })
+}

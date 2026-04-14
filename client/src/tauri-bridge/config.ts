@@ -16,3 +16,9 @@ export const loadConfig = async (): Promise<AppConfig> => {
 export const saveConfig = async (config: AppConfig): Promise<AppConfig> => {
   return await invoke<AppConfig>("save_config", { config });
 };
+
+/** Set or clear the OpenAI API key.  The plaintext key only travels once
+ *  from the webview to the Rust backend; it is never returned over IPC. */
+export const setOpenaiApiKey = async (key: string | null): Promise<void> => {
+  await invoke("set_openai_api_key", { key });
+};

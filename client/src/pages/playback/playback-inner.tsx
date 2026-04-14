@@ -68,28 +68,41 @@ export function PlaybackInner({ song, config, playlistContext }: PlaybackInnerPr
   const [themeIndex, setThemeIndex] = useState(song.is_video ? SOURCE_VIDEO_INDEX : initialTheme);
   const [flavorIndex, setFlavorIndex] = useState(initialVideoFlavor);
 
-  const { segments, transcriptSource } = usePlaybackTranscript(fileHash);
+  const { segments, transcriptSource, availableVariants, activeScript, toggleScript } =
+    usePlaybackTranscript(fileHash);
   const persistConfig = usePlaybackConfigPersist(config);
 
   const [stemsReady, setStemsReady] = useState(false);
   useEffect(() => {
     let unlisten: (() => void) | null = null;
+    let cancelled = false;
 
-    onStemsReady((event) => {
-      if (event.file_hash !== fileHash) return;
-      if (event.error) {
-        toast.error(`Stem conversion failed: ${event.error}`);
-        navigate("/", { replace: true });
-      } else {
-        setStemsReady(true);
+    // Register the event listener BEFORE triggering the Rust command to avoid a
+    // race where the "stems-ready" event fires before the listener is set up
+    // (happens when variant stems already exist and the command returns instantly).
+    (async () => {
+      const fn = await onStemsReady((event) => {
+        if (cancelled) return;
+        if (event.file_hash !== fileHash) return;
+        if (event.error) {
+          toast.error(`Stem conversion failed: ${event.error}`);
+          navigate("/", { replace: true });
+        } else {
+          setStemsReady(true);
+        }
+      });
+      if (cancelled) {
+        fn();
+        return;
       }
-    }).then((fn) => {
       unlisten = fn;
-    });
 
-    ensureMp3Stems(fileHash);
+      // Now that the listener is active, trigger the stem check
+      ensureMp3Stems(fileHash);
+    })();
 
     return () => {
+      cancelled = true;
       unlisten?.();
     };
   }, [fileHash, navigate]);
@@ -560,6 +573,7 @@ export function PlaybackInner({ song, config, playlistContext }: PlaybackInnerPr
     onToggleMic: handleToggleMic,
     onCycleMic: handleCycleMic,
     onToggleMicMirror: handleToggleMicMirror,
+    onToggleScript: toggleScript,
   });
 
   const videoFlavor: VideoFlavor = FLAVORS[flavorIndex % FLAVORS.length];
@@ -608,6 +622,9 @@ export function PlaybackInner({ song, config, playlistContext }: PlaybackInnerPr
             slotRms={
               useMultiMicMode ? multiMicSlots.slice(0, micSlotCount).map((s) => s.rms) : null
             }
+            hasScriptVariants={availableVariants.length > 0}
+            activeScript={activeScript}
+            onToggleScript={toggleScript}
           />
           <PitchGraph
             series={useMultiMicMode ? (multiScoringResults[0]?.series ?? series) : series}

@@ -33,6 +33,33 @@ pub fn reanalyze_full(file_hash: String) {
     core_reanalyze_full(&file_hash);
 }
 
+#[tauri::command]
+pub fn generate_transliteration(
+    app: AppHandle,
+    file_hash: String,
+) {
+    std::thread::spawn(move || {
+        let result = app_core::generate_transliteration(&file_hash);
+        let payload = match result {
+            Ok(_) => TransliterationDone {
+                file_hash,
+                error: None,
+            },
+            Err(err) => TransliterationDone {
+                file_hash,
+                error: Some(err.to_string()),
+            },
+        };
+        let _ = app.emit("transliteration-done", payload);
+    });
+}
+
+#[derive(Clone, Serialize)]
+struct TransliterationDone {
+    file_hash: String,
+    error: Option<String>,
+}
+
 #[derive(Clone, Serialize, TS)]
 #[ts(export)]
 struct ShiftDone {

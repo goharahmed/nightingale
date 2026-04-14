@@ -7,6 +7,17 @@ export const loadTranscript = async (fileHash: string): Promise<Transcript> => {
   return await invoke<Transcript>("load_transcript", { fileHash });
 };
 
+export const loadTranscriptVariant = async (
+  fileHash: string,
+  script: string,
+): Promise<Transcript> => {
+  return await invoke<Transcript>("load_transcript_variant", { fileHash, script });
+};
+
+export const getTranscriptVariants = async (fileHash: string): Promise<string[]> => {
+  return await invoke<string[]>("get_transcript_variants", { fileHash });
+};
+
 export const saveTranscript = async (fileHash: string, transcript: Transcript): Promise<void> => {
   return await invoke<void>("save_transcript", { fileHash, transcript });
 };

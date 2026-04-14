@@ -16,10 +16,21 @@ def _ensure_wav(audio_path: str, work_dir: str) -> str:
         return audio_path
     wav_path = os.path.join(work_dir, "input.wav")
     ffmpeg = os.environ.get("FFMPEG_PATH", "ffmpeg")
-    subprocess.run(
-        [ffmpeg, "-y", "-i", audio_path, "-ar", "44100", "-ac", "2", "-v", "error", wav_path],
-        check=True,
-    )
+    cmd = [ffmpeg, "-y", "-i", audio_path, "-ar", "44100", "-ac", "2", "-v", "error", wav_path]
+    result = subprocess.run(cmd)
+    if result.returncode != 0:
+        # Retry with forced input format for files with corrupt/invalid headers
+        # (e.g. MP3 files with broken RIFF headers or misplaced ID3 tags).
+        ext = os.path.splitext(audio_path)[1].lower().lstrip(".")
+        fmt = {"mp3": "mp3", "ogg": "ogg", "flac": "flac", "aac": "aac",
+               "m4a": "ipod", "wma": "asf", "opus": "ogg"}.get(ext)
+        if fmt:
+            cmd_retry = [ffmpeg, "-y", "-f", fmt, "-i", audio_path,
+                         "-ar", "44100", "-ac", "2", "-v", "error", wav_path]
+            subprocess.run(cmd_retry, check=True)
+        else:
+            # No known format override – raise the original error
+            raise subprocess.CalledProcessError(result.returncode, cmd)
     return wav_path
 
 

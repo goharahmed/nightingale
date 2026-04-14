@@ -52,7 +52,14 @@ export const SongList = () => {
     setFocus((prev) => ({ ...prev, songIndex: 0 }));
   }, [search, artist, album, query, folder_path, playlist_id, scrollRef, setFocus]);
 
-  const songs = useMemo(() => data?.pages.flatMap((page) => page.processed) ?? [], [data]);
+  const songs = useMemo(() => {
+    const result = data?.pages.flatMap((page) => page.processed) ?? [];
+    console.log(
+      `[SongList] folder=${folder_path ?? "none"} playlist=${playlist_id ?? "none"} pages=${data?.pages.length ?? 0} songs=${result.length}`,
+      result.slice(0, 5).map((s) => `${s.title} | ${s.path}`),
+    );
+    return result;
+  }, [data, folder_path, playlist_id]);
 
   // Register song activation callback and count with MenuFocus context
   const queueRef = useRef(queue);

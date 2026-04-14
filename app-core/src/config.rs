@@ -57,6 +57,8 @@ pub struct AppConfig {
     pub mic_slot_count: Option<usize>,
     /// Per-slot settings, indexed 0..3.
     pub mic_slots: Option<Vec<MicSlotSetting>>,
+    /// OpenAI API key for LLM-powered transliteration (optional).
+    pub openai_api_key: Option<String>,
 }
 
 fn default_data_path_option() -> Option<PathBuf> {
@@ -91,6 +93,7 @@ impl Default for AppConfig {
             instrumental_start_channel: None,
             mic_slot_count: None,
             mic_slots: None,
+            openai_api_key: None,
         }
     }
 }
@@ -147,8 +150,37 @@ impl AppConfig {
             let _ = std::fs::create_dir_all(parent);
         }
         if let Ok(json) = serde_json::to_string_pretty(self) {
-            let _ = std::fs::write(&path, json);
+            let _ = std::fs::write(&path, &json);
+            // Restrict to owner-only so the API key isn't world-readable.
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+            }
         }
+    }
+
+    /// Return a copy with secrets masked so it is safe to send over IPC.
+    /// The raw key never leaves the Rust process.
+    pub fn redacted(&self) -> Self {
+        let mut copy = self.clone();
+        copy.openai_api_key = self.openai_api_key.as_ref().map(|k| {
+            if k.len() > 7 {
+                // Show "sk-•••abcd" – enough to confirm identity, not enough to use.
+                let suffix = &k[k.len().saturating_sub(4)..];
+                format!("sk-•••{suffix}")
+            } else {
+                "••••••".to_string()
+            }
+        });
+        copy
+    }
+
+    /// Atomically set (or clear) the OpenAI API key on disk.
+    pub fn set_openai_api_key(key: Option<String>) {
+        let mut config = Self::load();
+        config.openai_api_key = key;
+        config.save();
     }
 
     pub fn whisper_model(&self) -> &str {

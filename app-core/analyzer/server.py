@@ -100,6 +100,23 @@ def main():
         if cmd.get("command") == "quit":
             break
 
+        if cmd.get("command") == "transliterate":
+            try:
+                from transliterate import generate_romanized_transcript
+                source = os.path.abspath(cmd["source_path"])
+                dest = os.path.abspath(cmd["dest_path"])
+                api_key = cmd.get("api_key") or None
+                generated = generate_romanized_transcript(source, dest, api_key=api_key)
+                if generated:
+                    print("[nightingale:DONE]", flush=True)
+                else:
+                    print("[nightingale:ERROR] Transcript does not need transliteration (already Latin script)", flush=True)
+            except Exception as e:
+                import traceback
+                traceback.print_exc(file=sys.stderr)
+                print(f"[nightingale:ERROR] {e}", flush=True)
+            continue
+
         if cmd.get("command") == "analyze":
             progress(0, "Starting analysis...")
             try:

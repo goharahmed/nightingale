@@ -84,6 +84,12 @@ interface PlaybackHudProps {
   micRms?: number;
   /** Per-slot RMS levels for multi-mic mode. */
   slotRms?: number[] | null;
+  /** Whether a romanized (or other script variant) transcript is available */
+  hasScriptVariants?: boolean;
+  /** The currently active script variant (null = original) */
+  activeScript?: string | null;
+  /** Callback to toggle between original and romanized script */
+  onToggleScript?: () => void;
 }
 
 function PlaybackHudImpl({
@@ -109,6 +115,9 @@ function PlaybackHudImpl({
   micSlotCount = 1,
   micRms = 0,
   slotRms,
+  hasScriptVariants = false,
+  activeScript = null,
+  onToggleScript,
 }: PlaybackHudProps) {
   const lastSecondRef = useRef(-1);
   const timerRef = useRef<HTMLParagraphElement>(null);
@@ -193,6 +202,15 @@ function PlaybackHudImpl({
             ))}
           <HintText>Mirror: {micMirrorOn ? "ON" : "OFF"} [R]</HintText>
           <HintText>{formatThemeText(themeIndex, videoFlavor)}</HintText>
+          {hasScriptVariants && (
+            <button
+              onClick={onToggleScript}
+              className="pointer-events-auto mt-1 flex items-center gap-1.5 rounded-sm border border-white/30 bg-black/20 px-2 py-0.5 text-xs text-white/70 transition-colors hover:bg-black/30 hover:text-white/90"
+            >
+              <span className="text-[0.65rem]">文A</span>
+              <span>{activeScript ? "Original" : "Romanized"} [L]</span>
+            </button>
+          )}
           <HintText>[ESC] Back</HintText>
         </div>
       </div>

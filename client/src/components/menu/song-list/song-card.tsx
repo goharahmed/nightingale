@@ -19,7 +19,9 @@ import { convertFileSrc } from "@/tauri-bridge/media";
 import {
   AlertTriangleIcon,
   AudioLinesIcon,
+  CaseSensitiveIcon,
   GripVerticalIcon,
+  HeadphonesIcon,
   LanguagesIcon,
   FileTextIcon,
   ImageIcon,
@@ -31,6 +33,7 @@ import {
   PencilIcon,
   PencilLineIcon,
   PlayIcon,
+  SquareIcon,
   Trash2Icon,
   VideoIcon,
   XIcon,
@@ -50,6 +53,8 @@ import {
 } from "@/queries/use-playlists";
 import { useCurrentProfile } from "@/hooks/use-current-profile";
 import { useLibraryFilter } from "@/hooks/use-library-filter";
+import { usePreviewPlayback, PREVIEW_DURATION } from "@/hooks/use-preview-playback";
+import { onTransliterationDone } from "@/tauri-bridge/analysis";
 
 function formatSeconds(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
@@ -134,8 +139,16 @@ export const SongCard = memo(
     const navigate = useNavigate();
     const { setMode } = useDialog();
     const queryClient = useQueryClient();
-    const { enqueueOne, deleteSongCache, reanalyzeFull } = useAnalysis();
+    const { enqueueOne, deleteSongCache, reanalyzeFull, generateTransliteration } = useAnalysis();
     const { playlist_id } = useLibraryFilter();
+    const {
+      currentHash,
+      isPlaying: isPreviewing,
+      elapsed,
+      startPreview,
+      stopPreview,
+    } = usePreviewPlayback();
+    const isThisPreviewing = currentHash === song.file_hash && isPreviewing;
     const profile = useCurrentProfile();
     const { data: playlists } = usePlaylists();
     const { mutate: addToPlaylist } = useAddSongToPlaylist();
@@ -212,6 +225,30 @@ export const SongCard = memo(
                 </>
               )}
             </Badge>
+            <Button
+              variant={isThisPreviewing ? "destructive" : "secondary"}
+              size="xs"
+              className="gap-1"
+              title="Sneak peek – play a random 15-second preview"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isThisPreviewing) {
+                  stopPreview();
+                } else {
+                  startPreview(song);
+                }
+              }}
+            >
+              {isThisPreviewing ? (
+                <>
+                  <SquareIcon className="size-3" /> {Math.ceil(PREVIEW_DURATION - elapsed)}s
+                </>
+              ) : (
+                <>
+                  <HeadphonesIcon className="size-3" /> Peek
+                </>
+              )}
+            </Button>
             {isReady && !disabled && (
               <Button
                 variant="default"
@@ -320,6 +357,28 @@ export const SongCard = memo(
                       <LanguagesIcon />
                       Change language
                     </DropdownMenuItem>
+                    {song.is_analyzed && (
+                      <DropdownMenuItem
+                        onClick={withMenuAction(async () => {
+                          toast.info(`Generating romanized transcript for "${song.title}"...`);
+                          await generateTransliteration(song.file_hash);
+                          const unlisten = await onTransliterationDone((event) => {
+                            if (event.file_hash !== song.file_hash) return;
+                            if (event.error) {
+                              toast.error(`Romanization failed: ${event.error}`);
+                            } else {
+                              toast.success(
+                                `Romanized transcript ready for "${song.title}". Press [L] during playback to toggle.`,
+                              );
+                            }
+                            unlisten();
+                          });
+                        })}
+                      >
+                        <CaseSensitiveIcon />
+                        Generate romanized
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem
                       onClick={withMenuAction(async () => {
                         setMode({ mode: "edit-metadata", song });

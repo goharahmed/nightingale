@@ -17,6 +17,7 @@ import { SidebarInset } from "@/components/ui/sidebar";
 import { MenuFocusProvider } from "@/contexts/menu-focus-context";
 import { useMenuNav } from "@/hooks/navigation/use-menu-nav";
 import { useDialog } from "@/hooks/use-dialog";
+import { PreviewProvider } from "@/hooks/use-preview-playback";
 import { useShouldRunSetup } from "@/hooks/use-should-run-setup";
 import { useSongsMeta } from "@/queries/use-songs";
 import { ReactElement, useCallback } from "react";
@@ -75,6 +76,8 @@ const MenuInner = () => {
 
 export const Menu = () => (
   <MenuFocusProvider>
-    <MenuInner />
+    <PreviewProvider>
+      <MenuInner />
+    </PreviewProvider>
   </MenuFocusProvider>
 );
