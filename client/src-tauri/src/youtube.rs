@@ -109,9 +109,9 @@ pub async fn search_youtube(
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let error_msg = if stderr.contains("No module named 'yt_dlp'") || stderr.contains("yt-dlp not installed") {
-            format!("YouTube search failed: yt-dlp not installed. Please run Setup to install dependencies.\n\nDetails: {}", stderr)
+            format!("Internet search failed: yt-dlp not installed. Please run Setup to install dependencies.\n\nDetails: {}", stderr)
         } else {
-            format!("YouTube search failed: {}", stderr)
+            format!("Internet search failed: {}", stderr)
         };
         return Err(error_msg);
     }
@@ -123,7 +123,7 @@ pub async fn search_youtube(
     Ok(results)
 }
 
-/// Download a YouTube video or audio
+/// Download a Internet video or audio
 #[tauri::command]
 pub async fn download_youtube_video(
     url: String,
@@ -156,14 +156,14 @@ pub async fn download_youtube_video(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .output()
-        .map_err(|e| format!("Failed to execute YouTube download: {}. Make sure to run Setup first to install yt-dlp.", e))?;
+        .map_err(|e| format!("Failed to execute Internet download: {}. Make sure to run Setup first to install yt-dlp.", e))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let error_msg = if stderr.contains("No module named 'yt_dlp'") || stderr.contains("yt-dlp not installed") {
-            format!("YouTube download failed: yt-dlp not installed. Please run Setup to install dependencies.\n\nDetails: {}", stderr)
+            format!("Internet download failed: yt-dlp not installed. Please run Setup to install dependencies.\n\nDetails: {}", stderr)
         } else {
-            format!("YouTube download failed: {}", stderr)
+            format!("Internet download failed: {}", stderr)
         };
         return Err(error_msg);
     }
@@ -209,7 +209,7 @@ pub async fn get_youtube_video_info(url: String) -> Result<YouTubeVideoInfo, Str
 
 /// Set the thumbnail for a song.
 /// `source` can be:
-///   - A YouTube URL (starts with http and contains youtube.com or youtu.be)
+///   - A Internet URL (starts with http and contains websitename.com or youtu.be)
 ///   - An image URL (starts with http)
 ///   - A local file path
 #[tauri::command]
@@ -220,7 +220,7 @@ pub async fn set_song_thumbnail(
     let cache = app_core::CacheDir::new();
 
     let image_bytes = if source.starts_with("http://") || source.starts_with("https://") {
-        // Check if this is a YouTube URL — use yt-dlp to fetch the thumbnail
+        // Check if this is a valid URL — use yt-dlp to fetch the thumbnail
         let is_youtube = source.contains("youtube.com") || source.contains("youtu.be");
 
         if is_youtube {

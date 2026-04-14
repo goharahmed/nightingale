@@ -40,7 +40,7 @@ const InitialStep = ({ toNextStep }: InitialStepProps) => {
         <AlertDialogDescription>
           Before you get started, we need to install a few dependencies: <code>ffmpeg</code>,{" "}
           <code>uv</code>, <code>python 3.10</code>, Python packages (including <code>yt-dlp</code>{" "}
-          for YouTube downloads), and <code>CUDA</code> wheels (NVIDIA GPUs only).
+          for Internet downloads), and <code>CUDA</code> wheels (NVIDIA GPUs only).
         </AlertDialogDescription>
         <AlertDialogDescription>
           This may take a few minutes. You can exit at any time if you'd prefer not to continue.
