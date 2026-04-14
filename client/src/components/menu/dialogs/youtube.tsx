@@ -212,9 +212,9 @@ export const YouTubeSearchDialog = () => {
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-4xl max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle>YouTube Search & Download</DialogTitle>
+          <DialogTitle>URL Search & Download</DialogTitle>
           <DialogDescription>
-            Search for songs on YouTube and download them to your library
+            Search for songs on the internet and download them to your library
           </DialogDescription>
         </DialogHeader>
 
@@ -226,7 +226,7 @@ export const YouTubeSearchDialog = () => {
               </Label>
               <Input
                 id="search-input"
-                placeholder="Search YouTube..."
+                placeholder="Search..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyPress={handleKeyPress}
