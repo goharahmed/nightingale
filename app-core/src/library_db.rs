@@ -1581,3 +1581,18 @@ pub fn mark_correction_applied(id: i64) -> rusqlite::Result<()> {
         Ok(())
     })
 }
+
+pub fn update_correction_suggestions(
+    id: i64,
+    title: &str,
+    artist: &str,
+    album: &str,
+) -> rusqlite::Result<()> {
+    with_conn_mut(|c| {
+        c.execute(
+            "UPDATE metadata_corrections SET suggested_title = ?2, suggested_artist = ?3, suggested_album = ?4 WHERE id = ?1",
+            params![id, title, artist, album],
+        )?;
+        Ok(())
+    })
+}

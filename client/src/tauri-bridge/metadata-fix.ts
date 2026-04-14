@@ -41,6 +41,16 @@ export const rejectCorrection = async (correctionId: number): Promise<void> => {
   await invoke("reject_metadata_correction", { correctionId });
 };
 
+/** Update the suggested metadata fields for a correction before confirming. */
+export const updateCorrection = async (
+  correctionId: number,
+  title: string,
+  artist: string,
+  album: string,
+): Promise<void> => {
+  await invoke("update_metadata_correction", { correctionId, title, artist, album });
+};
+
 /** Write all confirmed (but not yet applied) corrections to actual files. */
 export const applyConfirmedToFiles = async (): Promise<number> => {
   return await invoke<number>("apply_confirmed_corrections_to_files");

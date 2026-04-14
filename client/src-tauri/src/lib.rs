@@ -25,6 +25,7 @@ use metadata_fix::{
     start_metadata_fix, cancel_metadata_fix, get_metadata_fix_status,
     get_pending_corrections, get_all_corrections, confirm_metadata_correction,
     reject_metadata_correction, apply_confirmed_corrections_to_files,
+    update_metadata_correction,
 };
 use microphones::{
     list_microphones, list_input_devices,
@@ -185,6 +186,7 @@ pub fn run() {
             get_all_corrections,
             confirm_metadata_correction,
             reject_metadata_correction,
+            update_metadata_correction,
             apply_confirmed_corrections_to_files
         ])
         .setup(|app| {

@@ -5,7 +5,7 @@ use lofty::{
     tag::Accessor,
 };
 use serde::{Deserialize, Serialize};
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 use ts_rs::TS;
 
 use crate::{config::AppConfig, library_db};
@@ -251,11 +251,30 @@ pub fn write_tags_to_file(
     artist: &str,
     album: &str,
 ) -> Result<(), String> {
-    use lofty::config::WriteOptions;
+    use lofty::config::{ParseOptions, ParsingMode, WriteOptions};
+    use lofty::probe::Probe;
 
-    let mut tagged = lofty::read_from_path(file_path).map_err(|e| {
-        format!("Failed to open file for tag writing: {e}")
-    })?;
+    // Use Relaxed parsing to fully discard invalid tag frames
+    // (e.g. malformed timestamps in ID3v2 TDRC/TYER, non-UTF8 strings, etc.).
+    // BestAttempt still errors on structurally invalid data; Relaxed skips it.
+    let parse_opts = ParseOptions::new().parsing_mode(ParsingMode::Relaxed);
+    let mut tagged = Probe::open(file_path)
+        .map_err(|e| {
+            error!(
+                "[metadata-fix] Cannot open file: {} — {e}",
+                file_path.display()
+            );
+            format!("Cannot open file '{}': {e}", file_path.display())
+        })?
+        .options(parse_opts)
+        .read()
+        .map_err(|e| {
+            error!(
+                "[metadata-fix] Cannot parse tags: {} — {e}",
+                file_path.display()
+            );
+            format!("Cannot parse tags in '{}': {e}", file_path.display())
+        })?;
 
     // Prefer the primary tag, create one if needed
     let tag = match tagged.primary_tag_mut() {
@@ -278,11 +297,23 @@ pub fn write_tags_to_file(
         .read(true)
         .write(true)
         .open(file_path)
-        .map_err(|e| format!("Failed to open file for writing: {e}"))?;
+        .map_err(|e| {
+            error!(
+                "[metadata-fix] Cannot open file for writing: {} — {e}",
+                file_path.display()
+            );
+            format!("Cannot open '{}' for writing: {e}", file_path.display())
+        })?;
 
     tagged
         .save_to(&mut file, WriteOptions::default())
-        .map_err(|e| format!("Failed to save tags: {e}"))?;
+        .map_err(|e| {
+            error!(
+                "[metadata-fix] Failed to save tags: {} — {e}",
+                file_path.display()
+            );
+            format!("Failed to save tags to '{}': {e}", file_path.display())
+        })?;
 
     info!("[metadata-fix] Wrote tags to {}", file_path.display());
     Ok(())
@@ -442,14 +473,37 @@ pub fn confirm_correction(correction_id: i64, write_to_file: bool) -> Result<(),
     if write_to_file {
         let path = Path::new(&correction.file_path);
         if path.exists() {
-            write_tags_to_file(
+            match write_tags_to_file(
                 path,
                 &correction.suggested_title,
                 &correction.suggested_artist,
                 &correction.suggested_album,
-            )?;
+            ) {
+                Ok(()) => {
+                    library_db::mark_correction_applied(correction_id)
+                        .map_err(|e| e.to_string())?;
+                }
+                Err(e) => {
+                    // Log the error but don't fail — DB update already succeeded.
+                    // The correction is confirmed (metadata updated in library)
+                    // but the file itself wasn't touched.
+                    error!(
+                        "[metadata-fix] Tag write failed for '{}': {e}",
+                        correction.file_path
+                    );
+                    library_db::mark_correction_confirmed(correction_id)
+                        .map_err(|e| e.to_string())?;
+                    return Err(format!(
+                        "Metadata saved to library, but couldn't write to file: {e}"
+                    ));
+                }
+            }
+        } else {
+            warn!(
+                "[metadata-fix] File not found, skipping file write: {}",
+                correction.file_path
+            );
         }
-        library_db::mark_correction_applied(correction_id).map_err(|e| e.to_string())?;
     }
 
     library_db::mark_correction_confirmed(correction_id).map_err(|e| e.to_string())?;
@@ -503,6 +557,17 @@ pub fn load_pending_corrections() -> Result<Vec<MetadataCorrection>, String> {
 /// Load all corrections regardless of status.
 pub fn load_all_corrections() -> Result<Vec<MetadataCorrection>, String> {
     library_db::load_all_corrections().map_err(|e| e.to_string())
+}
+
+/// Update the suggested metadata for a correction (user edits before confirming).
+pub fn update_correction_suggestions(
+    correction_id: i64,
+    title: String,
+    artist: String,
+    album: String,
+) -> Result<(), String> {
+    library_db::update_correction_suggestions(correction_id, &title, &artist, &album)
+        .map_err(|e| e.to_string())
 }
 
 use std::io::Read;

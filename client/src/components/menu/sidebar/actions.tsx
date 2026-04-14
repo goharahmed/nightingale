@@ -164,7 +164,7 @@ export const Actions = ({ registerCallback, focusedSidebarIndex }: ActionsProps)
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setMode("youtube")}>
                 <YoutubeIcon />
-                YouTube Download
+                Download Song
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

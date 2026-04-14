@@ -49,5 +49,5 @@ pub use metadata_fix::{
     MetadataCorrection, MetadataFixProgress, MetadataFixStatus,
     start_metadata_fix, cancel_metadata_fix, metadata_fix_status,
     confirm_correction, reject_correction, apply_confirmed_to_files,
-    load_pending_corrections, load_all_corrections,
+    load_pending_corrections, load_all_corrections, update_correction_suggestions,
 };

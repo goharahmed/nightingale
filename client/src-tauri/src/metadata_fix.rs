@@ -36,6 +36,16 @@ pub fn reject_metadata_correction(correction_id: i64) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn update_metadata_correction(
+    correction_id: i64,
+    title: String,
+    artist: String,
+    album: String,
+) -> Result<(), String> {
+    app_core::update_correction_suggestions(correction_id, title, artist, album)
+}
+
+#[tauri::command]
 pub fn apply_confirmed_corrections_to_files() -> Result<usize, String> {
     app_core::apply_confirmed_to_files()
 }
