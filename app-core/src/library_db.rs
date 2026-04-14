@@ -824,6 +824,13 @@ pub fn load_songs_page(params: &LoadSongsParams) -> rusqlite::Result<SongsStore>
     let (where_sql, bind_strings) =
         build_song_where_clause(search_words.as_deref(), &params.filters, &[]);
 
+    if let Some(ref fp) = params.filters.folder_path {
+        tracing::info!(
+            "[load_songs_page] folder_path={:?} recursive={} where_sql={:?} binds={:?} skip={} take={}",
+            fp, params.filters.folder_recursive, where_sql, bind_strings, params.skip, params.take
+        );
+    }
+
     let processed = if let Some(ref where_sql) = where_sql {
         let sql = format!(
             "SELECT payload FROM songs s
@@ -871,6 +878,15 @@ pub fn load_songs_page(params: &LoadSongsParams) -> rusqlite::Result<SongsStore>
             Ok(n as usize)
         })?
     };
+
+    if params.filters.folder_path.is_some() {
+        tracing::info!(
+            "[load_songs_page] returned {} songs, processed_count={}, first_paths={:?}",
+            processed.len(),
+            processed_count,
+            processed.iter().take(5).map(|s| s.path.display().to_string()).collect::<Vec<_>>()
+        );
+    }
 
     Ok(SongsStore {
         count: scan_count as usize,

@@ -74,22 +74,34 @@ export function PlaybackInner({ song, config, playlistContext }: PlaybackInnerPr
   const [stemsReady, setStemsReady] = useState(false);
   useEffect(() => {
     let unlisten: (() => void) | null = null;
+    let cancelled = false;
 
-    onStemsReady((event) => {
-      if (event.file_hash !== fileHash) return;
-      if (event.error) {
-        toast.error(`Stem conversion failed: ${event.error}`);
-        navigate("/", { replace: true });
-      } else {
-        setStemsReady(true);
+    // Register the event listener BEFORE triggering the Rust command to avoid a
+    // race where the "stems-ready" event fires before the listener is set up
+    // (happens when variant stems already exist and the command returns instantly).
+    (async () => {
+      const fn = await onStemsReady((event) => {
+        if (cancelled) return;
+        if (event.file_hash !== fileHash) return;
+        if (event.error) {
+          toast.error(`Stem conversion failed: ${event.error}`);
+          navigate("/", { replace: true });
+        } else {
+          setStemsReady(true);
+        }
+      });
+      if (cancelled) {
+        fn();
+        return;
       }
-    }).then((fn) => {
       unlisten = fn;
-    });
 
-    ensureMp3Stems(fileHash);
+      // Now that the listener is active, trigger the stem check
+      ensureMp3Stems(fileHash);
+    })();
 
     return () => {
+      cancelled = true;
       unlisten?.();
     };
   }, [fileHash, navigate]);
