@@ -3,6 +3,11 @@ import { listen } from "@tauri-apps/api/event";
 import type { LibraryMenuFilters } from "@/types/LibraryMenuFilters";
 import { ShiftDone } from "@/types/ShiftDone";
 
+export interface TransliterationDone {
+  file_hash: string;
+  error: string | null;
+}
+
 export const enqueueOne = async (fileHash: string): Promise<void> => {
   return await invoke<void>("enqueue_one", { fileHash });
 };
@@ -42,4 +47,14 @@ export const onShiftKeyDone = async (cb: (payload: ShiftDone) => void): Promise<
 
 export const onShiftTempoDone = async (cb: (payload: ShiftDone) => void): Promise<() => void> => {
   return await listen<ShiftDone>("shift-tempo-done", ({ payload }) => cb(payload));
+};
+
+export const generateTransliteration = async (fileHash: string): Promise<void> => {
+  return await invoke<void>("generate_transliteration", { fileHash });
+};
+
+export const onTransliterationDone = async (
+  cb: (event: TransliterationDone) => void,
+): Promise<() => void> => {
+  return await listen<TransliterationDone>("transliteration-done", ({ payload }) => cb(payload));
 };

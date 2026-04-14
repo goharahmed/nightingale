@@ -5,6 +5,7 @@ mod error;
 mod library_model;
 mod library_menu;
 pub mod media_server;
+pub mod metadata_fix;
 mod playback;
 mod profile;
 mod scanner;
@@ -23,8 +24,9 @@ pub use cache::{
 };
 pub use playback::{
     AudioPaths, ShiftResult, download_pixabay_videos, ensure_mp3_stems,
-    ensure_playable_source_video, get_audio_paths, get_cached_pixabay_videos, load_transcript,
-    prefetch_one_per_flavor, save_transcript, shift_key, shift_tempo,
+    ensure_playable_source_video, generate_transliteration, get_audio_paths,
+    get_cached_pixabay_videos, get_transcript_variants, load_transcript,
+    load_transcript_variant, prefetch_one_per_flavor, save_transcript, shift_key, shift_tempo,
 };
 pub use config::AppConfig;
 pub use profile::ProfileStore;
@@ -41,5 +43,11 @@ pub use library_db::{
 pub use vendor::{
     clear_vendor_dir, ffmpeg_path, is_ready, mark_ready, silent_command, step_create_venv,
     step_download_ffmpeg, step_download_uv, step_extract_scripts, step_install_packages,
-    step_install_python, analyzer_dir, python_path,
+    step_install_python, analyzer_dir, python_path, sync_scripts_and_deps,
+};
+pub use metadata_fix::{
+    MetadataCorrection, MetadataFixProgress, MetadataFixStatus,
+    start_metadata_fix, cancel_metadata_fix, metadata_fix_status,
+    confirm_correction, reject_correction, apply_confirmed_to_files,
+    load_pending_corrections, load_all_corrections,
 };

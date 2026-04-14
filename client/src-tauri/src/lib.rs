@@ -2,6 +2,7 @@ mod analyzer;
 mod cache;
 mod config;
 mod logging;
+mod metadata_fix;
 mod microphones;
 mod multi_channel_audio;
 mod playback;
@@ -11,15 +12,20 @@ mod vendor;
 mod youtube;
 
 use analyzer::{
-    delete_song_cache, enqueue_all, enqueue_one, reanalyze_full, reanalyze_transcript, shift_key,
-    shift_tempo,
+    delete_song_cache, enqueue_all, enqueue_one, generate_transliteration, reanalyze_full,
+    reanalyze_transcript, shift_key, shift_tempo,
 };
 use app_core::{AppConfig, SongsStore};
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use cache::{
     calculate_cache_stats, clear_all, clear_models_command, clear_videos_command,
 };
-use config::{load_config, save_config};
+use config::{load_config, save_config, set_openai_api_key};
+use metadata_fix::{
+    start_metadata_fix, cancel_metadata_fix, get_metadata_fix_status,
+    get_pending_corrections, get_all_corrections, confirm_metadata_correction,
+    reject_metadata_correction, apply_confirmed_corrections_to_files,
+};
 use microphones::{
     list_microphones, list_input_devices,
     start_mic_capture, stop_mic_capture,
@@ -27,7 +33,7 @@ use microphones::{
 };
 use playback::{
     ensure_mp3_stems, ensure_playable_source_video, fetch_pixabay_videos, get_audio_paths,
-    load_transcript, save_transcript,
+    get_transcript_variants, load_transcript, load_transcript_variant, save_transcript,
 };
 use profile::{add_score, create_profile, delete_profile, load_profiles, switch_profile};
 use scanner::{
@@ -98,6 +104,7 @@ pub fn run() {
             // Config
             load_config,
             save_config,
+            set_openai_api_key,
             // Cache
             calculate_cache_stats,
             clear_videos_command,
@@ -133,10 +140,13 @@ pub fn run() {
             delete_song_cache,
             reanalyze_transcript,
             reanalyze_full,
+            generate_transliteration,
             shift_key,
             shift_tempo,
             // Playback
             load_transcript,
+            load_transcript_variant,
+            get_transcript_variants,
             save_transcript,
             get_audio_paths,
             ensure_mp3_stems,
@@ -166,12 +176,22 @@ pub fn run() {
             search_youtube,
             download_youtube_video,
             get_youtube_video_info,
-            set_song_thumbnail
+            set_song_thumbnail,
+            // Metadata Fix
+            start_metadata_fix,
+            cancel_metadata_fix,
+            get_metadata_fix_status,
+            get_pending_corrections,
+            get_all_corrections,
+            confirm_metadata_correction,
+            reject_metadata_correction,
+            apply_confirmed_corrections_to_files
         ])
         .setup(|app| {
             let _ = dotenvy::dotenv();
             app_core::init_library().map_err(|e| e.to_string())?;
             app_core::AnalysisQueue::clear();
+            app_core::sync_scripts_and_deps();
             app_core::media_server::start();
 
             let config = AppConfig::load();

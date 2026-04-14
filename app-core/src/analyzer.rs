@@ -298,6 +298,66 @@ pub fn shutdown_server() {
     }
 }
 
+/// Run a transliteration command on the Python server.
+/// This is called from playback.rs to generate romanized transcripts.
+pub fn run_transliteration(
+    source_path: &std::path::Path,
+    dest_path: &std::path::Path,
+    api_key: Option<&str>,
+) -> Result<bool, NightingaleError> {
+    let mut cmd = serde_json::json!({
+        "command": "transliterate",
+        "source_path": source_path.to_string_lossy(),
+        "dest_path": dest_path.to_string_lossy(),
+    });
+    if let Some(key) = api_key {
+        cmd["api_key"] = serde_json::json!(key);
+    }
+
+    let json_str = serde_json::to_string(&cmd)
+        .map_err(|e| NightingaleError::Other(format!("JSON serialization error: {e}")))?;
+
+    let mut guard = ANALYZER_SERVER.lock().unwrap();
+    ensure_server(&mut guard)?;
+    let server = guard.as_mut().unwrap();
+
+    server.stdin.write_all(json_str.as_bytes()).map_err(|e| {
+        NightingaleError::Other(format!("Failed to write to server: {e}"))
+    })?;
+    server.stdin.write_all(b"\n").map_err(|e| {
+        NightingaleError::Other(format!("Failed to write newline to server: {e}"))
+    })?;
+    server.stdin.flush().map_err(|e| {
+        NightingaleError::Other(format!("Failed to flush server stdin: {e}"))
+    })?;
+
+    let mut line_buf = String::new();
+    loop {
+        line_buf.clear();
+        let bytes = server.stdout.read_line(&mut line_buf).map_err(|e| {
+            NightingaleError::Other(format!("Failed to read from server: {e}"))
+        })?;
+        if bytes == 0 {
+            return Err("Server closed unexpectedly during transliteration".into());
+        }
+        let line = line_buf.trim_end();
+        info!("[transliterate] {line}");
+
+        if line.contains("[nightingale:DONE]") {
+            return Ok(true);
+        }
+        if line.contains("[nightingale:ERROR]") {
+            let msg = line
+                .split("[nightingale:ERROR]")
+                .nth(1)
+                .unwrap_or("Transliteration failed")
+                .trim()
+                .to_string();
+            return Err(NightingaleError::Other(msg));
+        }
+    }
+}
+
 pub fn delete_cache(file_hash: &str) {
     let cache = CacheDir::new();
     cache.delete_song_cache(file_hash);

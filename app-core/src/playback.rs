@@ -41,6 +41,49 @@ pub fn save_transcript(file_hash: &str, transcript: serde_json::Value) -> Result
     Ok(())
 }
 
+/// Load a specific script variant of the transcript (e.g. "roman" for romanized).
+pub fn load_transcript_variant(
+    file_hash: &str,
+    script: &str,
+) -> Result<serde_json::Value, NightingaleError> {
+    let cache = CacheDir::new();
+    let path = cache.script_variant_transcript_path(file_hash, script);
+    let data = std::fs::read_to_string(&path)?;
+    let value = serde_json::from_str(&data)?;
+    Ok(value)
+}
+
+/// List available transcript variants for a song.
+/// Returns the list of script variant names (e.g. ["roman"]).
+/// The "original" variant is always implicitly available if the song is analyzed.
+pub fn get_transcript_variants(file_hash: &str) -> Vec<String> {
+    let cache = CacheDir::new();
+    cache.list_script_variants(file_hash)
+}
+
+/// Generate a romanized (transliterated) transcript for a song.
+/// This sends the transliteration request to the Python analyzer server.
+/// When an OpenAI API key is configured the result will be much higher
+/// quality (context-aware, with proper vowels for Urdu/Hindi/Arabic).
+/// Returns Ok(true) if generated, Ok(false) if not needed (already Latin).
+pub fn generate_transliteration(file_hash: &str) -> Result<bool, NightingaleError> {
+    let cache = CacheDir::new();
+    let source_path = resolve_transcript_path(&cache, file_hash);
+    let dest_path = cache.script_variant_transcript_path(file_hash, "roman");
+
+    if !source_path.is_file() {
+        return Err(NightingaleError::Other(
+            "No transcript found. Analyze the song first.".into(),
+        ));
+    }
+
+    // Always regenerate so users can re-run after adding an API key.
+    let config = crate::config::AppConfig::load();
+    let api_key = config.openai_api_key.as_deref();
+
+    crate::analyzer::run_transliteration(&source_path, &dest_path, api_key)
+}
+
 fn resolve_effective_key_tempo(song: &Song) -> Option<(String, f64)> {
     let key = song.override_key.as_ref().or(song.key.as_ref())?.clone();
     Some((key, normalize_tempo(song.tempo)))

@@ -19,12 +19,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { useEffect, useRef, useState } from "react";
 import { useDialogNav } from "@/hooks/navigation/use-dialog-nav";
 import { setFullScreen, isFullScreen as tauriIsFullScreen } from "@/tauri-bridge/fullScreen";
+import { setOpenaiApiKey } from "@/tauri-bridge/config";
 import { useDialog } from "@/hooks/use-dialog";
 import { useConfig } from "@/queries/use-config";
+import { CONFIG } from "@/queries/keys";
+import { useQueryClient } from "@tanstack/react-query";
 import { useConfigMutation } from "@/mutations/use-config-mutation";
+import { toast } from "sonner";
 import { useMicDevices } from "@/hooks/use-mic-pitch";
 import { useInputDevices } from "@/hooks/use-multi-mic";
 import { useMicTest } from "@/hooks/use-mic-test";
@@ -38,6 +43,7 @@ import {
 } from "@/tauri-bridge/multi-channel-audio";
 import { formatInputChannel, getAvailableInputChannels } from "@/tauri-bridge/multi-mic";
 import type { MicSlotSetting } from "@/types/MicSlotSetting";
+import { MetadataFixDialog } from "./metadata-fix";
 
 const SEPARATORS = [
   { value: "karaoke", label: "UVR Karaoke" },
@@ -51,7 +57,7 @@ const DEFAULT_SEPARATOR = "karaoke";
 
 const DEFAULT_BEAM_BATCH_SIZE = 8;
 
-const SETTINGS_STOPS = [2, 1, 1, 1, 16, 16, 2];
+const SETTINGS_STOPS = [2, 1, 1, 1, 16, 16, 1, 2];
 
 const RING = "ring-2 ring-primary";
 const NO_FOCUS_RING = "focus-visible:ring-0 focus-visible:border-transparent";
@@ -63,17 +69,21 @@ export const SettingsDialog = () => {
   const { mode, close } = useDialog();
   const { data: config } = useConfig();
   const { mutate } = useConfigMutation();
+  const queryClient = useQueryClient();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [isFullScreen, setIsFullScreen] = useState<boolean | null | undefined>(config?.fullscreen);
   const [multiChannelDevices, setMultiChannelDevices] = useState<AudioOutputDevice[]>([]);
+  const [apiKeyDraft, setApiKeyDraft] = useState("");
+  const [metadataFixOpen, setMetadataFixOpen] = useState(false);
 
   const open = mode === "settings";
 
-  // Stop mic test when settings dialog closes
+  // Stop mic test and clear sensitive draft when settings dialog closes
   useEffect(() => {
-    if (!open && micTest.testing) {
-      void micTest.stop();
+    if (!open) {
+      if (micTest.testing) void micTest.stop();
+      setApiKeyDraft("");
     }
   }, [open, micTest]);
 
@@ -570,7 +580,76 @@ export const SettingsDialog = () => {
               <FieldDescription>Higher values use more memory but process faster</FieldDescription>
               <ButtonGroup>{generateNumberSelect("batch_size", batchSize)}</ButtonGroup>
             </Field>
+            <Field>
+              <Label htmlFor="openai-api-key">OpenAI API Key</Label>
+              <FieldDescription>
+                Enables high-quality romanised lyrics for Urdu, Hindi, Arabic and other non-Latin
+                scripts. Leave blank to use basic transliteration.
+                {config?.openai_api_key && (
+                  <span className="ml-1 text-green-500">✓ Key saved ({config.openai_api_key})</span>
+                )}
+              </FieldDescription>
+              <div className="flex gap-2">
+                <Input
+                  id="openai-api-key"
+                  type="password"
+                  placeholder={config?.openai_api_key ? "Enter new key to replace" : "sk-..."}
+                  value={apiKeyDraft}
+                  onChange={(e) => setApiKeyDraft(e.target.value)}
+                  className={cn("font-mono flex-1", generateRingClassName(6))}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!apiKeyDraft.trim()}
+                  onClick={async () => {
+                    await setOpenaiApiKey(apiKeyDraft.trim());
+                    setApiKeyDraft("");
+                    // Refresh config to show updated masked key
+                    queryClient.invalidateQueries({ queryKey: CONFIG });
+                    toast.success("API key saved");
+                  }}
+                >
+                  Save
+                </Button>
+                {config?.openai_api_key && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={async () => {
+                      await setOpenaiApiKey(null);
+                      setApiKeyDraft("");
+                      queryClient.invalidateQueries({ queryKey: CONFIG });
+                      toast.success("API key removed");
+                    }}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+            </Field>
+            <Field>
+              <Label>AI Metadata Fixer</Label>
+              <FieldDescription>
+                Uses your OpenAI key to identify correct song titles, artists, and albums from
+                filenames. Review and approve suggestions one by one before any changes are made.
+              </FieldDescription>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!config?.openai_api_key}
+                onClick={() => setMetadataFixOpen(true)}
+              >
+                Fix Library Metadata…
+              </Button>
+              {!config?.openai_api_key && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Set an OpenAI API key above to enable this feature.
+                </p>
+              )}
+            </Field>
           </FieldGroup>
+          <MetadataFixDialog open={metadataFixOpen} onClose={() => setMetadataFixOpen(false)} />
           <DialogFooter>
             <Button
               variant="ghost"
@@ -582,11 +661,11 @@ export const SettingsDialog = () => {
                   batch_size: DEFAULT_BEAM_BATCH_SIZE,
                 })
               }
-              className={generateRingClassName(6, 0)}
+              className={generateRingClassName(7, 0)}
             >
               Restore Defaults
             </Button>
-            <Button variant="outline" onClick={close} className={generateRingClassName(6, 1)}>
+            <Button variant="outline" onClick={close} className={generateRingClassName(7, 1)}>
               Close
             </Button>
           </DialogFooter>

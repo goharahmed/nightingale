@@ -19,6 +19,7 @@ import { convertFileSrc } from "@/tauri-bridge/media";
 import {
   AlertTriangleIcon,
   AudioLinesIcon,
+  CaseSensitiveIcon,
   GripVerticalIcon,
   HeadphonesIcon,
   LanguagesIcon,
@@ -53,6 +54,7 @@ import {
 import { useCurrentProfile } from "@/hooks/use-current-profile";
 import { useLibraryFilter } from "@/hooks/use-library-filter";
 import { usePreviewPlayback, PREVIEW_DURATION } from "@/hooks/use-preview-playback";
+import { onTransliterationDone } from "@/tauri-bridge/analysis";
 
 function formatSeconds(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
@@ -137,7 +139,7 @@ export const SongCard = memo(
     const navigate = useNavigate();
     const { setMode } = useDialog();
     const queryClient = useQueryClient();
-    const { enqueueOne, deleteSongCache, reanalyzeFull } = useAnalysis();
+    const { enqueueOne, deleteSongCache, reanalyzeFull, generateTransliteration } = useAnalysis();
     const { playlist_id } = useLibraryFilter();
     const {
       currentHash,
@@ -355,6 +357,28 @@ export const SongCard = memo(
                       <LanguagesIcon />
                       Change language
                     </DropdownMenuItem>
+                    {song.is_analyzed && (
+                      <DropdownMenuItem
+                        onClick={withMenuAction(async () => {
+                          toast.info(`Generating romanized transcript for "${song.title}"...`);
+                          await generateTransliteration(song.file_hash);
+                          const unlisten = await onTransliterationDone((event) => {
+                            if (event.file_hash !== song.file_hash) return;
+                            if (event.error) {
+                              toast.error(`Romanization failed: ${event.error}`);
+                            } else {
+                              toast.success(
+                                `Romanized transcript ready for "${song.title}". Press [L] during playback to toggle.`,
+                              );
+                            }
+                            unlisten();
+                          });
+                        })}
+                      >
+                        <CaseSensitiveIcon />
+                        Generate romanized
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem
                       onClick={withMenuAction(async () => {
                         setMode({ mode: "edit-metadata", song });

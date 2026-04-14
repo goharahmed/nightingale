@@ -484,6 +484,7 @@ pub fn step_install_packages() -> Result<(), String> {
         audio_sep_pkg,
         "yt-dlp>=2024.0.0",
         "mutagen>=1.47.0",
+        "unidecode>=1.3.0",
     ];
 
     if gpu.legacy_torch {
@@ -547,4 +548,42 @@ pub fn step_extract_scripts() -> Result<(), String> {
 
 pub fn mark_ready() -> Result<(), String> {
     std::fs::write(ready_marker(), "ok").map_err(|e| format!("Failed to mark ready: {e}"))
+}
+
+/// Re-sync analyzer scripts every startup so code changes are picked up
+/// without requiring users to clear the vendor directory.  Also ensures
+/// any newly-added pip packages are present.
+pub fn sync_scripts_and_deps() {
+    if !is_ready() {
+        return;
+    }
+
+    // Always overwrite the vendored Python scripts with the versions
+    // embedded in this binary.
+    if let Err(e) = step_extract_scripts() {
+        tracing::warn!("[vendor] Failed to sync analyzer scripts: {e}");
+    }
+
+    // Quick pip install – uv is a no-op for already-installed packages so
+    // this is essentially free on a normal boot, but picks up anything new.
+    let uv = uv_path();
+    let py = python_path();
+    if uv.is_file() && py.is_file() {
+        let out = silent_command(&uv)
+            .args([
+                "pip", "install",
+                "unidecode>=1.3.0",
+                "--python",
+            ])
+            .arg(&py)
+            .output();
+        match out {
+            Ok(o) if !o.status.success() => {
+                let stderr = String::from_utf8_lossy(&o.stderr);
+                tracing::warn!("[vendor] Dep sync failed: {stderr}");
+            }
+            Err(e) => tracing::warn!("[vendor] Dep sync error: {e}"),
+            _ => {}
+        }
+    }
 }

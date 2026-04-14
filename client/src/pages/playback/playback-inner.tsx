@@ -68,7 +68,8 @@ export function PlaybackInner({ song, config, playlistContext }: PlaybackInnerPr
   const [themeIndex, setThemeIndex] = useState(song.is_video ? SOURCE_VIDEO_INDEX : initialTheme);
   const [flavorIndex, setFlavorIndex] = useState(initialVideoFlavor);
 
-  const { segments, transcriptSource } = usePlaybackTranscript(fileHash);
+  const { segments, transcriptSource, availableVariants, activeScript, toggleScript } =
+    usePlaybackTranscript(fileHash);
   const persistConfig = usePlaybackConfigPersist(config);
 
   const [stemsReady, setStemsReady] = useState(false);
@@ -572,6 +573,7 @@ export function PlaybackInner({ song, config, playlistContext }: PlaybackInnerPr
     onToggleMic: handleToggleMic,
     onCycleMic: handleCycleMic,
     onToggleMicMirror: handleToggleMicMirror,
+    onToggleScript: toggleScript,
   });
 
   const videoFlavor: VideoFlavor = FLAVORS[flavorIndex % FLAVORS.length];
@@ -620,6 +622,9 @@ export function PlaybackInner({ song, config, playlistContext }: PlaybackInnerPr
             slotRms={
               useMultiMicMode ? multiMicSlots.slice(0, micSlotCount).map((s) => s.rms) : null
             }
+            hasScriptVariants={availableVariants.length > 0}
+            activeScript={activeScript}
+            onToggleScript={toggleScript}
           />
           <PitchGraph
             series={useMultiMicMode ? (multiScoringResults[0]?.series ?? series) : series}

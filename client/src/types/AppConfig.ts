@@ -27,4 +27,5 @@ export type AppConfig = {
   instrumental_start_channel: number | null;
   mic_slot_count: number | null;
   mic_slots: Array<MicSlotSetting> | null;
+  openai_api_key: string | null;
 };
