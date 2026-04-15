@@ -33,8 +33,8 @@ const SkipButton = forwardRef<HTMLButtonElement, { label: string; onClick: () =>
   ),
 );
 
-function HintText({ children, fontSize = "sm" }: { children: React.ReactNode; fontSize?: string }) {
-  return <p className={`text-${fontSize} text-white/50`}>{children}</p>;
+function HintText({ children }: { children: React.ReactNode }) {
+  return <p className="text-sm text-white/50">{children}</p>;
 }
 
 const FOOTER_NOTE_CLASS = `pointer-events-none absolute bottom-2 z-20 text-[0.6rem] text-white/30`;
@@ -90,6 +90,9 @@ interface PlaybackHudProps {
   activeScript?: string | null;
   /** Callback to toggle between original and romanized script */
   onToggleScript?: () => void;
+  multiSingerEnabled?: boolean;
+  canToggleMultiSinger?: boolean;
+  onToggleMultiSinger?: () => void;
 }
 
 function PlaybackHudImpl({
@@ -118,6 +121,9 @@ function PlaybackHudImpl({
   hasScriptVariants = false,
   activeScript = null,
   onToggleScript,
+  multiSingerEnabled = false,
+  canToggleMultiSinger = false,
+  onToggleMultiSinger,
 }: PlaybackHudProps) {
   const lastSecondRef = useRef(-1);
   const timerRef = useRef<HTMLParagraphElement>(null);
@@ -209,6 +215,14 @@ function PlaybackHudImpl({
             >
               <span className="text-[0.65rem]">文A</span>
               <span>{activeScript ? "Original" : "Romanized"} [L]</span>
+            </button>
+          )}
+          {canToggleMultiSinger && (
+            <button
+              onClick={onToggleMultiSinger}
+              className="pointer-events-auto mt-1 flex items-center gap-1.5 rounded-sm border border-white/30 bg-black/20 px-2 py-0.5 text-xs text-white/70 transition-colors hover:bg-black/30 hover:text-white/90"
+            >
+              <span>{multiSingerEnabled ? "Single Singer" : "Multi-Singer"} [V]</span>
             </button>
           )}
           <HintText>[ESC] Back</HintText>

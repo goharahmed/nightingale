@@ -1,5 +1,5 @@
 use app_core::{
-    delete_cache as core_delete_cache, enqueue_all as core_enqueue_all,
+    analyze_multi_singer as core_analyze_multi_singer, delete_cache as core_delete_cache, enqueue_all as core_enqueue_all,
     enqueue_one as core_enqueue_one, reanalyze_full as core_reanalyze_full,
     reanalyze_transcript as core_reanalyze_transcript, shift_key as core_shift_key,
     shift_tempo as core_shift_tempo, LibraryMenuFilters,
@@ -31,6 +31,11 @@ pub fn reanalyze_transcript(file_hash: String, language: Option<String>) {
 #[tauri::command]
 pub fn reanalyze_full(file_hash: String) {
     core_reanalyze_full(&file_hash);
+}
+
+#[tauri::command]
+pub fn analyze_multi_singer(file_hash: String) -> Result<(), String> {
+    core_analyze_multi_singer(&file_hash).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

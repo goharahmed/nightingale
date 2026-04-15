@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex};
 
 use rand::prelude::{IndexedRandom, SliceRandom};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::{info, warn};
 
@@ -17,6 +17,21 @@ use crate::vendor::{ffmpeg_path, silent_command};
 pub struct AudioPaths {
     pub instrumental: String,
     pub vocals: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MultiSingerAudioPaths {
+    pub instrumental: String,
+    pub singer_1: String,
+    pub singer_2: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MultiSingerMetadata {
+    pub singer_1_label: String,
+    pub singer_2_label: String,
+    pub swap_references: bool,
+    pub default_multi_singer_mode: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -166,6 +181,99 @@ pub fn get_audio_paths(file_hash: &str) -> AudioPaths {
         instrumental: legacy_inst.to_string_lossy().into_owned(),
         vocals: legacy_voc.to_string_lossy().into_owned(),
     }
+}
+
+pub fn multi_singer_stem_paths(file_hash: &str) -> (PathBuf, PathBuf) {
+    let cache = CacheDir::new();
+    (
+        cache.path.join(format!("{file_hash}_vocals_singer_1.mp3")),
+        cache.path.join(format!("{file_hash}_vocals_singer_2.mp3")),
+    )
+}
+
+fn multi_singer_metadata_path(file_hash: &str) -> PathBuf {
+    let cache = CacheDir::new();
+    cache.path.join(format!("{file_hash}_multi_singer.json"))
+}
+
+pub fn get_multi_singer_audio_paths(file_hash: &str) -> Option<MultiSingerAudioPaths> {
+    let (singer_1, singer_2) = multi_singer_stem_paths(file_hash);
+    if !singer_1.is_file() || !singer_2.is_file() {
+        return None;
+    }
+    let base = get_audio_paths(file_hash);
+    Some(MultiSingerAudioPaths {
+        instrumental: base.instrumental,
+        singer_1: singer_1.to_string_lossy().into_owned(),
+        singer_2: singer_2.to_string_lossy().into_owned(),
+    })
+}
+
+pub fn load_multi_singer_metadata(file_hash: &str) -> Option<MultiSingerMetadata> {
+    let path = multi_singer_metadata_path(file_hash);
+    let data = std::fs::read_to_string(path).ok()?;
+    serde_json::from_str(&data).ok()
+}
+
+pub fn save_multi_singer_metadata(
+    file_hash: &str,
+    metadata: &MultiSingerMetadata,
+) -> Result<(), NightingaleError> {
+    let path = multi_singer_metadata_path(file_hash);
+    let data = serde_json::to_string_pretty(metadata)?;
+    std::fs::write(path, data)?;
+    Ok(())
+}
+
+pub fn generate_multi_singer_stems(file_hash: &str) -> Result<(), NightingaleError> {
+    let audio = get_audio_paths(file_hash);
+    if !Path::new(&audio.vocals).is_file() {
+        return Err(NightingaleError::Other(
+            "No vocals stem found. Analyze the song first.".into(),
+        ));
+    }
+
+    let (singer_1, singer_2) = multi_singer_stem_paths(file_hash);
+    if singer_1.is_file() && singer_2.is_file() {
+        let vocals_mtime = std::fs::metadata(&audio.vocals)
+            .and_then(|m| m.modified())
+            .ok();
+        let stem_mtime = std::fs::metadata(&singer_1)
+            .and_then(|m| m.modified())
+            .ok();
+        let stale = match (vocals_mtime, stem_mtime) {
+            (Some(v), Some(s)) => v > s,
+            _ => false,
+        };
+        if !stale {
+            return Ok(());
+        }
+    }
+
+    // Lightweight first-pass split for duet workflows.
+    // Singer 1 is biased towards lower frequencies and singer 2 to higher.
+    let filter = "[0:a]asplit=2[low][high];\
+                  [low]lowpass=f=220,acompressor=threshold=-16dB:ratio=3:attack=5:release=80[s1];\
+                  [high]highpass=f=220,acompressor=threshold=-16dB:ratio=3:attack=5:release=80[s2]";
+
+    let status = silent_command(ffmpeg_path())
+        .args(["-y", "-i", &audio.vocals, "-filter_complex", filter])
+        .args(["-map", "[s1]", "-c:a", "libmp3lame", "-q:a", "2"])
+        .arg(&singer_1)
+        .args(["-map", "[s2]", "-c:a", "libmp3lame", "-q:a", "2"])
+        .arg(&singer_2)
+        .args(["-v", "error"])
+        .status()?;
+
+    if !status.success() {
+        let _ = std::fs::remove_file(&singer_1);
+        let _ = std::fs::remove_file(&singer_2);
+        return Err(NightingaleError::Other(format!(
+            "ffmpeg multi-singer split failed with status {status}"
+        )));
+    }
+
+    Ok(())
 }
 
 fn is_mp4_compatible_source(path: &Path) -> bool {

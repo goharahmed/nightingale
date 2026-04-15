@@ -49,6 +49,7 @@ export function useMultiPitchScoring(
   slots: MicSlotState[],
   activeSlotCount: number,
   vocalsBuffer: AudioBuffer | null,
+  slotReferenceBuffers?: (AudioBuffer | null)[] | null,
 ) {
   const detectorsRef = useRef(Array.from({ length: MAX_SLOTS }, () => createPitchDetector()));
   const scratchRef = useRef(
@@ -60,6 +61,8 @@ export function useMultiPitchScoring(
   const contourRef = useRef<(number | null)[] | null>(null);
   const vocalsRef = useRef(vocalsBuffer);
   vocalsRef.current = vocalsBuffer;
+  const slotRefsRef = useRef(slotReferenceBuffers);
+  slotRefsRef.current = slotReferenceBuffers;
 
   const [results, setResults] = useState<SlotScoringResult[]>(() =>
     Array.from({ length: MAX_SLOTS }, makeEmpty),
@@ -88,7 +91,6 @@ export function useMultiPitchScoring(
   // Compute contour when vocals buffer arrives
   useEffect(() => {
     if (!vocalsBuffer) return;
-    console.log("[MultiPitchScoring] Vocals buffer received – computing contour");
     contourRef.current = precomputeRefContour(vocalsBuffer);
     const singable = computeSingableTime(vocalsBuffer);
     singableRef.current = singable;
@@ -114,11 +116,12 @@ export function useMultiPitchScoring(
         const buf = buffersRef.current[i];
         const scoring = scoringRef.current[i];
         const detector = detectorsRef.current[i];
+        const slotVocals = slotRefsRef.current?.[i] ?? vocals;
 
-        if (!vocals || !sampleVocalsWindow(vocals, t, scratch)) {
+        if (!slotVocals || !sampleVocalsWindow(slotVocals, t, scratch)) {
           buf.tryPush(null, mp, 0, t);
         } else {
-          const refHz = detectPitchFromSamplesRef(detector, scratch, vocals.sampleRate);
+          const refHz = detectPitchFromSamplesRef(detector, scratch, slotVocals.sampleRate);
           const sim = refHz != null && mp != null ? pitchSimilarity(refHz, mp) : 0;
           buf.tryPush(refHz, mp, sim, t);
           scoring.accumulate(t, refHz, mp, sim);

@@ -385,6 +385,72 @@ export const SettingsDialog = () => {
                   </div>
                 );
               })}
+            {(config?.mic_slot_count ?? 1) > 1 && (
+              <>
+                <Field>
+                  <Label>Duet Mapping: Singer 1 Mic Slot</Label>
+                  <FieldDescription>
+                    Choose which mic slot should be scored against singer-1 during multi-singer mode.
+                  </FieldDescription>
+                  <Select
+                    onValueChange={(value) =>
+                      mutate({ singer_1_mic_slot: value === "__default__" ? null : Number(value) })
+                    }
+                    value={
+                      config?.singer_1_mic_slot != null
+                        ? String(config.singer_1_mic_slot)
+                        : "__default__"
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Auto (Slot 1)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectLabel>Mic Slot</SelectLabel>
+                        <SelectItem value="__default__">Auto (Slot 1)</SelectItem>
+                        {Array.from({ length: config?.mic_slot_count ?? 1 }, (_, i) => (
+                          <SelectItem key={i} value={String(i)}>
+                            Slot {i + 1}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field>
+                  <Label>Duet Mapping: Singer 2 Mic Slot</Label>
+                  <FieldDescription>
+                    Choose which mic slot should be scored against singer-2 during multi-singer mode.
+                  </FieldDescription>
+                  <Select
+                    onValueChange={(value) =>
+                      mutate({ singer_2_mic_slot: value === "__default__" ? null : Number(value) })
+                    }
+                    value={
+                      config?.singer_2_mic_slot != null
+                        ? String(config.singer_2_mic_slot)
+                        : "__default__"
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Auto (Slot 2)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectLabel>Mic Slot</SelectLabel>
+                        <SelectItem value="__default__">Auto (Slot 2)</SelectItem>
+                        {Array.from({ length: config?.mic_slot_count ?? 1 }, (_, i) => (
+                          <SelectItem key={i} value={String(i)}>
+                            Slot {i + 1}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </>
+            )}
             <Field>
               <Label>Multi-Channel Audio Routing</Label>
               <FieldDescription>

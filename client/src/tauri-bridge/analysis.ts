@@ -28,6 +28,10 @@ export const reanalyzeFull = async (fileHash: string): Promise<void> => {
   return await invoke<void>("reanalyze_full", { fileHash });
 };
 
+export const analyzeMultiSinger = async (fileHash: string): Promise<void> => {
+  return await invoke<void>("analyze_multi_singer", { fileHash });
+};
+
 export const shiftTempo = async (fileHash: string, tempo: number): Promise<void> => {
   return await invoke<void>("shift_tempo", { fileHash, tempo });
 };

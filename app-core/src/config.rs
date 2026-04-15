@@ -57,6 +57,10 @@ pub struct AppConfig {
     pub mic_slot_count: Option<usize>,
     /// Per-slot settings, indexed 0..3.
     pub mic_slots: Option<Vec<MicSlotSetting>>,
+    /// Preferred mic slot index for singer-1 reference (0-indexed).
+    pub singer_1_mic_slot: Option<usize>,
+    /// Preferred mic slot index for singer-2 reference (0-indexed).
+    pub singer_2_mic_slot: Option<usize>,
     /// OpenAI API key for LLM-powered transliteration (optional).
     pub openai_api_key: Option<String>,
 }
@@ -93,6 +97,8 @@ impl Default for AppConfig {
             instrumental_start_channel: None,
             mic_slot_count: None,
             mic_slots: None,
+            singer_1_mic_slot: None,
+            singer_2_mic_slot: None,
             openai_api_key: None,
         }
     }

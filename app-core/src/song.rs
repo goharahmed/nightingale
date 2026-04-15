@@ -46,6 +46,8 @@ pub struct Song {
     pub tempo: f64,
     #[serde(default)]
     pub key_offset: i32,
+    #[serde(default)]
+    pub has_multi_singer_stems: bool,
     pub is_video: bool,
 }
 
@@ -75,6 +77,7 @@ impl Song {
         override_key: Option<String>,
         tempo: f64,
         key_offset: i32,
+        has_multi_singer_stems: bool,
         is_video: bool,
     ) -> Self {
         let (mut title, mut artist, mut album, duration_secs, cover_bytes) = if is_video {
@@ -122,6 +125,7 @@ impl Song {
             override_key,
             tempo,
             key_offset,
+            has_multi_singer_stems,
             is_video,
         }
     }
@@ -156,6 +160,15 @@ pub fn build_song(path: &Path, cache: &CacheDir, is_video: bool) -> Result<Song,
         (None, None, None, None, default_tempo())
     };
 
+    let has_multi_singer_stems = cache
+        .path
+        .join(format!("{file_hash}_vocals_singer_1.mp3"))
+        .is_file()
+        && cache
+            .path
+            .join(format!("{file_hash}_vocals_singer_2.mp3"))
+            .is_file();
+
     Ok(Song::from_path(
         path,
         file_hash,
@@ -168,6 +181,7 @@ pub fn build_song(path: &Path, cache: &CacheDir, is_video: bool) -> Result<Song,
         None,
         tempo,
         0,
+        has_multi_singer_stems,
         is_video,
     ))
 }

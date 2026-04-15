@@ -38,8 +38,11 @@ import {
   ensureMp3Stems,
   ensurePlayableSourceVideo,
   getAudioPaths,
+  getMultiSingerAudioPaths,
+  loadMultiSingerMetadata,
   getMediaPort,
   onStemsReady,
+  type MultiSingerMetadata,
 } from "@/tauri-bridge/playback";
 import { joinMediaUrl } from "@/adapters/playback";
 import type { PlaylistContext } from "./playback";
@@ -139,6 +142,15 @@ export function PlaybackInner({ song, config, playlistContext }: PlaybackInnerPr
   // active.  Includes retry with back-off in case the media server is busy
   // (e.g. streaming a large source video for video files).
   const [vocalsBuffer, setVocalsBuffer] = useState<AudioBuffer | null>(null);
+  const [multiSingerRefs, setMultiSingerRefs] = useState<(AudioBuffer | null)[] | null>(null);
+  const [multiSingerMeta, setMultiSingerMeta] = useState<MultiSingerMetadata | null>(null);
+  const [multiSingerMode, setMultiSingerMode] = useState(false);
+  const canUseMultiSinger = song.has_multi_singer_stems;
+
+  useEffect(() => {
+    setMultiSingerMode(song.has_multi_singer_stems);
+    setMultiSingerMeta(null);
+  }, [song.has_multi_singer_stems, fileHash]);
   useEffect(() => {
     if (!stemsReady) return;
     let cancelled = false;
@@ -185,18 +197,59 @@ export function PlaybackInner({ song, config, playlistContext }: PlaybackInnerPr
     };
   }, [stemsReady, fileHash]);
 
+  useEffect(() => {
+    if (!stemsReady || !canUseMultiSinger) {
+      setMultiSingerRefs(null);
+      return;
+    }
+    let cancelled = false;
+    setMultiSingerRefs(null);
+
+    (async () => {
+      try {
+        const [port, multiPaths, metadata] = await Promise.all([
+          getMediaPort(),
+          getMultiSingerAudioPaths(fileHash),
+          loadMultiSingerMetadata(fileHash),
+        ]);
+        if (cancelled || !multiPaths) return;
+        setMultiSingerMeta(metadata);
+        if (metadata) {
+          setMultiSingerMode(metadata.default_multi_singer_mode);
+        }
+
+        const loadBuffer = async (path: string): Promise<AudioBuffer | null> => {
+          const url = joinMediaUrl(`http://127.0.0.1:${port}`, path);
+          const resp = await fetch(url);
+          if (!resp.ok) return null;
+          const ctx = new AudioContext();
+          const decoded = await ctx.decodeAudioData(await resp.arrayBuffer());
+          await ctx.close();
+          return decoded;
+        };
+
+        const [s1, s2] = await Promise.all([
+          loadBuffer(multiPaths.singer_1),
+          loadBuffer(multiPaths.singer_2),
+        ]);
+
+        if (!cancelled && s1 && s2) {
+          const refs = metadata?.swap_references ? [s2, s1] : [s1, s2];
+          setMultiSingerRefs(refs);
+        }
+      } catch (err) {
+        console.warn("[PlaybackInner] Failed to load multi-singer references:", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [stemsReady, canUseMultiSinger, fileHash]);
+
   // Channel routing configuration from global config
   const channelRoutingConfig = useMemo<MultiChannelConfig | null>(() => {
-    console.log("[PlaybackInner] Config state:", {
-      enable_channel_routing: config?.enable_channel_routing,
-      vocals_device_name: config?.vocals_device_name,
-      instrumental_device_name: config?.instrumental_device_name,
-      vocals_start_channel: config?.vocals_start_channel,
-      instrumental_start_channel: config?.instrumental_start_channel,
-    });
-
     if (!config?.enable_channel_routing) {
-      console.log("[PlaybackInner] Multi-channel routing DISABLED");
       return null;
     }
 
@@ -219,11 +272,9 @@ export function PlaybackInner({ song, config, playlistContext }: PlaybackInnerPr
           startChannel: config.instrumental_start_channel,
         },
       };
-      console.log("[PlaybackInner] Multi-channel routing ENABLED with config:", cfg);
       return cfg;
     }
 
-    console.log("[PlaybackInner] Multi-channel routing enabled but missing required fields");
     return null;
   }, [config]);
 
@@ -258,6 +309,26 @@ export function PlaybackInner({ song, config, playlistContext }: PlaybackInnerPr
   // ── Multi-mic configuration ──────────────────────────────────────────────
   const micSlotCount = config?.mic_slot_count ?? 1;
   const useMultiMicMode = micSlotCount > 1;
+
+  const mappedSlotReferenceBuffers = useMemo(() => {
+    if (!multiSingerMode || !multiSingerRefs) return null;
+    const bySlot: (AudioBuffer | null)[] = Array.from({ length: micSlotCount }, () => null);
+
+    const singer1Slot = config?.singer_1_mic_slot ?? 0;
+    const singer2Slot = config?.singer_2_mic_slot ?? 1;
+
+    if (singer1Slot >= 0 && singer1Slot < micSlotCount) {
+      bySlot[singer1Slot] = multiSingerRefs[0] ?? null;
+    }
+    if (singer2Slot >= 0 && singer2Slot < micSlotCount) {
+      bySlot[singer2Slot] = multiSingerRefs[1] ?? null;
+    }
+    if (!bySlot.some(Boolean) && micSlotCount > 0) {
+      bySlot[0] = multiSingerRefs[0] ?? null;
+      if (micSlotCount > 1) bySlot[1] = multiSingerRefs[1] ?? null;
+    }
+    return bySlot;
+  }, [multiSingerMode, multiSingerRefs, micSlotCount, config?.singer_1_mic_slot, config?.singer_2_mic_slot]);
 
   // Build per-slot configs from persisted settings
   const multiMicSlotConfigs = useMemo(() => {
@@ -306,6 +377,7 @@ export function PlaybackInner({ song, config, playlistContext }: PlaybackInnerPr
     multiMicSlots,
     useMultiMicMode ? multiMicActiveCount : 0,
     vocalsBuffer,
+    mappedSlotReferenceBuffers,
   );
 
   // ── Unified score for saving ─────────────────────────────────────────────
@@ -625,6 +697,9 @@ export function PlaybackInner({ song, config, playlistContext }: PlaybackInnerPr
             hasScriptVariants={availableVariants.length > 0}
             activeScript={activeScript}
             onToggleScript={toggleScript}
+            multiSingerEnabled={multiSingerMode}
+            canToggleMultiSinger={canUseMultiSinger}
+            onToggleMultiSinger={() => setMultiSingerMode((prev) => !prev)}
           />
           <PitchGraph
             series={useMultiMicMode ? (multiScoringResults[0]?.series ?? series) : series}

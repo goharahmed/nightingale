@@ -17,5 +17,6 @@ export type Song = {
   override_key: string | null;
   tempo: number;
   key_offset: number;
+  has_multi_singer_stems: boolean;
   is_video: boolean;
 };

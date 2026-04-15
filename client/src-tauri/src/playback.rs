@@ -1,4 +1,4 @@
-use app_core::AudioPaths;
+use app_core::{AudioPaths, MultiSingerAudioPaths, MultiSingerMetadata};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 
@@ -35,6 +35,24 @@ pub fn save_transcript(file_hash: String, transcript: serde_json::Value) -> Resu
 #[tauri::command]
 pub fn get_audio_paths(file_hash: String) -> AudioPaths {
     app_core::get_audio_paths(&file_hash)
+}
+
+#[tauri::command]
+pub fn get_multi_singer_audio_paths(file_hash: String) -> Option<MultiSingerAudioPaths> {
+    app_core::get_multi_singer_audio_paths(&file_hash)
+}
+
+#[tauri::command]
+pub fn load_multi_singer_metadata(file_hash: String) -> Option<MultiSingerMetadata> {
+    app_core::load_multi_singer_metadata(&file_hash)
+}
+
+#[tauri::command]
+pub fn save_multi_singer_metadata(
+    file_hash: String,
+    metadata: MultiSingerMetadata,
+) -> Result<(), String> {
+    app_core::save_multi_singer_metadata(&file_hash, &metadata).map_err(|e| e.to_string())
 }
 
 #[derive(Clone, Serialize)]

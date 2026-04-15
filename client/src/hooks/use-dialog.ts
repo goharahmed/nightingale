@@ -14,6 +14,7 @@ export type DialogMode =
   | { mode: "edit-metadata"; song: Song }
   | { mode: "edit-lyrics"; song: Song }
   | { mode: "set-thumbnail"; song: Song }
+  | { mode: "multi-singer"; song: Song }
   | { mode: "rename-playlist"; playlistId: number; currentName: string }
   | null;
 

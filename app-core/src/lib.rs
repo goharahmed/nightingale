@@ -15,7 +15,7 @@ mod vendor;
 mod vendor_scripts;
 
 pub use analyzer::{
-    AnalysisQueue, delete_cache, enqueue_all, enqueue_one, reanalyze_full, reanalyze_transcript,
+    AnalysisQueue, analyze_multi_singer, delete_cache, enqueue_all, enqueue_one, reanalyze_full, reanalyze_transcript,
     shutdown_server,
 };
 pub use cache::{
@@ -24,9 +24,9 @@ pub use cache::{
 };
 pub use playback::{
     AudioPaths, ShiftResult, download_pixabay_videos, ensure_mp3_stems,
-    ensure_playable_source_video, generate_transliteration, get_audio_paths,
-    get_cached_pixabay_videos, get_transcript_variants, load_transcript,
-    load_transcript_variant, prefetch_one_per_flavor, save_transcript, shift_key, shift_tempo,
+    ensure_playable_source_video, generate_multi_singer_stems, generate_transliteration, get_audio_paths, get_multi_singer_audio_paths,
+    get_cached_pixabay_videos, get_transcript_variants, load_multi_singer_metadata, load_transcript,
+    load_transcript_variant, multi_singer_stem_paths, prefetch_one_per_flavor, save_multi_singer_metadata, save_transcript, shift_key, shift_tempo, MultiSingerAudioPaths, MultiSingerMetadata,
 };
 pub use config::AppConfig;
 pub use profile::ProfileStore;

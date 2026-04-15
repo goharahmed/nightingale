@@ -36,6 +36,7 @@ import {
   SquareIcon,
   Trash2Icon,
   VideoIcon,
+  UsersIcon,
   XIcon,
 } from "lucide-react";
 import { memo, MouseEvent, useState, PointerEvent as ReactPointerEvent } from "react";
@@ -139,7 +140,8 @@ export const SongCard = memo(
     const navigate = useNavigate();
     const { setMode } = useDialog();
     const queryClient = useQueryClient();
-    const { enqueueOne, deleteSongCache, reanalyzeFull, generateTransliteration } = useAnalysis();
+    const { enqueueOne, deleteSongCache, reanalyzeFull, analyzeMultiSinger, generateTransliteration } =
+      useAnalysis();
     const { playlist_id } = useLibraryFilter();
     const {
       currentHash,
@@ -348,6 +350,23 @@ export const SongCard = memo(
                     >
                       <AudioLinesIcon />
                       Reanalyze full (with stems)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={withMenuAction(async () => {
+                        if (!song.has_multi_singer_stems) {
+                          toast.info(`Running multi-singer analysis for "${song.title}"...`);
+                          try {
+                            await analyzeMultiSinger(song.file_hash);
+                          } catch {
+                            return;
+                          }
+                          toast.success("Multi-singer stems generated.");
+                        }
+                        setMode({ mode: "multi-singer", song });
+                      })}
+                    >
+                      <UsersIcon />
+                      Multi-singer analysis
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={withMenuAction(async () => {

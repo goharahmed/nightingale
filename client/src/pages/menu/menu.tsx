@@ -3,6 +3,7 @@ import { EditLyricsDialog } from "@/components/menu/dialogs/edit-lyrics";
 import { ExitDialog } from "@/components/menu/dialogs/exit";
 import { InfoDialog } from "@/components/menu/dialogs/info";
 import { SelectLanguageDialog } from "@/components/menu/dialogs/language";
+import { MultiSingerDialog } from "@/components/menu/dialogs/multi-singer";
 import { CreatePlaylistDialog } from "@/components/menu/dialogs/playlist/create";
 import { RenamePlaylistDialog } from "@/components/menu/dialogs/playlist/rename";
 import { CreateProfileDialog } from "@/components/menu/dialogs/profile/create";
@@ -63,6 +64,7 @@ const MenuInner = () => {
       <SelectProfileDialog />
       <InfoDialog />
       <SelectLanguageDialog />
+      <MultiSingerDialog />
       <EditMetadataDialog />
       <EditLyricsDialog />
       <SetThumbnailDialog />

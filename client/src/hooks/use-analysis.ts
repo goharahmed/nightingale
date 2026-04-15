@@ -1,6 +1,7 @@
 import { ANALYSIS_QUEUE, FOLDER_TREE, MENU, SONGS, SONGS_META } from "@/queries/keys";
 import { useLibraryFilter } from "@/hooks/use-library-filter";
 import {
+  analyzeMultiSinger,
   deleteSongCache,
   enqueueAll,
   enqueueOne,
@@ -39,6 +40,7 @@ export const useAnalysis = () => {
           toast.error(
             `Error while running an analysis action: ${error instanceof Error ? error.message : "unknown error"}`,
           );
+          throw error;
         }
       };
 
@@ -51,6 +53,7 @@ export const useAnalysis = () => {
       deleteSongCache: wrap(deleteSongCache, invalidateSongs),
       reanalyzeTranscript: wrap(reanalyzeTranscript, invalidateSongs),
       reanalyzeFull: wrap(reanalyzeFull, invalidateSongs),
+      analyzeMultiSinger: wrap(analyzeMultiSinger, invalidateSongs),
       generateTransliteration: wrap(generateTransliteration, invalidateSongs),
     };
   }, [queryClient, artist, album, query, folder_path, folder_recursive, playlist_id]);

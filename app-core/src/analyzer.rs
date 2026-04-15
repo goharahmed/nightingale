@@ -232,6 +232,14 @@ fn update_song_analyzed(
     let _ = library_db::update_song_fields(file_hash, &song);
 }
 
+fn set_multi_singer_stems(file_hash: &str, enabled: bool) {
+    let Some(mut song) = library_db::load_song_by_hash(file_hash).ok().flatten() else {
+        return;
+    };
+    song.has_multi_singer_stems = enabled;
+    let _ = library_db::update_song_fields(file_hash, &song);
+}
+
 fn ensure_worker_running(state: &mut AnalyzerState) {
     if !state.worker_running && !state.queue.is_empty() {
         state.worker_running = true;
@@ -362,6 +370,7 @@ pub fn delete_cache(file_hash: &str) {
     let cache = CacheDir::new();
     cache.delete_song_cache(file_hash);
     update_song_analyzed(file_hash, false, None, None, None, None, None);
+    set_multi_singer_stems(file_hash, false);
 }
 
 pub fn reanalyze_transcript(file_hash: &str, language: Option<String>) {
@@ -394,7 +403,14 @@ fn reanalyze(file_hash: &str, full: bool) {
         let _ = std::fs::remove_file(cache.lyrics_path(file_hash));
     }
     update_song_analyzed(file_hash, false, None, None, None, None, None);
+    set_multi_singer_stems(file_hash, false);
     enqueue_one(file_hash);
+}
+
+pub fn analyze_multi_singer(file_hash: &str) -> Result<(), NightingaleError> {
+    crate::playback::generate_multi_singer_stems(file_hash)?;
+    set_multi_singer_stems(file_hash, true);
+    Ok(())
 }
 
 // ─── Worker ──────────────────────────────────────────────────────────

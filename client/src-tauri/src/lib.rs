@@ -12,7 +12,7 @@ mod vendor;
 mod youtube;
 
 use analyzer::{
-    delete_song_cache, enqueue_all, enqueue_one, generate_transliteration, reanalyze_full,
+    analyze_multi_singer, delete_song_cache, enqueue_all, enqueue_one, generate_transliteration, reanalyze_full,
     reanalyze_transcript, shift_key, shift_tempo,
 };
 use app_core::{AppConfig, SongsStore};
@@ -34,7 +34,7 @@ use microphones::{
 };
 use playback::{
     ensure_mp3_stems, ensure_playable_source_video, fetch_pixabay_videos, get_audio_paths,
-    get_transcript_variants, load_transcript, load_transcript_variant, save_transcript,
+    get_multi_singer_audio_paths, get_transcript_variants, load_multi_singer_metadata, load_transcript, load_transcript_variant, save_multi_singer_metadata, save_transcript,
 };
 use profile::{add_score, create_profile, delete_profile, load_profiles, switch_profile};
 use scanner::{
@@ -141,6 +141,7 @@ pub fn run() {
             delete_song_cache,
             reanalyze_transcript,
             reanalyze_full,
+            analyze_multi_singer,
             generate_transliteration,
             shift_key,
             shift_tempo,
@@ -150,6 +151,9 @@ pub fn run() {
             get_transcript_variants,
             save_transcript,
             get_audio_paths,
+            get_multi_singer_audio_paths,
+            load_multi_singer_metadata,
+            save_multi_singer_metadata,
             ensure_mp3_stems,
             ensure_playable_source_video,
             fetch_pixabay_videos,
