@@ -27,11 +27,24 @@ pub struct MultiSingerAudioPaths {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiarizationSegment {
+    pub start: f64,
+    pub end: f64,
+    pub speaker: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MultiSingerMetadata {
     pub singer_1_label: String,
     pub singer_2_label: String,
     pub swap_references: bool,
     pub default_multi_singer_mode: bool,
+    #[serde(default)]
+    pub segments: Option<Vec<DiarizationSegment>>,
+    #[serde(default)]
+    pub speaker_count: Option<usize>,
+    #[serde(default)]
+    pub speaker_ids: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -225,7 +238,29 @@ pub fn save_multi_singer_metadata(
     Ok(())
 }
 
-pub fn generate_multi_singer_stems(file_hash: &str) -> Result<(), NightingaleError> {
+/// Check whether existing singer stems are still fresh relative to the
+/// vocals file they were derived from.
+pub fn multi_singer_stems_fresh(file_hash: &str) -> bool {
+    let audio = get_audio_paths(file_hash);
+    let (singer_1, singer_2) = multi_singer_stem_paths(file_hash);
+    if !singer_1.is_file() || !singer_2.is_file() {
+        return false;
+    }
+    let vocals_mtime = std::fs::metadata(&audio.vocals)
+        .and_then(|m| m.modified())
+        .ok();
+    let stem_mtime = std::fs::metadata(&singer_1)
+        .and_then(|m| m.modified())
+        .ok();
+    match (vocals_mtime, stem_mtime) {
+        (Some(v), Some(s)) => v <= s,
+        _ => true,
+    }
+}
+
+/// Fallback: lightweight frequency-crossover split via ffmpeg.
+/// Used when pyannote diarization is unavailable (no HF token).
+pub fn generate_multi_singer_stems_ffmpeg(file_hash: &str) -> Result<(), NightingaleError> {
     let audio = get_audio_paths(file_hash);
     if !Path::new(&audio.vocals).is_file() {
         return Err(NightingaleError::Other(
@@ -234,24 +269,10 @@ pub fn generate_multi_singer_stems(file_hash: &str) -> Result<(), NightingaleErr
     }
 
     let (singer_1, singer_2) = multi_singer_stem_paths(file_hash);
-    if singer_1.is_file() && singer_2.is_file() {
-        let vocals_mtime = std::fs::metadata(&audio.vocals)
-            .and_then(|m| m.modified())
-            .ok();
-        let stem_mtime = std::fs::metadata(&singer_1)
-            .and_then(|m| m.modified())
-            .ok();
-        let stale = match (vocals_mtime, stem_mtime) {
-            (Some(v), Some(s)) => v > s,
-            _ => false,
-        };
-        if !stale {
-            return Ok(());
-        }
+    if multi_singer_stems_fresh(file_hash) {
+        return Ok(());
     }
 
-    // Lightweight first-pass split for duet workflows.
-    // Singer 1 is biased towards lower frequencies and singer 2 to higher.
     let filter = "[0:a]asplit=2[low][high];\
                   [low]lowpass=f=220,acompressor=threshold=-16dB:ratio=3:attack=5:release=80[s1];\
                   [high]highpass=f=220,acompressor=threshold=-16dB:ratio=3:attack=5:release=80[s2]";

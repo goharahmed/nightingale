@@ -117,6 +117,30 @@ def main():
                 print(f"[nightingale:ERROR] {e}", flush=True)
             continue
 
+        if cmd.get("command") == "diarize_vocals":
+            try:
+                from diarize import run_diarize_pipeline
+                vocals_path = os.path.abspath(cmd["vocals_path"])
+                cache_path = os.path.abspath(cmd["cache_path"])
+                file_hash = cmd["hash"]
+                hf_token = cmd.get("hf_token") or None
+                progress(0, "Starting multi-singer diarization...")
+                run_diarize_pipeline(
+                    vocals_path, cache_path, file_hash,
+                    device=device, hf_token=hf_token,
+                )
+                print("[nightingale:DONE]", flush=True)
+            except Exception as e:
+                import traceback
+                traceback.print_exc(file=sys.stderr)
+                err_str = str(e)
+                if is_oom(err_str):
+                    _clear_models()
+                    print(f"[nightingale:OOM] {err_str}", flush=True)
+                else:
+                    print(f"[nightingale:ERROR] {err_str}", flush=True)
+            continue
+
         if cmd.get("command") == "analyze":
             progress(0, "Starting analysis...")
             try:

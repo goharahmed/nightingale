@@ -407,10 +407,140 @@ fn reanalyze(file_hash: &str, full: bool) {
     enqueue_one(file_hash);
 }
 
-pub fn analyze_multi_singer(file_hash: &str) -> Result<(), NightingaleError> {
-    crate::playback::generate_multi_singer_stems(file_hash)?;
+/// Run ML-based speaker diarization on the vocals stem via the Python server.
+/// The server writes singer stem MP3s and metadata JSON to the cache directory.
+/// Returns progress messages through the provided callback if given.
+pub fn run_diarization(
+    file_hash: &str,
+    progress_cb: Option<&dyn Fn(usize, &str)>,
+) -> Result<(), NightingaleError> {
+    let audio = crate::playback::get_audio_paths(file_hash);
+    let vocals_path = std::path::PathBuf::from(&audio.vocals);
+    if !vocals_path.is_file() {
+        return Err(NightingaleError::Other(
+            "No vocals stem found. Analyze the song first.".into(),
+        ));
+    }
+
+    let cache = CacheDir::new();
+    let config = AppConfig::load();
+
+    let hf_token = config.hf_token().ok_or_else(|| {
+        NightingaleError::Other(
+            "HuggingFace token required for ML diarization. \
+             Set it in Settings → HuggingFace Token."
+                .into(),
+        )
+    })?;
+
+    let cmd = serde_json::json!({
+        "command": "diarize_vocals",
+        "vocals_path": vocals_path.to_string_lossy(),
+        "cache_path": cache.path.to_string_lossy(),
+        "hash": file_hash,
+        "hf_token": hf_token,
+    });
+
+    let json_str = serde_json::to_string(&cmd)
+        .map_err(|e| NightingaleError::Other(format!("JSON serialization error: {e}")))?;
+
+    let mut guard = ANALYZER_SERVER.lock().unwrap();
+    ensure_server(&mut guard)?;
+    let server = guard.as_mut().unwrap();
+
+    server.stdin.write_all(json_str.as_bytes()).map_err(|e| {
+        NightingaleError::Other(format!("Failed to write to server: {e}"))
+    })?;
+    server.stdin.write_all(b"\n").map_err(|e| {
+        NightingaleError::Other(format!("Failed to write newline to server: {e}"))
+    })?;
+    server.stdin.flush().map_err(|e| {
+        NightingaleError::Other(format!("Failed to flush server stdin: {e}"))
+    })?;
+
+    let mut line_buf = String::new();
+    loop {
+        line_buf.clear();
+        let bytes = server.stdout.read_line(&mut line_buf).map_err(|e| {
+            NightingaleError::Other(format!("Failed to read from server: {e}"))
+        })?;
+        if bytes == 0 {
+            return Err("Server closed unexpectedly during diarization".into());
+        }
+        let line = line_buf.trim_end();
+        info!("[diarize] {line}");
+
+        if let Some((pct, msg)) = parse_progress_line(line) {
+            if let Some(cb) = &progress_cb {
+                cb(pct as usize, &msg);
+            }
+        }
+
+        if line.contains("[nightingale:DONE]") {
+            return Ok(());
+        }
+        if line.contains("[nightingale:OOM]") {
+            *guard = None;
+            return Err(NightingaleError::Other(
+                "GPU out of memory during diarization".into(),
+            ));
+        }
+        if line.contains("[nightingale:ERROR]") {
+            let msg = line
+                .split("[nightingale:ERROR]")
+                .nth(1)
+                .unwrap_or("Diarization failed")
+                .trim()
+                .to_string();
+            return Err(NightingaleError::Other(msg));
+        }
+    }
+}
+
+/// Perform multi-singer vocal splitting.
+///
+/// Attempts ML-based pyannote diarization first (requires HF token).
+/// Falls back to the ffmpeg frequency-crossover heuristic when the
+/// token is not configured or the ML path fails.
+pub fn analyze_multi_singer(
+    file_hash: &str,
+    progress_cb: Option<&dyn Fn(usize, &str)>,
+) -> Result<bool, NightingaleError> {
+    if crate::playback::multi_singer_stems_fresh(file_hash) {
+        set_multi_singer_stems(file_hash, true);
+        return Ok(true);
+    }
+
+    let config = AppConfig::load();
+    let used_ml = if config.hf_token().is_some() {
+        match run_diarization(file_hash, progress_cb) {
+            Ok(()) => {
+                info!("[multi-singer] ML diarization succeeded for {file_hash}");
+                true
+            }
+            Err(e) => {
+                warn!(
+                    "[multi-singer] ML diarization failed for {file_hash}, \
+                     falling back to ffmpeg: {e}"
+                );
+                if let Some(cb) = &progress_cb {
+                    cb(50, "ML diarization failed, using frequency split...");
+                }
+                crate::playback::generate_multi_singer_stems_ffmpeg(file_hash)?;
+                false
+            }
+        }
+    } else {
+        info!("[multi-singer] No HF token, using ffmpeg split for {file_hash}");
+        if let Some(cb) = &progress_cb {
+            cb(10, "No HuggingFace token — using frequency split...");
+        }
+        crate::playback::generate_multi_singer_stems_ffmpeg(file_hash)?;
+        false
+    };
+
     set_multi_singer_stems(file_hash, true);
-    Ok(())
+    Ok(used_ml)
 }
 
 // ─── Worker ──────────────────────────────────────────────────────────

@@ -33,9 +33,51 @@ pub fn reanalyze_full(file_hash: String) {
     core_reanalyze_full(&file_hash);
 }
 
+#[derive(Clone, Serialize)]
+struct MultiSingerProgress {
+    file_hash: String,
+    percent: usize,
+    message: String,
+}
+
+#[derive(Clone, Serialize)]
+struct MultiSingerDone {
+    file_hash: String,
+    used_ml: bool,
+    error: Option<String>,
+}
+
 #[tauri::command]
-pub fn analyze_multi_singer(file_hash: String) -> Result<(), String> {
-    core_analyze_multi_singer(&file_hash).map_err(|e| e.to_string())
+pub fn analyze_multi_singer(app: AppHandle, file_hash: String) {
+    std::thread::spawn(move || {
+        let hash = file_hash.clone();
+        let app_ref = app.clone();
+        let progress_cb = move |pct: usize, msg: &str| {
+            let _ = app_ref.emit(
+                "multi-singer-progress",
+                MultiSingerProgress {
+                    file_hash: hash.clone(),
+                    percent: pct,
+                    message: msg.to_string(),
+                },
+            );
+        };
+
+        let result = core_analyze_multi_singer(&file_hash, Some(&progress_cb));
+        let payload = match result {
+            Ok(used_ml) => MultiSingerDone {
+                file_hash,
+                used_ml,
+                error: None,
+            },
+            Err(err) => MultiSingerDone {
+                file_hash,
+                used_ml: false,
+                error: Some(err.to_string()),
+            },
+        };
+        let _ = app.emit("multi-singer-done", payload);
+    });
 }
 
 #[tauri::command]

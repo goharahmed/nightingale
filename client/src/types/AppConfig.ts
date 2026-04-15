@@ -30,4 +30,5 @@ export type AppConfig = {
   singer_1_mic_slot: number | null;
   singer_2_mic_slot: number | null;
   openai_api_key: string | null;
+  hf_token: string | null;
 };

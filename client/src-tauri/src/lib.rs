@@ -20,7 +20,7 @@ use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use cache::{
     calculate_cache_stats, clear_all, clear_models_command, clear_videos_command,
 };
-use config::{load_config, save_config, set_openai_api_key};
+use config::{load_config, save_config, set_openai_api_key, set_hf_token};
 use metadata_fix::{
     start_metadata_fix, cancel_metadata_fix, get_metadata_fix_status,
     get_pending_corrections, get_all_corrections, confirm_metadata_correction,
@@ -106,6 +106,7 @@ pub fn run() {
             load_config,
             save_config,
             set_openai_api_key,
+            set_hf_token,
             // Cache
             calculate_cache_stats,
             clear_videos_command,

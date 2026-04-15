@@ -140,7 +140,7 @@ export const SongCard = memo(
     const navigate = useNavigate();
     const { setMode } = useDialog();
     const queryClient = useQueryClient();
-    const { enqueueOne, deleteSongCache, reanalyzeFull, analyzeMultiSinger, generateTransliteration } =
+    const { enqueueOne, deleteSongCache, reanalyzeFull, generateTransliteration } =
       useAnalysis();
     const { playlist_id } = useLibraryFilter();
     const {
@@ -353,15 +353,6 @@ export const SongCard = memo(
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={withMenuAction(async () => {
-                        if (!song.has_multi_singer_stems) {
-                          toast.info(`Running multi-singer analysis for "${song.title}"...`);
-                          try {
-                            await analyzeMultiSinger(song.file_hash);
-                          } catch {
-                            return;
-                          }
-                          toast.success("Multi-singer stems generated.");
-                        }
                         setMode({ mode: "multi-singer", song });
                       })}
                     >

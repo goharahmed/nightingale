@@ -22,3 +22,8 @@ export const saveConfig = async (config: AppConfig): Promise<AppConfig> => {
 export const setOpenaiApiKey = async (key: string | null): Promise<void> => {
   await invoke("set_openai_api_key", { key });
 };
+
+/** Set or clear the HuggingFace token for pyannote speaker diarization. */
+export const setHfToken = async (key: string | null): Promise<void> => {
+  await invoke("set_hf_token", { key });
+};

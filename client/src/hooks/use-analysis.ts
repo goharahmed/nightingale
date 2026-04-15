@@ -53,7 +53,10 @@ export const useAnalysis = () => {
       deleteSongCache: wrap(deleteSongCache, invalidateSongs),
       reanalyzeTranscript: wrap(reanalyzeTranscript, invalidateSongs),
       reanalyzeFull: wrap(reanalyzeFull, invalidateSongs),
-      analyzeMultiSinger: wrap(analyzeMultiSinger, invalidateSongs),
+      analyzeMultiSinger: async (fileHash: string) => {
+        await analyzeMultiSinger(fileHash);
+      },
+      invalidateSongs,
       generateTransliteration: wrap(generateTransliteration, invalidateSongs),
     };
   }, [queryClient, artist, album, query, folder_path, folder_recursive, playlist_id]);

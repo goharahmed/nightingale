@@ -23,10 +23,13 @@ pub use cache::{
     default_nightingale_dir, nightingale_dir,
 };
 pub use playback::{
-    AudioPaths, ShiftResult, download_pixabay_videos, ensure_mp3_stems,
-    ensure_playable_source_video, generate_multi_singer_stems, generate_transliteration, get_audio_paths, get_multi_singer_audio_paths,
+    AudioPaths, DiarizationSegment, ShiftResult, download_pixabay_videos, ensure_mp3_stems,
+    ensure_playable_source_video, generate_multi_singer_stems_ffmpeg, generate_transliteration,
+    get_audio_paths, get_multi_singer_audio_paths,
     get_cached_pixabay_videos, get_transcript_variants, load_multi_singer_metadata, load_transcript,
-    load_transcript_variant, multi_singer_stem_paths, prefetch_one_per_flavor, save_multi_singer_metadata, save_transcript, shift_key, shift_tempo, MultiSingerAudioPaths, MultiSingerMetadata,
+    load_transcript_variant, multi_singer_stem_paths, multi_singer_stems_fresh,
+    prefetch_one_per_flavor, save_multi_singer_metadata, save_transcript, shift_key, shift_tempo,
+    MultiSingerAudioPaths, MultiSingerMetadata,
 };
 pub use config::AppConfig;
 pub use profile::ProfileStore;

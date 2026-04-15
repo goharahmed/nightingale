@@ -29,7 +29,31 @@ export const reanalyzeFull = async (fileHash: string): Promise<void> => {
 };
 
 export const analyzeMultiSinger = async (fileHash: string): Promise<void> => {
-  return await invoke<void>("analyze_multi_singer", { fileHash });
+  await invoke<void>("analyze_multi_singer", { fileHash });
+};
+
+export interface MultiSingerProgress {
+  file_hash: string;
+  percent: number;
+  message: string;
+}
+
+export interface MultiSingerDone {
+  file_hash: string;
+  used_ml: boolean;
+  error: string | null;
+}
+
+export const onMultiSingerProgress = async (
+  cb: (event: MultiSingerProgress) => void,
+): Promise<() => void> => {
+  return await listen<MultiSingerProgress>("multi-singer-progress", ({ payload }) => cb(payload));
+};
+
+export const onMultiSingerDone = async (
+  cb: (event: MultiSingerDone) => void,
+): Promise<() => void> => {
+  return await listen<MultiSingerDone>("multi-singer-done", ({ payload }) => cb(payload));
 };
 
 export const shiftTempo = async (fileHash: string, tempo: number): Promise<void> => {

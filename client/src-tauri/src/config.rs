@@ -8,11 +8,12 @@ pub fn load_config() -> AppConfig {
 
 #[tauri::command]
 pub fn save_config(config: AppConfig) -> AppConfig {
-    // The frontend sends back a masked key (or null).  Preserve whatever is
-    // actually on disk so we never overwrite the real key with the mask.
-    let real_key = AppConfig::load().openai_api_key;
+    // The frontend sends back masked keys (or null).  Preserve whatever is
+    // actually on disk so we never overwrite the real keys with the mask.
+    let existing = AppConfig::load();
     let mut to_save = config;
-    to_save.openai_api_key = real_key;
+    to_save.openai_api_key = existing.openai_api_key;
+    to_save.hf_token = existing.hf_token;
     to_save.save();
     to_save.redacted()
 }
@@ -22,4 +23,10 @@ pub fn save_config(config: AppConfig) -> AppConfig {
 #[tauri::command]
 pub fn set_openai_api_key(key: Option<String>) {
     AppConfig::set_openai_api_key(key);
+}
+
+/// Set or clear the HuggingFace token for pyannote diarization.
+#[tauri::command]
+pub fn set_hf_token(key: Option<String>) {
+    AppConfig::set_hf_token(key);
 }

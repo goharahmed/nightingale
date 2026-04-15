@@ -32,11 +32,20 @@ export interface MultiSingerAudioPaths {
   singer_2: string;
 }
 
+export interface DiarizationSegment {
+  start: number;
+  end: number;
+  speaker: string;
+}
+
 export interface MultiSingerMetadata {
   singer_1_label: string;
   singer_2_label: string;
   swap_references: boolean;
   default_multi_singer_mode: boolean;
+  segments?: DiarizationSegment[] | null;
+  speaker_count?: number | null;
+  speaker_ids?: string[] | null;
 }
 
 export const getMultiSingerAudioPaths = async (
