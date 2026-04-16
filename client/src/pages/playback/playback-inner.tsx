@@ -415,12 +415,16 @@ export function PlaybackInner({ song, config, playlistContext }: PlaybackInnerPr
     }
   }, [micCaptureError, micPitchError]);
 
-  // Show errors from multi-mic slots
+  const multiMicErrorsShown = useRef<Record<number, string>>({});
   useEffect(() => {
     if (!useMultiMicMode) return;
     for (const s of multiMicSlots) {
-      if (s.error) {
+      if (s.error && multiMicErrorsShown.current[s.slot] !== s.error) {
+        multiMicErrorsShown.current[s.slot] = s.error;
         toast.error(`Mic slot ${s.slot + 1}: ${s.error}`);
+      }
+      if (!s.error) {
+        delete multiMicErrorsShown.current[s.slot];
       }
     }
   }, [useMultiMicMode, multiMicSlots]);

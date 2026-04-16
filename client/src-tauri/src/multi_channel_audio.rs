@@ -264,6 +264,14 @@ impl MultiChannelPlayer {
         Ok(())
     }
 
+    pub fn pause(&mut self) {
+        self.playing.store(false, Ordering::Relaxed);
+    }
+
+    pub fn resume(&mut self) {
+        self.playing.store(true, Ordering::Relaxed);
+    }
+
     pub fn stop(&mut self) {
         self.playing.store(false, Ordering::Relaxed);
         
@@ -937,6 +945,22 @@ pub fn start_multi_channel_playback(
     
     let mut player = PLAYER.lock().map_err(|e| format!("Failed to lock player: {}", e))?;
     player.play(&vocals_path, &instrumental_path, config)
+}
+
+#[tauri::command]
+pub fn pause_multi_channel_playback() -> Result<(), String> {
+    info!("Pausing multi-channel playback");
+    let mut player = PLAYER.lock().map_err(|e| format!("Failed to lock player: {}", e))?;
+    player.pause();
+    Ok(())
+}
+
+#[tauri::command]
+pub fn resume_multi_channel_playback() -> Result<(), String> {
+    info!("Resuming multi-channel playback");
+    let mut player = PLAYER.lock().map_err(|e| format!("Failed to lock player: {}", e))?;
+    player.resume();
+    Ok(())
 }
 
 #[tauri::command]

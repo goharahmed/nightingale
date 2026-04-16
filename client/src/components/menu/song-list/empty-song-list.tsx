@@ -21,7 +21,7 @@ export const EmptySongList = () => {
         </EmptyMedia>
         <EmptyTitle>Folder not selected</EmptyTitle>
         <EmptyDescription>
-          You haven't selected folder yet.
+          You haven't selected a folder yet.
           <br /> Select a folder to start enjoying your karaoke!
         </EmptyDescription>
       </EmptyHeader>

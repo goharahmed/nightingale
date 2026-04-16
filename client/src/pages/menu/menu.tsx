@@ -14,6 +14,7 @@ import { YouTubeSearchDialog } from "@/components/menu/dialogs/youtube";
 import { Sidebar } from "@/components/menu/sidebar/sidebar";
 import { EmptySongList } from "@/components/menu/song-list/empty-song-list";
 import { SongList } from "@/components/menu/song-list/song-list";
+import { Skeleton } from "@/components/ui/skeleton";
 import { SidebarInset } from "@/components/ui/sidebar";
 import { MenuFocusProvider } from "@/contexts/menu-focus-context";
 import { useMenuNav } from "@/hooks/navigation/use-menu-nav";
@@ -53,7 +54,15 @@ const MenuInner = () => {
   }
 
   if (isLoadingMeta) {
-    content = null;
+    content = (
+      <div className="flex w-full flex-1 flex-col items-center gap-2 px-4 pt-6">
+        <div className="flex w-full flex-col gap-2 md:w-11/12 lg:w-4/5 xl:w-3/5">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-lg" />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (

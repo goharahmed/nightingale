@@ -23,9 +23,8 @@ def align_lyrics(
       1. Load lyrics text from JSON
       2. Load vocals audio and detect vocal region via RMS
       3. Detect language
-      4. Probe multiple start offsets to find where vocals actually begin
-      5. Run final forced alignment from the best offset
-      6. Map aligned word timestamps back to original lyric lines
+      4. Run forced alignment from the detected vocal start
+      5. Map aligned word timestamps back to original lyric lines
     """
     import whisperx
 

@@ -66,7 +66,21 @@ export async function startMultiChannelPlayback(
 }
 
 /**
- * Stop multi-channel playback
+ * Pause multi-channel playback (keeps streams alive, outputs silence)
+ */
+export async function pauseMultiChannelPlayback(): Promise<void> {
+  return invoke("pause_multi_channel_playback");
+}
+
+/**
+ * Resume multi-channel playback after a pause
+ */
+export async function resumeMultiChannelPlayback(): Promise<void> {
+  return invoke("resume_multi_channel_playback");
+}
+
+/**
+ * Stop multi-channel playback (tears down streams completely)
  */
 export async function stopMultiChannelPlayback(): Promise<void> {
   return invoke("stop_multi_channel_playback");

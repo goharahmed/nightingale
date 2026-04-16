@@ -169,6 +169,8 @@ pub fn run() {
             // Multi-channel audio
             multi_channel_audio::get_audio_output_devices,
             multi_channel_audio::start_multi_channel_playback,
+            multi_channel_audio::pause_multi_channel_playback,
+            multi_channel_audio::resume_multi_channel_playback,
             multi_channel_audio::stop_multi_channel_playback,
             multi_channel_audio::seek_multi_channel_playback,
             multi_channel_audio::get_multi_channel_playback_position,

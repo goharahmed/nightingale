@@ -15,6 +15,7 @@ export type Song = {
   transcript_source: TranscriptSource | null;
   key: string | null;
   override_key: string | null;
+  bpm: number | null;
   tempo: number;
   key_offset: number;
   has_multi_singer_stems: boolean;

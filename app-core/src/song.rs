@@ -45,6 +45,8 @@ pub struct Song {
     #[serde(default = "default_tempo")]
     pub tempo: f64,
     #[serde(default)]
+    pub bpm: Option<f64>,
+    #[serde(default)]
     pub key_offset: i32,
     #[serde(default)]
     pub has_multi_singer_stems: bool,
@@ -61,6 +63,7 @@ pub struct TranscriptMetaInfo {
     pub language: Option<String>,
     pub language_confidence: Option<f64>,
     pub key: Option<String>,
+    pub bpm: Option<f64>,
     pub tempo: f64,
 }
 
@@ -75,6 +78,7 @@ impl Song {
         transcript_source: Option<TranscriptSource>,
         key: Option<String>,
         override_key: Option<String>,
+        bpm: Option<f64>,
         tempo: f64,
         key_offset: i32,
         has_multi_singer_stems: bool,
@@ -123,6 +127,7 @@ impl Song {
             transcript_source,
             key,
             override_key,
+            bpm,
             tempo,
             key_offset,
             has_multi_singer_stems,
@@ -131,7 +136,7 @@ impl Song {
     }
 }
 
-fn compute_file_hash(path: &Path) -> Result<String, std::io::Error> {
+pub fn compute_file_hash(path: &Path) -> Result<String, std::io::Error> {
     let mut file = File::open(path)?;
     let mut hasher = Hasher::new();
     let mut buf = [0u8; 8192];
@@ -153,11 +158,11 @@ pub fn build_song(path: &Path, cache: &CacheDir, is_video: bool) -> Result<Song,
     let file_hash = compute_file_hash(path)?;
 
     let is_analyzed = cache.transcript_exists(&file_hash);
-    let (transcript_source, language, language_confidence, key, tempo) = if is_analyzed {
+    let (transcript_source, language, language_confidence, key, bpm, tempo) = if is_analyzed {
         let meta = read_transcript_meta(cache, &file_hash);
-        (Some(meta.source), meta.language, meta.language_confidence, meta.key, meta.tempo)
+        (Some(meta.source), meta.language, meta.language_confidence, meta.key, meta.bpm, meta.tempo)
     } else {
-        (None, None, None, None, default_tempo())
+        (None, None, None, None, None, default_tempo())
     };
 
     let has_multi_singer_stems = cache
@@ -179,6 +184,7 @@ pub fn build_song(path: &Path, cache: &CacheDir, is_video: bool) -> Result<Song,
         transcript_source,
         key,
         None,
+        bpm,
         tempo,
         0,
         has_multi_singer_stems,
@@ -197,6 +203,8 @@ pub fn read_transcript_meta(cache: &CacheDir, hash: &str) -> TranscriptMetaInfo 
         language_confidence: Option<f64>,
         #[serde(default)]
         key: Option<String>,
+        #[serde(default)]
+        bpm: Option<f64>,
         #[serde(default = "default_tempo")]
         tempo: f64,
     }
@@ -213,6 +221,7 @@ pub fn read_transcript_meta(cache: &CacheDir, hash: &str) -> TranscriptMetaInfo 
                 language: parsed.language,
                 language_confidence: parsed.language_confidence,
                 key: parsed.key,
+                bpm: parsed.bpm,
                 tempo: parsed.tempo,
             };
         }
@@ -222,6 +231,7 @@ pub fn read_transcript_meta(cache: &CacheDir, hash: &str) -> TranscriptMetaInfo 
         language: None,
         language_confidence: None,
         key: None,
+        bpm: None,
         tempo: default_tempo(),
     }
 }

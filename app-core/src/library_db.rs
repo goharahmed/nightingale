@@ -10,7 +10,7 @@ use crate::library_menu::{LibraryMenuItem, LibraryMenuItems};
 use crate::library_model::{FolderTreeNode, LibraryMenuFilters, LoadSongsParams, Playlist, PlaylistPlayMode, SongsMeta, SongsStore};
 use crate::song::{Song, TranscriptSource};
 
-const SCHEMA_VERSION: i32 = 3;
+const SCHEMA_VERSION: i32 = 4;
 
 static LIBRARY_DB: OnceLock<Mutex<Connection>> = OnceLock::new();
 
@@ -80,14 +80,6 @@ fn run_migrations(conn: &Connection) -> rusqlite::Result<()> {
             CREATE INDEX idx_songs_artist_title ON songs(artist COLLATE NOCASE, title COLLATE NOCASE);
             CREATE INDEX idx_songs_album ON songs(album COLLATE NOCASE);
 
-            CREATE VIRTUAL TABLE songs_fts USING fts5(
-                title,
-                artist,
-                album,
-                content = 'songs',
-                content_rowid = 'id'
-            );
-
             CREATE TABLE analysis_queue (
                 file_hash TEXT PRIMARY KEY,
                 status TEXT NOT NULL CHECK (status IN ('queued', 'analyzing', 'failed')),
@@ -144,6 +136,9 @@ fn run_migrations(conn: &Connection) -> rusqlite::Result<()> {
             CREATE INDEX IF NOT EXISTS idx_mc_rejected ON metadata_corrections(rejected);
         ",
         )?;
+    }
+    if v < 4 {
+        conn.execute_batch("DROP TABLE IF EXISTS songs_fts;")?;
     }
     conn.execute(&format!("PRAGMA user_version = {SCHEMA_VERSION}"), [])?;
     Ok(())
@@ -434,6 +429,51 @@ pub fn load_song_path_strings() -> rusqlite::Result<std::collections::HashSet<St
         let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
         let v: Vec<String> = rows.collect::<Result<Vec<_>, _>>()?;
         Ok(v.into_iter().collect())
+    })
+}
+
+pub fn load_song_path_hashes() -> rusqlite::Result<std::collections::HashMap<String, String>> {
+    with_conn(|c| {
+        let mut stmt = c.prepare("SELECT path, file_hash FROM songs")?;
+        let rows = stmt.query_map([], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+        })?;
+        let mut map = std::collections::HashMap::new();
+        for row in rows {
+            let (path, hash) = row?;
+            map.insert(path, hash);
+        }
+        Ok(map)
+    })
+}
+
+pub fn update_song_by_path(song: &Song) -> rusqlite::Result<()> {
+    with_conn_mut(|c| {
+        let payload = song_to_payload(song)?;
+        let album_art = song
+            .album_art_path
+            .as_ref()
+            .map(|p| p.to_string_lossy().into_owned());
+        c.execute(
+            "UPDATE songs SET file_hash=?1, title=?2, artist=?3, album=?4,
+             duration_secs=?5, album_art_path=?6, is_analyzed=?7, language=?8,
+             transcript_source=?9, is_video=?10, payload=?11 WHERE path=?12",
+            params![
+                song.file_hash,
+                song.title,
+                song.artist,
+                song.album,
+                song.duration_secs,
+                album_art,
+                song.is_analyzed as i32,
+                song.language,
+                transcript_source_to_db(song.transcript_source),
+                song.is_video as i32,
+                payload,
+                song.path.to_string_lossy().as_ref(),
+            ],
+        )?;
+        Ok(())
     })
 }
 

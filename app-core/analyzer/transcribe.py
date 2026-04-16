@@ -64,13 +64,6 @@ def transcribe_vocals(
         ),
     }
 
-    vad_options = {
-        "vad_onset": 0.12,
-        "vad_offset": 0.05,
-        "min_duration_on": 0.15,
-        "min_duration_off": 0.6,
-    }
-
     no_vad_asr = {
         "beam_size": beam_size,
         "initial_prompt": asr_options["initial_prompt"],

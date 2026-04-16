@@ -8,7 +8,7 @@ use crate::{
     cache::CacheDir,
     library_db,
     library_model::{LoadSongsParams, SongsMeta, SongsStore},
-    song::{Song, build_song},
+    song::{Song, build_song, compute_file_hash},
 };
 
 const AUDIO_EXTENSIONS: &[&str] = &["mp3", "flac", "ogg", "wav", "m4a", "aac", "wma"];
@@ -97,13 +97,40 @@ pub fn start_scan(folder: &Path) {
         let _ = library_db::update_library_meta(&folder_str, media_files.len());
     }
 
-    let already_processed: HashSet<String> =
-        library_db::load_song_path_strings().unwrap_or_default();
+    let existing_hashes: std::collections::HashMap<String, String> =
+        library_db::load_song_path_hashes().unwrap_or_default();
 
     let pending: Vec<_> = media_files
         .into_iter()
-        .filter(|(p, _)| !already_processed.contains(&p.to_string_lossy().into_owned()))
+        .filter(|(p, _)| !existing_hashes.contains_key(&p.to_string_lossy().into_owned()))
         .collect();
+
+    let stale_paths: Vec<(PathBuf, bool)> = existing_hashes
+        .iter()
+        .filter_map(|(path, old_hash)| {
+            let p = Path::new(path);
+            if !p.is_file() {
+                return None;
+            }
+            let is_video = is_media_file(p)?;
+            match compute_file_hash(p) {
+                Ok(h) if h != *old_hash => Some((p.to_path_buf(), is_video)),
+                _ => None,
+            }
+        })
+        .collect();
+
+    if !stale_paths.is_empty() {
+        let cache = CacheDir::new();
+        for (path, is_video) in &stale_paths {
+            match build_song(path, &cache, *is_video) {
+                Ok(song) => {
+                    let _ = library_db::update_song_by_path(&song);
+                }
+                Err(e) => warn!("Failed to re-process changed {}: {e}", path.display()),
+            }
+        }
+    }
 
     std::thread::spawn(move || {
         let cache = CacheDir::new();

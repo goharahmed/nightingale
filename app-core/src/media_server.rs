@@ -86,23 +86,21 @@ fn handle_request(request: tiny_http::Request) {
         .find(|h| h.field.as_str() == "Range" || h.field.as_str() == "range")
         .map(|h| h.value.as_str().to_string());
 
+    let mut file = match std::fs::File::open(&file_path) {
+        Ok(f) => f,
+        Err(_) => {
+            let _ = request.respond(
+                Response::from_string("Read error").with_status_code(StatusCode(500)),
+            );
+            return;
+        }
+    };
+
     if let Some(range_str) = range_val {
         if let Some((start, end)) = parse_range(&range_str, file_len) {
-            let mut file = match std::fs::File::open(&file_path) {
-                Ok(f) => f,
-                Err(_) => {
-                    let _ = request.respond(
-                        Response::from_string("Read error")
-                            .with_status_code(StatusCode(500)),
-                    );
-                    return;
-                }
-            };
-
-            let chunk_len = (end - start + 1) as usize;
-            let mut buf = vec![0u8; chunk_len];
+            let chunk_len = end - start + 1;
             let _ = file.seek(SeekFrom::Start(start));
-            let _ = file.read_exact(&mut buf);
+            let reader = file.take(chunk_len);
 
             let content_range = Header::from_bytes(
                 "Content-Range",
@@ -110,32 +108,27 @@ fn handle_request(request: tiny_http::Request) {
             )
             .unwrap();
 
-            let resp = Response::from_data(buf)
-                .with_status_code(StatusCode(206))
-                .with_header(content_type)
-                .with_header(cors)
-                .with_header(accept_ranges)
-                .with_header(content_range);
+            let resp = Response::new(
+                StatusCode(206),
+                vec![content_type, cors, accept_ranges, content_range],
+                reader,
+                Some(chunk_len as usize),
+                None,
+            );
 
             let _ = request.respond(resp);
             return;
         }
     }
 
-    match std::fs::read(&file_path) {
-        Ok(data) => {
-            let resp = Response::from_data(data)
-                .with_header(content_type)
-                .with_header(cors)
-                .with_header(accept_ranges);
-            let _ = request.respond(resp);
-        }
-        Err(_) => {
-            let _ = request.respond(
-                Response::from_string("Read error").with_status_code(StatusCode(500)),
-            );
-        }
-    }
+    let resp = Response::new(
+        StatusCode(200),
+        vec![content_type, cors, accept_ranges],
+        file,
+        Some(file_len as usize),
+        None,
+    );
+    let _ = request.respond(resp);
 }
 
 pub fn start() -> u16 {

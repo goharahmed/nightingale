@@ -74,10 +74,6 @@ export const useSongs = () => {
         take: PAGE_SIZE,
       };
       const result = await loadSongs(params);
-      console.log(
-        `[useSongs:queryFn] folder=${folder_path ?? "none"} playlist=${playlist_id ?? "none"} skip=${pageParam} returned=${result.processed.length} total=${result.processed_count}`,
-        result.processed.slice(0, 3).map((s) => s.title),
-      );
       return result;
     },
     getNextPageParam: (lastPage, allPages) => {

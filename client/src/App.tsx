@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "./App.css";
+import { ErrorBoundary } from "./components/error-boundary";
 import { Toaster } from "./components/ui/sonner";
 import { TauriAppShell } from "./components/window/title-bar";
 import { NavInputProvider } from "./contexts/nav-input-context";
@@ -41,11 +42,13 @@ const ThemeWrapper = () => {
 };
 
 const App = () => (
-  <NavInputProvider>
-    <QueryClientProvider client={queryClient}>
-      <ThemeWrapper />
-    </QueryClientProvider>
-  </NavInputProvider>
+  <ErrorBoundary>
+    <NavInputProvider>
+      <QueryClientProvider client={queryClient}>
+        <ThemeWrapper />
+      </QueryClientProvider>
+    </NavInputProvider>
+  </ErrorBoundary>
 );
 
 export default App;

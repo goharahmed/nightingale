@@ -287,6 +287,7 @@ export const SongCard = memo(
             ) : (
               ""
             )}
+            {song.bpm != null && ` • ${song.bpm} BPM`}
           </ItemDescription>
         </ItemContent>
 

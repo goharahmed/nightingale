@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 
 from whisper_compat import progress
+from bpm_detect import detect_bpm
 from key_detect import detect_key
 from stems import separate_stems, separate_stems_uvr
 from transcribe import transcribe_vocals
@@ -151,6 +152,7 @@ def run_pipeline(
 
     progress(2, f"Using device: {device}")
     detected_key = detect_key(audio_path)
+    detected_bpm = detect_bpm(audio_path)
     tempo = 1.0
 
     vocals_path = separate_and_cache(
@@ -173,7 +175,10 @@ def run_pipeline(
         whisper_model=whisper_model,
         pre_align_cleanup=pre_align_cleanup,
     )
-    transcript["key"] = detected_key
+    if detected_key is not None:
+        transcript["key"] = detected_key
+    if detected_bpm is not None:
+        transcript["bpm"] = detected_bpm
     transcript["tempo"] = normalize_tempo(tempo)
 
     progress(95, "Writing transcript...")

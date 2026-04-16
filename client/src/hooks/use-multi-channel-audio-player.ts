@@ -6,6 +6,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   startMultiChannelPlayback,
+  pauseMultiChannelPlayback,
+  resumeMultiChannelPlayback,
   stopMultiChannelPlayback,
   seekMultiChannelPlayback,
   getMultiChannelPlaybackPosition,
@@ -178,11 +180,12 @@ export function useMultiChannelAudioPlayer(
   }, []);
 
   const pause = useCallback(async () => {
-    await stopMultiChannelPlayback();
+    await pauseMultiChannelPlayback();
     setIsPlaying(false);
   }, []);
 
-  const resume = useCallback(() => {
+  const resume = useCallback(async () => {
+    await resumeMultiChannelPlayback();
     setIsPlaying(true);
   }, []);
 

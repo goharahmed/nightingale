@@ -28,7 +28,8 @@ export const SongList = () => {
   const { search } = useSearch();
   const { artist, album, query, folder_path, playlist_id } = useLibraryFilter();
   const bestBySong = useBestScoresBySongForActiveProfile();
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useSongs();
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isError, error, refetch } =
+    useSongs();
   const { data: playlists } = usePlaylists();
   const { mutate: reorderSongs } = useReorderPlaylistSongs();
 
@@ -52,14 +53,10 @@ export const SongList = () => {
     setFocus((prev) => ({ ...prev, songIndex: 0 }));
   }, [search, artist, album, query, folder_path, playlist_id, scrollRef, setFocus]);
 
-  const songs = useMemo(() => {
-    const result = data?.pages.flatMap((page) => page.processed) ?? [];
-    console.log(
-      `[SongList] folder=${folder_path ?? "none"} playlist=${playlist_id ?? "none"} pages=${data?.pages.length ?? 0} songs=${result.length}`,
-      result.slice(0, 5).map((s) => `${s.title} | ${s.path}`),
-    );
-    return result;
-  }, [data, folder_path, playlist_id]);
+  const songs = useMemo(
+    () => data?.pages.flatMap((page) => page.processed) ?? [],
+    [data],
+  );
 
   // Register song activation callback and count with MenuFocus context
   const queueRef = useRef(queue);
@@ -264,6 +261,23 @@ export const SongList = () => {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const isSongListActive = focus.active && focus.panel === "songList";
+
+  if (isError) {
+    return (
+      <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
+        <p className="text-sm font-medium text-destructive">Failed to load songs</p>
+        <p className="max-w-md text-xs text-muted-foreground">
+          {error instanceof Error ? error.message : String(error)}
+        </p>
+        <button
+          onClick={() => refetch()}
+          className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">

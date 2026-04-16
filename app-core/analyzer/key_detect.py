@@ -40,15 +40,18 @@ def _pc_profile(audio: np.ndarray, sr: int = 16000) -> np.ndarray:
     return chroma
 
 
-def detect_key(audio_path: str) -> str:
+def detect_key(audio_path: str) -> str | None:
+    """Return the detected musical key (e.g. 'Am', 'F#') or None on failure."""
     try:
         audio = whisperx.load_audio(audio_path)
         if audio is None or len(audio) == 0:
-            return "C"
+            print("[nightingale:LOG] Key detection: empty audio, returning None", flush=True)
+            return None
 
         profile = _pc_profile(audio)
         if profile.sum() <= 0:
-            return "C"
+            print("[nightingale:LOG] Key detection: zero chroma profile, returning None", flush=True)
+            return None
 
         best_score = float("-inf")
         best_key = "C"
@@ -65,5 +68,6 @@ def detect_key(audio_path: str) -> str:
                 best_key = f"{note}m"
 
         return best_key
-    except Exception:
-        return "C"
+    except Exception as exc:
+        print(f"[nightingale:LOG] Key detection failed: {exc}", flush=True)
+        return None

@@ -23,6 +23,11 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 
 export function ThemeProvider({ children, defaultTheme = "system", ...props }: ThemeProviderProps) {
   const [theme, setTheme] = useState<Theme>(() => defaultTheme);
+  const [userOverride, setUserOverride] = useState(false);
+
+  useEffect(() => {
+    if (!userOverride) setTheme(defaultTheme);
+  }, [defaultTheme, userOverride]);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -44,13 +49,13 @@ export function ThemeProvider({ children, defaultTheme = "system", ...props }: T
   const value = {
     theme,
     setTheme: (theme: Theme) => {
+      setUserOverride(true);
       setTheme(theme);
     },
     toggle: () => {
       const root = window.document.documentElement;
-
       const nextTheme = root.classList.contains("light") ? "dark" : "light";
-
+      setUserOverride(true);
       setTheme(nextTheme);
     },
   };
