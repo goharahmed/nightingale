@@ -14,6 +14,8 @@ Ships as a single binary. No manual installation of Python, ffmpeg, or ML models
 
 ## Features
 
+### Core
+
 🎤 **Stem Separation** — isolates lead vocals from instrumentals using the UVR Karaoke model (default) or Demucs, with adjustable guide vocal volume. The karaoke model preserves backing vocals in the instrumental for a more natural sound
 
 📝 **Word-Level Lyrics** — automatic transcription with alignment, or fetched from [LRCLIB](https://lrclib.net) when available
@@ -37,6 +39,40 @@ Ships as a single binary. No manual installation of Python, ffmpeg, or ML models
 📺 **Adaptive UI Scaling** — scales to any resolution including 4K TVs
 
 📦 **Self-Contained** — ffmpeg, uv, Python, PyTorch, and ML packages are downloaded automatically during setup. Video backgrounds are pre-downloaded so the first session is ready to go
+
+### Multi-Channel Audio I/O
+
+🔊 **Multi-Device, Multi-Channel Support** — connect professional audio interfaces (e.g. Allen & Heath QU-5D) with multiple input microphones and multiple output channels. Route guide vocals to individual in-ear monitors or headphones per singer while keeping instrumentals on the main speakers. Input channel selection UI lets you pick which device and channel each microphone uses
+
+### Playback Enhancements
+
+📊 **Vocal Pitch Graph** — the original singer's pitch contour is plotted alongside your live microphone input, so you can visualize in real time how close you are to the target melody
+
+### Song Cards & Library UX
+
+🃏 **Redesigned Song Cards** — explicit "Not Analyzed" / "Play" buttons replace the old click-anywhere behavior; audio/video type badges; thumbnail URLs for unanalyzed songs
+
+🔍 **Language Confidence Indicator** — a warning icon appears on songs whose auto-detected language confidence is below threshold; you can manually select and switch the language
+
+✏️ **Metadata & Lyrics Editing** — edit artist, title, album, and lyrics directly from the song card actions menu
+
+🌐 **Romanized Lyrics (AI)** — generate romanized (Latin-script) lyrics for non-Latin songs (Japanese → romaji, Hindi → roman, etc.) via OpenAI/Gemini. Addresses [upstream issue #11](https://github.com/rzru/nightingale/issues/11)
+
+### Library & File Management
+
+📂 **Folder / Tree View** — browse large music libraries organized by their on-disk folder structure with recursive navigation
+
+🤖 **AI Metadata Fixer** — batch-process filenames and metadata (artist, title, album) using OpenAI for songs collected from various sources. Includes a sneak-peek audio preview so you can verify corrections before applying
+
+🎵 **Song Sneak Peek** — preview a random 15-second clip of any song in the library or playlist view to decide whether to add or skip it
+
+### Playlists
+
+📋 **Per-Profile Playlists** — create, manage, and switch between multiple playlists per profile. Add songs from the library or song cards; analyze entire playlists in bulk
+
+### Settings & Import
+
+⬇️ **Download from URL** — paste a URL in settings to download and import songs directly into your library, so friends and family can quickly add their favorites during a karaoke night
 
 ## Quick start
 
