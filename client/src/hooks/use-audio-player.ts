@@ -115,6 +115,9 @@ export function useAudioPlayer(
 
     instrumentalSrcRef.current = null;
     vocalsSrcRef.current = null;
+
+    vocalsAudioRef.current?.pause();
+    instrumentalAudioRef.current?.pause();
   }, []);
 
   const startSources = useCallback(
