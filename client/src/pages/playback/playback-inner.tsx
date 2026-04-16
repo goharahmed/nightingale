@@ -148,9 +148,11 @@ export function PlaybackInner({ song, config, playlistContext }: PlaybackInnerPr
   const canUseMultiSinger = song.has_multi_singer_stems;
 
   useEffect(() => {
-    setMultiSingerMode(song.has_multi_singer_stems);
+    // Reset to false on song change — the metadata-loading effect will
+    // apply the user’s preferred default_multi_singer_mode once loaded.
+    setMultiSingerMode(false);
     setMultiSingerMeta(null);
-  }, [song.has_multi_singer_stems, fileHash]);
+  }, [fileHash]);
   useEffect(() => {
     if (!stemsReady) return;
     let cancelled = false;
@@ -218,13 +220,12 @@ export function PlaybackInner({ song, config, playlistContext }: PlaybackInnerPr
           setMultiSingerMode(metadata.default_multi_singer_mode);
         }
 
+        const ctx = new AudioContext();
         const loadBuffer = async (path: string): Promise<AudioBuffer | null> => {
           const url = joinMediaUrl(`http://127.0.0.1:${port}`, path);
           const resp = await fetch(url);
           if (!resp.ok) return null;
-          const ctx = new AudioContext();
           const decoded = await ctx.decodeAudioData(await resp.arrayBuffer());
-          await ctx.close();
           return decoded;
         };
 
@@ -232,6 +233,7 @@ export function PlaybackInner({ song, config, playlistContext }: PlaybackInnerPr
           loadBuffer(multiPaths.singer_1),
           loadBuffer(multiPaths.singer_2),
         ]);
+        await ctx.close();
 
         if (!cancelled && s1 && s2) {
           const refs = metadata?.swap_references ? [s2, s1] : [s1, s2];
@@ -328,7 +330,13 @@ export function PlaybackInner({ song, config, playlistContext }: PlaybackInnerPr
       if (micSlotCount > 1) bySlot[1] = multiSingerRefs[1] ?? null;
     }
     return bySlot;
-  }, [multiSingerMode, multiSingerRefs, micSlotCount, config?.singer_1_mic_slot, config?.singer_2_mic_slot]);
+  }, [
+    multiSingerMode,
+    multiSingerRefs,
+    micSlotCount,
+    config?.singer_1_mic_slot,
+    config?.singer_2_mic_slot,
+  ]);
 
   // Build per-slot configs from persisted settings
   const multiMicSlotConfigs = useMemo(() => {
@@ -646,6 +654,7 @@ export function PlaybackInner({ song, config, playlistContext }: PlaybackInnerPr
     onCycleMic: handleCycleMic,
     onToggleMicMirror: handleToggleMicMirror,
     onToggleScript: toggleScript,
+    onToggleMultiSinger: canUseMultiSinger ? () => setMultiSingerMode((prev) => !prev) : undefined,
   });
 
   const videoFlavor: VideoFlavor = FLAVORS[flavorIndex % FLAVORS.length];
@@ -701,14 +710,34 @@ export function PlaybackInner({ song, config, playlistContext }: PlaybackInnerPr
             canToggleMultiSinger={canUseMultiSinger}
             onToggleMultiSinger={() => setMultiSingerMode((prev) => !prev)}
           />
-          <PitchGraph
-            series={useMultiMicMode ? (multiScoringResults[0]?.series ?? series) : series}
-            visible={
-              useMultiMicMode
-                ? multiMicSlots.some((s) => s.active) && micUserEnabled
-                : micCaptureActive && micPitchActive && micUserEnabled
-            }
-          />
+          {/* Pitch graph(s): show two in multi-singer mode, one otherwise */}
+          {multiSingerMode && useMultiMicMode && multiScoringResults.length >= 2 ? (
+            <>
+              <PitchGraph
+                series={multiScoringResults[0]?.series ?? series}
+                visible={multiMicSlots.some((s) => s.active) && micUserEnabled}
+                refColor={{ r: 51, g: 217, b: 89 }}
+                label={multiSingerMeta?.singer_1_label ?? "Singer 1"}
+                className="pointer-events-none top-3 absolute left-1/2 z-20 -translate-x-1/2 rounded-sm border-white/15 bg-black/40 p-1"
+              />
+              <PitchGraph
+                series={multiScoringResults[1]?.series ?? series}
+                visible={multiMicSlots.some((s) => s.active) && micUserEnabled}
+                refColor={{ r: 251, g: 191, b: 36 }}
+                label={multiSingerMeta?.singer_2_label ?? "Singer 2"}
+                className="pointer-events-none top-16 absolute left-1/2 z-20 -translate-x-1/2 rounded-sm border-white/15 bg-black/40 p-1"
+              />
+            </>
+          ) : (
+            <PitchGraph
+              series={useMultiMicMode ? (multiScoringResults[0]?.series ?? series) : series}
+              visible={
+                useMultiMicMode
+                  ? multiMicSlots.some((s) => s.active) && micUserEnabled
+                  : micCaptureActive && micPitchActive && micUserEnabled
+              }
+            />
+          )}
           <LyricsDisplay
             segments={segments}
             subscribe={audio.subscribe}

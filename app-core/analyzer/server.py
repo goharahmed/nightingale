@@ -123,11 +123,17 @@ def main():
                 vocals_path = os.path.abspath(cmd["vocals_path"])
                 cache_path = os.path.abspath(cmd["cache_path"])
                 file_hash = cmd["hash"]
-                hf_token = cmd.get("hf_token") or None
-                progress(0, "Starting multi-singer diarization...")
+                # Resolve models dir for audio_separator weights
+                torch_home = os.environ.get("TORCH_HOME", "")
+                models_dir = os.path.join(
+                    os.path.dirname(torch_home) if torch_home else cache_path,
+                    "audio_separator",
+                )
+                os.makedirs(models_dir, exist_ok=True)
+                progress(0, "Starting multi-singer separation...")
                 run_diarize_pipeline(
                     vocals_path, cache_path, file_hash,
-                    device=device, hf_token=hf_token,
+                    device=device, models_dir=models_dir,
                 )
                 print("[nightingale:DONE]", flush=True)
             except Exception as e:

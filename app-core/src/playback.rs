@@ -258,44 +258,7 @@ pub fn multi_singer_stems_fresh(file_hash: &str) -> bool {
     }
 }
 
-/// Fallback: lightweight frequency-crossover split via ffmpeg.
-/// Used when pyannote diarization is unavailable (no HF token).
-pub fn generate_multi_singer_stems_ffmpeg(file_hash: &str) -> Result<(), NightingaleError> {
-    let audio = get_audio_paths(file_hash);
-    if !Path::new(&audio.vocals).is_file() {
-        return Err(NightingaleError::Other(
-            "No vocals stem found. Analyze the song first.".into(),
-        ));
-    }
 
-    let (singer_1, singer_2) = multi_singer_stem_paths(file_hash);
-    if multi_singer_stems_fresh(file_hash) {
-        return Ok(());
-    }
-
-    let filter = "[0:a]asplit=2[low][high];\
-                  [low]lowpass=f=220,acompressor=threshold=-16dB:ratio=3:attack=5:release=80[s1];\
-                  [high]highpass=f=220,acompressor=threshold=-16dB:ratio=3:attack=5:release=80[s2]";
-
-    let status = silent_command(ffmpeg_path())
-        .args(["-y", "-i", &audio.vocals, "-filter_complex", filter])
-        .args(["-map", "[s1]", "-c:a", "libmp3lame", "-q:a", "2"])
-        .arg(&singer_1)
-        .args(["-map", "[s2]", "-c:a", "libmp3lame", "-q:a", "2"])
-        .arg(&singer_2)
-        .args(["-v", "error"])
-        .status()?;
-
-    if !status.success() {
-        let _ = std::fs::remove_file(&singer_1);
-        let _ = std::fs::remove_file(&singer_2);
-        return Err(NightingaleError::Other(format!(
-            "ffmpeg multi-singer split failed with status {status}"
-        )));
-    }
-
-    Ok(())
-}
 
 fn is_mp4_compatible_source(path: &Path) -> bool {
     path.extension()

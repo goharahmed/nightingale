@@ -485,7 +485,6 @@ pub fn step_install_packages() -> Result<(), String> {
         "yt-dlp>=2024.0.0",
         "mutagen>=1.47.0",
         "unidecode>=1.3.0",
-        "pyannote.audio>=3.1.0",
     ];
 
     if gpu.legacy_torch {

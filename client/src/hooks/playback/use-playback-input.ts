@@ -29,6 +29,7 @@ export interface UsePlaybackInputParams {
   onCycleMic: () => void;
   onToggleMicMirror: () => void;
   onToggleScript?: () => void;
+  onToggleMultiSinger?: () => void;
 }
 
 export function usePlaybackInput({
@@ -52,6 +53,7 @@ export function usePlaybackInput({
   onCycleMic,
   onToggleMicMirror,
   onToggleScript,
+  onToggleMultiSinger,
 }: UsePlaybackInputParams) {
   const pausedRef = useRef(paused);
   pausedRef.current = paused;
@@ -173,6 +175,11 @@ export function usePlaybackInput({
         case "L":
           onToggleScript?.();
           break;
+
+        case "v":
+        case "V":
+          onToggleMultiSinger?.();
+          break;
       }
     };
 
@@ -192,5 +199,6 @@ export function usePlaybackInput({
     onCycleMic,
     onToggleMicMirror,
     onToggleScript,
+    onToggleMultiSinger,
   ]);
 }

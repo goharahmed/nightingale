@@ -53,9 +53,7 @@ export const useAnalysis = () => {
       deleteSongCache: wrap(deleteSongCache, invalidateSongs),
       reanalyzeTranscript: wrap(reanalyzeTranscript, invalidateSongs),
       reanalyzeFull: wrap(reanalyzeFull, invalidateSongs),
-      analyzeMultiSinger: async (fileHash: string) => {
-        await analyzeMultiSinger(fileHash);
-      },
+      analyzeMultiSinger: wrap((fileHash: string) => analyzeMultiSinger(fileHash), invalidateSongs),
       invalidateSongs,
       generateTransliteration: wrap(generateTransliteration, invalidateSongs),
     };

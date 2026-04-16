@@ -1,3 +1,4 @@
+import { AudioWaveform } from "@/components/ui/audio-waveform";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,9 +18,11 @@ import {
   getMultiSingerAudioPaths,
   loadMultiSingerMetadata,
   saveMultiSingerMetadata,
+  getMediaPort,
   type DiarizationSegment,
   type MultiSingerMetadata,
 } from "@/tauri-bridge/playback";
+import { joinMediaUrl } from "@/adapters/playback";
 import {
   onMultiSingerDone,
   onMultiSingerProgress,
@@ -125,18 +128,24 @@ export const MultiSingerDialog = () => {
   const [preview, setPreview] = useState<{ s1: string; s2: string } | null>(null);
   const busyHashRef = useRef<string | null>(null);
 
-  const reloadData = useCallback(
-    async (fileHash: string) => {
-      const [paths, existing] = await Promise.all([
-        getMultiSingerAudioPaths(fileHash),
-        loadMultiSingerMetadata(fileHash),
-      ]);
-      setHasStems(Boolean(paths));
-      setPreview(paths ? { s1: paths.singer_1, s2: paths.singer_2 } : null);
-      setMeta(existing ?? DEFAULT_META);
-    },
-    [],
-  );
+  const reloadData = useCallback(async (fileHash: string) => {
+    const [paths, existing, port] = await Promise.all([
+      getMultiSingerAudioPaths(fileHash),
+      loadMultiSingerMetadata(fileHash),
+      getMediaPort(),
+    ]);
+    setHasStems(Boolean(paths));
+    if (paths) {
+      const base = `http://127.0.0.1:${port}`;
+      setPreview({
+        s1: joinMediaUrl(base, paths.singer_1),
+        s2: joinMediaUrl(base, paths.singer_2),
+      });
+    } else {
+      setPreview(null);
+    }
+    setMeta(existing ?? DEFAULT_META);
+  }, []);
 
   useEffect(() => {
     if (!open || !song) return;
@@ -301,7 +310,9 @@ export const MultiSingerDialog = () => {
                   </div>
                   <Switch
                     checked={meta.swap_references}
-                    onCheckedChange={(v) => setMeta((prev) => ({ ...prev, swap_references: v }))}
+                    onCheckedChange={(v: boolean) =>
+                      setMeta((prev) => ({ ...prev, swap_references: v }))
+                    }
                   />
                 </div>
               </Field>
@@ -315,7 +326,7 @@ export const MultiSingerDialog = () => {
                   </div>
                   <Switch
                     checked={meta.default_multi_singer_mode}
-                    onCheckedChange={(v) =>
+                    onCheckedChange={(v: boolean) =>
                       setMeta((prev) => ({ ...prev, default_multi_singer_mode: v }))
                     }
                   />
@@ -324,22 +335,23 @@ export const MultiSingerDialog = () => {
               {preview && (
                 <Field>
                   <Label>Track preview</Label>
-                  <FieldDescription>Quickly audition detected singer stems.</FieldDescription>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-                        style={{ backgroundColor: SPEAKER_COLORS[0] }}
-                      />
-                      <audio controls className="w-full" src={preview.s1} />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-                        style={{ backgroundColor: SPEAKER_COLORS[1] }}
-                      />
-                      <audio controls className="w-full" src={preview.s2} />
-                    </div>
+                  <FieldDescription>
+                    Click the waveform to seek. Colored bars show where each singer has audio
+                    content.
+                  </FieldDescription>
+                  <div className="space-y-3">
+                    <AudioWaveform
+                      src={preview.s1}
+                      color={SPEAKER_COLORS[0]}
+                      label={meta.singer_1_label || "Singer 1"}
+                      height={48}
+                    />
+                    <AudioWaveform
+                      src={preview.s2}
+                      color={SPEAKER_COLORS[1]}
+                      label={meta.singer_2_label || "Singer 2"}
+                      height={48}
+                    />
                   </div>
                 </Field>
               )}

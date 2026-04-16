@@ -234,10 +234,13 @@ fn update_song_analyzed(
 
 fn set_multi_singer_stems(file_hash: &str, enabled: bool) {
     let Some(mut song) = library_db::load_song_by_hash(file_hash).ok().flatten() else {
+        warn!("[multi-singer] Could not load song {file_hash} to update multi-singer flag");
         return;
     };
     song.has_multi_singer_stems = enabled;
-    let _ = library_db::update_song_fields(file_hash, &song);
+    if let Err(e) = library_db::update_song_fields(file_hash, &song) {
+        warn!("[multi-singer] Failed to update multi-singer flag for {file_hash}: {e}");
+    }
 }
 
 fn ensure_worker_running(state: &mut AnalyzerState) {
@@ -407,7 +410,8 @@ fn reanalyze(file_hash: &str, full: bool) {
     enqueue_one(file_hash);
 }
 
-/// Run ML-based speaker diarization on the vocals stem via the Python server.
+/// Run ML-based singer separation on the vocals stem via the Python server.
+/// Uses the BS Roformer Male-Female model to spectrally separate singers.
 /// The server writes singer stem MP3s and metadata JSON to the cache directory.
 /// Returns progress messages through the provided callback if given.
 pub fn run_diarization(
@@ -423,22 +427,12 @@ pub fn run_diarization(
     }
 
     let cache = CacheDir::new();
-    let config = AppConfig::load();
-
-    let hf_token = config.hf_token().ok_or_else(|| {
-        NightingaleError::Other(
-            "HuggingFace token required for ML diarization. \
-             Set it in Settings → HuggingFace Token."
-                .into(),
-        )
-    })?;
 
     let cmd = serde_json::json!({
         "command": "diarize_vocals",
         "vocals_path": vocals_path.to_string_lossy(),
         "cache_path": cache.path.to_string_lossy(),
         "hash": file_hash,
-        "hf_token": hf_token,
     });
 
     let json_str = serde_json::to_string(&cmd)
@@ -497,11 +491,9 @@ pub fn run_diarization(
     }
 }
 
-/// Perform multi-singer vocal splitting.
+/// Perform multi-singer vocal splitting via BS Roformer spectral separation.
 ///
-/// Attempts ML-based pyannote diarization first (requires HF token).
-/// Falls back to the ffmpeg frequency-crossover heuristic when the
-/// token is not configured or the ML path fails.
+/// No HuggingFace token required — the model runs fully locally.
 pub fn analyze_multi_singer(
     file_hash: &str,
     progress_cb: Option<&dyn Fn(usize, &str)>,
@@ -511,36 +503,11 @@ pub fn analyze_multi_singer(
         return Ok(true);
     }
 
-    let config = AppConfig::load();
-    let used_ml = if config.hf_token().is_some() {
-        match run_diarization(file_hash, progress_cb) {
-            Ok(()) => {
-                info!("[multi-singer] ML diarization succeeded for {file_hash}");
-                true
-            }
-            Err(e) => {
-                warn!(
-                    "[multi-singer] ML diarization failed for {file_hash}, \
-                     falling back to ffmpeg: {e}"
-                );
-                if let Some(cb) = &progress_cb {
-                    cb(50, "ML diarization failed, using frequency split...");
-                }
-                crate::playback::generate_multi_singer_stems_ffmpeg(file_hash)?;
-                false
-            }
-        }
-    } else {
-        info!("[multi-singer] No HF token, using ffmpeg split for {file_hash}");
-        if let Some(cb) = &progress_cb {
-            cb(10, "No HuggingFace token — using frequency split...");
-        }
-        crate::playback::generate_multi_singer_stems_ffmpeg(file_hash)?;
-        false
-    };
+    run_diarization(file_hash, progress_cb)?;
+    info!("[multi-singer] ML diarization succeeded for {file_hash}");
 
     set_multi_singer_stems(file_hash, true);
-    Ok(used_ml)
+    Ok(true)
 }
 
 // ─── Worker ──────────────────────────────────────────────────────────

@@ -24,7 +24,7 @@ pub use cache::{
 };
 pub use playback::{
     AudioPaths, DiarizationSegment, ShiftResult, download_pixabay_videos, ensure_mp3_stems,
-    ensure_playable_source_video, generate_multi_singer_stems_ffmpeg, generate_transliteration,
+    ensure_playable_source_video, generate_transliteration,
     get_audio_paths, get_multi_singer_audio_paths,
     get_cached_pixabay_videos, get_transcript_variants, load_multi_singer_metadata, load_transcript,
     load_transcript_variant, multi_singer_stem_paths, multi_singer_stems_fresh,

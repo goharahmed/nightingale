@@ -19,9 +19,17 @@ const TOTAL_ENTRIES = PITCH_BUFFER_SIZE + REF_LOOKAHEAD_ENTRIES;
 interface PitchGraphProps {
   series: PitchSeriesWithLookahead;
   visible: boolean;
+  /** RGB tuple for the reference pitch line. Defaults to green (51, 217, 89). */
+  refColor?: { r: number; g: number; b: number };
+  /** Optional label shown in the top-left corner of the graph. */
+  label?: string;
+  /** Additional CSS class for positioning. */
+  className?: string;
 }
 
-export function PitchGraph({ series, visible }: PitchGraphProps) {
+const DEFAULT_REF_COLOR = { r: 51, g: 217, b: 89 };
+
+export function PitchGraph({ series, visible, refColor, label, className }: PitchGraphProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [innerHeight, setInnerHeight] = useState(() => window.innerHeight);
 
@@ -90,8 +98,8 @@ export function PitchGraph({ series, visible }: PitchGraphProps) {
     // Lookahead entries start at position PITCH_BUFFER_SIZE
     const lookaheadXFor = (j: number) => xStart + (PITCH_BUFFER_SIZE + j) * xStep;
 
-    // --- Reference pitch line (green, extends into lookahead) ---
-    const refColor = { r: 51, g: 217, b: 89 };
+    // --- Reference pitch line (uses configurable color, extends into lookahead) ---
+    const rc = refColor ?? DEFAULT_REF_COLOR;
     const refAgeAlpha = (k: number) => 0.25 + 0.75 * (k / Math.max(1, totalRefLen - 1));
 
     const refRun: { x: number; y: number; a: number }[] = [];
@@ -110,7 +118,7 @@ export function PitchGraph({ series, visible }: PitchGraphProps) {
       for (let k = 0; k < refRun.length; k++) {
         grad.addColorStop(
           k / (refRun.length - 1),
-          `rgba(${refColor.r},${refColor.g},${refColor.b},${0.75 * refRun[k].a})`,
+          `rgba(${rc.r},${rc.g},${rc.b},${0.75 * refRun[k].a})`,
         );
       }
       ctx.strokeStyle = grad;
@@ -188,14 +196,24 @@ export function PitchGraph({ series, visible }: PitchGraphProps) {
       }
     }
     flushUser();
-  }, [series, visible, innerHeight]);
+  }, [series, visible, innerHeight, refColor]);
 
   if (!visible) {
     return null;
   }
 
   return (
-    <div className="pointer-events-none top-3 absolute left-1/2 z-20 -translate-x-1/2 rounded-sm border-white/15 bg-black/40 p-1">
+    <div
+      className={
+        className ??
+        "pointer-events-none top-3 absolute left-1/2 z-20 -translate-x-1/2 rounded-sm border-white/15 bg-black/40 p-1"
+      }
+    >
+      {label && (
+        <span className="absolute left-2 top-0.5 text-[0.55rem] font-medium text-white/50">
+          {label}
+        </span>
+      )}
       <canvas ref={canvasRef} className="block" />
     </div>
   );

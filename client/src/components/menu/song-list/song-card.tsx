@@ -140,8 +140,7 @@ export const SongCard = memo(
     const navigate = useNavigate();
     const { setMode } = useDialog();
     const queryClient = useQueryClient();
-    const { enqueueOne, deleteSongCache, reanalyzeFull, generateTransliteration } =
-      useAnalysis();
+    const { enqueueOne, deleteSongCache, reanalyzeFull, generateTransliteration } = useAnalysis();
     const { playlist_id } = useLibraryFilter();
     const {
       currentHash,
@@ -351,14 +350,16 @@ export const SongCard = memo(
                       <AudioLinesIcon />
                       Reanalyze full (with stems)
                     </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={withMenuAction(async () => {
-                        setMode({ mode: "multi-singer", song });
-                      })}
-                    >
-                      <UsersIcon />
-                      Multi-singer analysis
-                    </DropdownMenuItem>
+                    {song.is_analyzed && (
+                      <DropdownMenuItem
+                        onClick={withMenuAction(async () => {
+                          setMode({ mode: "multi-singer", song });
+                        })}
+                      >
+                        <UsersIcon />
+                        Multi-singer analysis
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem
                       onClick={withMenuAction(async () => {
                         setMode({ mode: "language", song });
