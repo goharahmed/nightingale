@@ -63,8 +63,6 @@ pub struct AppConfig {
     pub singer_2_mic_slot: Option<usize>,
     /// OpenAI API key for LLM-powered transliteration (optional).
     pub openai_api_key: Option<String>,
-    /// HuggingFace token for pyannote speaker diarization (multi-singer).
-    pub hf_token: Option<String>,
 }
 
 fn default_data_path_option() -> Option<PathBuf> {
@@ -102,7 +100,6 @@ impl Default for AppConfig {
             singer_1_mic_slot: None,
             singer_2_mic_slot: None,
             openai_api_key: None,
-            hf_token: None,
         }
     }
 }
@@ -173,16 +170,14 @@ impl AppConfig {
     /// The raw key never leaves the Rust process.
     pub fn redacted(&self) -> Self {
         let mut copy = self.clone();
-        let mask = |k: &String| -> String {
+        copy.openai_api_key = self.openai_api_key.as_ref().map(|k| {
             if k.len() > 7 {
                 let suffix = &k[k.len().saturating_sub(4)..];
-                format!("•••{suffix}")
+                format!("sk-•••{suffix}")
             } else {
                 "••••••".to_string()
             }
-        };
-        copy.openai_api_key = self.openai_api_key.as_ref().map(|k| format!("sk-{}", mask(k)));
-        copy.hf_token = self.hf_token.as_ref().map(|k| format!("hf_{}", mask(k)));
+        });
         copy
     }
 
@@ -191,17 +186,6 @@ impl AppConfig {
         let mut config = Self::load();
         config.openai_api_key = key;
         config.save();
-    }
-
-    /// Atomically set (or clear) the HuggingFace token on disk.
-    pub fn set_hf_token(key: Option<String>) {
-        let mut config = Self::load();
-        config.hf_token = key;
-        config.save();
-    }
-
-    pub fn hf_token(&self) -> Option<&str> {
-        self.hf_token.as_deref()
     }
 
     pub fn whisper_model(&self) -> &str {

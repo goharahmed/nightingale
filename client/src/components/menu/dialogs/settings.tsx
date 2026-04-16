@@ -23,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { useEffect, useRef, useState } from "react";
 import { useDialogNav } from "@/hooks/navigation/use-dialog-nav";
 import { setFullScreen, isFullScreen as tauriIsFullScreen } from "@/tauri-bridge/fullScreen";
-import { setOpenaiApiKey, setHfToken } from "@/tauri-bridge/config";
+import { setOpenaiApiKey } from "@/tauri-bridge/config";
 import { useDialog } from "@/hooks/use-dialog";
 import { useConfig } from "@/queries/use-config";
 import { CONFIG } from "@/queries/keys";
@@ -75,7 +75,6 @@ export const SettingsDialog = () => {
   const [isFullScreen, setIsFullScreen] = useState<boolean | null | undefined>(config?.fullscreen);
   const [multiChannelDevices, setMultiChannelDevices] = useState<AudioOutputDevice[]>([]);
   const [apiKeyDraft, setApiKeyDraft] = useState("");
-  const [hfTokenDraft, setHfTokenDraft] = useState("");
   const [metadataFixOpen, setMetadataFixOpen] = useState(false);
 
   const open = mode === "settings";
@@ -688,53 +687,6 @@ export const SettingsDialog = () => {
                       setApiKeyDraft("");
                       queryClient.invalidateQueries({ queryKey: CONFIG });
                       toast.success("API key removed");
-                    }}
-                  >
-                    Clear
-                  </Button>
-                )}
-              </div>
-            </Field>
-            <Field>
-              <Label htmlFor="hf-token">HuggingFace Token</Label>
-              <FieldDescription>
-                Required for ML-based multi-singer vocal diarization (pyannote). Without a token,
-                multi-singer analysis falls back to a basic frequency split.
-                {config?.hf_token && (
-                  <span className="ml-1 text-green-500">✓ Token saved ({config.hf_token})</span>
-                )}
-              </FieldDescription>
-              <div className="flex gap-2">
-                <Input
-                  id="hf-token"
-                  type="password"
-                  placeholder={config?.hf_token ? "Enter new token to replace" : "hf_..."}
-                  value={hfTokenDraft}
-                  onChange={(e) => setHfTokenDraft(e.target.value)}
-                  className={cn("font-mono flex-1", generateRingClassName(7))}
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!hfTokenDraft.trim()}
-                  onClick={async () => {
-                    await setHfToken(hfTokenDraft.trim());
-                    setHfTokenDraft("");
-                    queryClient.invalidateQueries({ queryKey: CONFIG });
-                    toast.success("HuggingFace token saved");
-                  }}
-                >
-                  Save
-                </Button>
-                {config?.hf_token && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={async () => {
-                      await setHfToken(null);
-                      setHfTokenDraft("");
-                      queryClient.invalidateQueries({ queryKey: CONFIG });
-                      toast.success("HuggingFace token removed");
                     }}
                   >
                     Clear
