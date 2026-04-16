@@ -423,14 +423,7 @@ pub fn update_library_meta(folder: &str, scan_count: usize) -> rusqlite::Result<
     })
 }
 
-pub fn load_song_path_strings() -> rusqlite::Result<std::collections::HashSet<String>> {
-    with_conn(|c| {
-        let mut stmt = c.prepare("SELECT path FROM songs")?;
-        let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
-        let v: Vec<String> = rows.collect::<Result<Vec<_>, _>>()?;
-        Ok(v.into_iter().collect())
-    })
-}
+// Removed unused function load_song_path_strings
 
 pub fn load_song_path_hashes() -> rusqlite::Result<std::collections::HashMap<String, String>> {
     with_conn(|c| {
