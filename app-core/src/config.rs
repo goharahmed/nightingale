@@ -59,6 +59,8 @@ pub struct AppConfig {
     pub mic_slots: Option<Vec<MicSlotSetting>>,
     /// OpenAI API key for LLM-powered transliteration (optional).
     pub openai_api_key: Option<String>,
+    /// Enable the WiFi IEM server. Default: false (off).
+    pub iem_enabled: Option<bool>,
 }
 
 fn default_data_path_option() -> Option<PathBuf> {
@@ -94,6 +96,7 @@ impl Default for AppConfig {
             mic_slot_count: None,
             mic_slots: None,
             openai_api_key: None,
+            iem_enabled: None,
         }
     }
 }

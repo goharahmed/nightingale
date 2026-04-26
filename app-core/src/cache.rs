@@ -85,6 +85,18 @@ impl CacheDir {
         inst_suffixes.iter().any(|s| voc_suffixes.contains(s))
     }
 
+    pub fn iem_stem_path(&self, hash: &str, stem_id: &str) -> PathBuf {
+        self.path.join(format!("{hash}_{stem_id}.opus"))
+    }
+
+    pub fn iem_variant_stem_path(&self, hash: &str, stem_id: &str, key: &str, tempo: f64) -> PathBuf {
+        self.path.join(format!(
+            "{hash}_{stem_id}_{}_{}.opus",
+            sanitize_key(key),
+            format_tempo(tempo)
+        ))
+    }
+
     pub fn lyrics_path(&self, hash: &str) -> PathBuf {
         self.path.join(format!("{hash}_lyrics.json"))
     }
@@ -161,6 +173,7 @@ impl CacheDir {
                     || name.starts_with(&format!("{hash}_vocals_"))
                     || is_variant_transcript_file(name, hash)
                     || is_script_variant_transcript_file(name, hash)
+                    || is_iem_cache_file(name, hash)
                 {
                     let _ = std::fs::remove_file(&path);
                 }
@@ -203,6 +216,10 @@ fn is_variant_transcript_file(name: &str, hash: &str) -> bool {
 
 fn is_script_variant_transcript_file(name: &str, hash: &str) -> bool {
     name.starts_with(&format!("{hash}_transcript_script_")) && name.ends_with(".json")
+}
+
+fn is_iem_cache_file(name: &str, hash: &str) -> bool {
+    name.starts_with(&format!("{hash}_")) && name.ends_with(".opus")
 }
 
 pub fn sanitize_key(key: &str) -> String {

@@ -1,6 +1,7 @@
 mod analyzer;
 mod cache;
 mod config;
+mod iem;
 mod logging;
 mod metadata_fix;
 mod microphones;
@@ -44,6 +45,7 @@ use scanner::{
     reorder_playlist_songs, set_playlist_play_mode, trigger_scan, update_song_metadata,
 };
 use tauri::{Manager, RunEvent, WebviewWindowBuilder};
+use iem::{iem_start, iem_stop, iem_status, iem_play, iem_pause, iem_stop_playback};
 use vendor::{is_ready, trigger_setup};
 use youtube::{download_youtube_video, get_youtube_video_info, search_youtube, set_song_thumbnail};
 
@@ -178,6 +180,13 @@ pub fn run() {
             download_youtube_video,
             get_youtube_video_info,
             set_song_thumbnail,
+            // WiFi IEM
+            iem_start,
+            iem_stop,
+            iem_status,
+            iem_play,
+            iem_pause,
+            iem_stop_playback,
             // Metadata Fix
             start_metadata_fix,
             cancel_metadata_fix,
@@ -234,12 +243,19 @@ pub fn run() {
                 let _ = window.set_simple_fullscreen(true);
             }
 
+            if config.iem_enabled == Some(true) {
+                if let Err(e) = app_core::iem_server::start() {
+                    tracing::warn!("IEM auto-start failed: {e}");
+                }
+            }
+
             Ok(())
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|_app, event| {
             if let RunEvent::Exit = event {
+                let _ = app_core::iem_server::stop();
                 app_core::shutdown_server();
             }
         });

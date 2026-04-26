@@ -17,3 +17,13 @@ rand = "0.9"
 tiny_http = "0.12.0"
 tracing = "0.1"
 rusqlite = { version = "0.39.0", features = ["bundled"] }
+
+# WiFi IEM server
+tokio = { version = "1", features = ["rt-multi-thread", "net", "sync", "time", "macros"] }
+tokio-tungstenite = "0.26"
+futures-util = "0.3"
+mdns-sd = "0.12"
+opus = "0.3"
+ogg = "0.9"
+symphonia = { version = "0.5", features = ["mp3"] }
+rubato = "0.15"

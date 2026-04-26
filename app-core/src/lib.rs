@@ -2,6 +2,8 @@ mod analyzer;
 mod cache;
 mod config;
 mod error;
+pub mod iem;
+pub mod iem_server;
 mod library_model;
 mod library_menu;
 pub mod media_server;
